@@ -49,6 +49,12 @@ Current message XP rule:
 - ignore bot messages
 - do not award passive VC XP in the MVP
 
+Current leaderboard rule:
+
+- `/leaderboard` shows the top 10 profiles in the current guild
+- rankings sort by total XP descending
+- ties break by earlier updates, then earlier profile creation, for stable output
+
 ## Roadmap
 
 1. Phase 0: repo foundation, toolchain, CI, `/ping`

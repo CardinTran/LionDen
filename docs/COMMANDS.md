@@ -20,9 +20,12 @@ Current progression note:
 
 - eligible guild text messages award 5 XP at most once every 10 minutes
 
+### `/leaderboard`
+
+Shows the top 10 server members ranked by total XP, with each member's current level beside their XP total.
+
 ## Planned MVP Commands
 
-- `/leaderboard`
 - `/daily`
 - `/practice start`
 - `/checkin`
