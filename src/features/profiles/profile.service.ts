@@ -21,6 +21,20 @@ interface UserProfileFindDelegate {
   }): Promise<UserProfileRecord | null>;
 }
 
+interface UserProfileFindManyDelegate {
+  findMany(args: {
+    where: {
+      guildId: string;
+    };
+    orderBy: Array<{
+      xp?: "asc" | "desc";
+      createdAt?: "asc" | "desc";
+      updatedAt?: "asc" | "desc";
+    }>;
+    take: number;
+  }): Promise<UserProfileRecord[]>;
+}
+
 interface UserProfileUpsertDelegate {
   upsert(args: {
     where: {
@@ -123,5 +137,21 @@ export const updateProfile = async (
       level: input.level,
       lastMessageXpAt: input.lastMessageXpAt
     }
+  });
+};
+
+export const listTopProfiles = async (
+  store: { userProfile: UserProfileFindManyDelegate },
+  input: {
+    guildId: string;
+    limit: number;
+  }
+): Promise<UserProfileRecord[]> => {
+  return store.userProfile.findMany({
+    where: {
+      guildId: input.guildId
+    },
+    orderBy: [{ xp: "desc" }, { updatedAt: "asc" }, { createdAt: "asc" }],
+    take: input.limit
   });
 };
