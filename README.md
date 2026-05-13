@@ -21,6 +21,7 @@ Phase 0 foundation is in progress. This repo currently includes:
 - a minimal Discord client bootstrap
 - slash command registration script
 - `/ping` command
+- persisted user profiles with `/profile`
 - starter docs and CI
 
 ## Quick Start
@@ -29,8 +30,9 @@ Phase 0 foundation is in progress. This repo currently includes:
 2. Fill in your Discord application values.
 3. Install dependencies with `npm install`.
 4. Generate Prisma client with `npm run prisma:generate`.
-5. Register commands in your test server with `npm run discord:register`.
-6. Start the bot with `npm run dev`.
+5. Create the SQLite database schema with `npm run prisma:migrate:dev -- --name init`.
+6. Register commands in your test server with `npm run discord:register`.
+7. Start the bot with `npm run dev`.
 
 ## Scripts
 
@@ -40,5 +42,6 @@ Phase 0 foundation is in progress. This repo currently includes:
 - `npm run typecheck`: run the TypeScript checker
 - `npm run test`: run unit tests
 - `npm run discord:register`: register slash commands to the test guild
+- `npm run prisma:studio`: open the local Prisma database viewer
 
 See [docs/PRODUCT_SPEC.md](/Users/cardintran/Documents/GitHub/LionDen/docs/PRODUCT_SPEC.md), [docs/COMMANDS.md](/Users/cardintran/Documents/GitHub/LionDen/docs/COMMANDS.md), and [docs/DEPLOYMENT.md](/Users/cardintran/Documents/GitHub/LionDen/docs/DEPLOYMENT.md) for the evolving product and operating notes.
