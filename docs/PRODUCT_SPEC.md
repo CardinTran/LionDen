@@ -23,6 +23,25 @@ LionDen should increase meaningful team activity without encouraging spam. The b
 - Give officers simple correction tools.
 - Keep the MVP narrow and validate interest before expanding.
 
+## Current Progression Rules
+
+The MVP progression display uses total XP thresholds that make early levels visible without letting one activity jump multiple levels.
+
+Current thresholds:
+
+- Level 1: 0 XP
+- Level 2: 100 XP
+- Level 3: 225 XP
+- Level 4: 375 XP
+- Level 5: 550 XP
+- Level 6: 750 XP
+- Level 7: 975 XP
+- Level 8: 1225 XP
+- Level 9: 1500 XP
+- Level 10: 1800 XP
+
+XP earning sources are intentionally still narrow. The bot can now display progression, but automatic XP awards should continue to prioritize real lion dance participation over passive or spam-friendly behavior.
+
 ## Roadmap
 
 1. Phase 0: repo foundation, toolchain, CI, `/ping`
