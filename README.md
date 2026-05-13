@@ -25,6 +25,7 @@ Phase 0 foundation is in progress. This repo currently includes:
 - profile level-progress display using total XP thresholds
 - message XP foundation with a persisted cooldown
 - `/leaderboard` rankings by total XP
+- admin XP adjustment commands
 - starter docs and CI
 
 ## Quick Start
