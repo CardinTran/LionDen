@@ -55,6 +55,12 @@ Current leaderboard rule:
 - rankings sort by total XP descending
 - ties break by earlier updates, then earlier profile creation, for stable output
 
+Current admin XP control rule:
+
+- `/xp add` and `/xp remove` are restricted to members with Manage Server permissions
+- XP removals clamp at 0 rather than going negative
+- admin adjustments immediately recalculate the member's derived level
+
 ## Roadmap
 
 1. Phase 0: repo foundation, toolchain, CI, `/ping`
