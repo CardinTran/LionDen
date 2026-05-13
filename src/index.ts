@@ -1,8 +1,10 @@
 import { createDiscordClient } from "./bot/discordClient.js";
 import { env } from "./config/env.js";
 import { logger } from "./lib/logger.js";
+import { prisma } from "./lib/prisma.js";
 
 const start = async (): Promise<void> => {
+  await prisma.$connect();
   const client = createDiscordClient();
 
   await client.login(env.DISCORD_TOKEN);

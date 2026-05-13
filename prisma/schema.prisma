@@ -6,3 +6,16 @@ datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")
 }
+
+model UserProfile {
+  id          String   @id @default(cuid())
+  guildId     String
+  userId      String
+  displayName String
+  xp          Int      @default(0)
+  level       Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([guildId, userId])
+}
