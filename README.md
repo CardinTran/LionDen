@@ -22,6 +22,7 @@ Phase 0 foundation is in progress. This repo currently includes:
 - slash command registration script
 - `/ping` command
 - persisted user profiles with `/profile`
+- profile level-progress display using total XP thresholds
 - starter docs and CI
 
 ## Quick Start

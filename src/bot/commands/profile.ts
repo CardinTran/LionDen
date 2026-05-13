@@ -4,19 +4,23 @@ import {
   type RESTPostAPIChatInputApplicationCommandsJSONBody
 } from "discord.js";
 
+import { getLevelProgressFromXp } from "../../features/progression/leveling.js";
 import { getOrCreateProfile } from "../../features/profiles/profile.service.js";
 import { prisma } from "../../lib/prisma.js";
 import type { SlashCommand } from "./ping.js";
 
 const formatProfileMessage = (profile: {
   displayName: string;
-  level: number;
   xp: number;
 }): string => {
+  const progress = getLevelProgressFromXp(profile.xp);
+
   return [
     `Profile for ${profile.displayName}`,
-    `Level: ${profile.level}`,
-    `XP: ${profile.xp}`
+    `Level: ${progress.currentLevel}`,
+    `Total XP: ${profile.xp}`,
+    `Progress to Level ${progress.nextLevel}: ${progress.xpIntoLevel}/${progress.xpSpanThisLevel} XP`,
+    `XP Needed: ${progress.xpNeededForNextLevel}`
   ].join("\n");
 };
 
