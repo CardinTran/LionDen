@@ -3,17 +3,20 @@ import {
   Events,
   GatewayIntentBits,
   Interaction,
+  Message,
   REST,
   Routes
 } from "discord.js";
 
+import { awardMessageXp } from "../features/progression/message-xp.service.js";
 import { env } from "../config/env.js";
 import { logger } from "../lib/logger.js";
+import { prisma } from "../lib/prisma.js";
 import { commandRegistry, commands } from "./commands/index.js";
 
 export const createDiscordClient = (): Client => {
   const client = new Client({
-    intents: [GatewayIntentBits.Guilds]
+    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages]
   });
 
   client.once(Events.ClientReady, (readyClient) => {
@@ -55,6 +58,27 @@ export const createDiscordClient = (): Client => {
       await interaction.reply({
         content: "Something went wrong while running that command.",
         ephemeral: true
+      });
+    }
+  });
+
+  client.on(Events.MessageCreate, async (message: Message) => {
+    if (message.author.bot || !message.guildId) {
+      return;
+    }
+
+    try {
+      await awardMessageXp(prisma, {
+        guildId: message.guildId,
+        userId: message.author.id,
+        displayName: message.member?.user.username ?? message.author.username,
+        awardedAt: message.createdAt
+      });
+    } catch (error) {
+      logger.error("Message XP award failed", {
+        guildId: message.guildId,
+        userId: message.author.id,
+        error
       });
     }
   });

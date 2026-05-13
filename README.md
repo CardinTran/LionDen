@@ -23,6 +23,7 @@ Phase 0 foundation is in progress. This repo currently includes:
 - `/ping` command
 - persisted user profiles with `/profile`
 - profile level-progress display using total XP thresholds
+- message XP foundation with a persisted cooldown
 - starter docs and CI
 
 ## Quick Start

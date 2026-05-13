@@ -5,11 +5,23 @@ export interface UserProfileRecord {
   displayName: string;
   xp: number;
   level: number;
+  lastMessageXpAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
 
-interface UserProfileDelegate {
+interface UserProfileFindDelegate {
+  findUnique(args: {
+    where: {
+      guildId_userId: {
+        guildId: string;
+        userId: string;
+      };
+    };
+  }): Promise<UserProfileRecord | null>;
+}
+
+interface UserProfileUpsertDelegate {
   upsert(args: {
     where: {
       guildId_userId: {
@@ -28,8 +40,21 @@ interface UserProfileDelegate {
   }): Promise<UserProfileRecord>;
 }
 
-interface ProfileStore {
-  userProfile: UserProfileDelegate;
+interface UserProfileUpdateDelegate {
+  update(args: {
+    where: {
+      guildId_userId: {
+        guildId: string;
+        userId: string;
+      };
+    };
+    data: {
+      displayName: string;
+      xp?: number;
+      level?: number;
+      lastMessageXpAt?: Date | null;
+    };
+  }): Promise<UserProfileRecord>;
 }
 
 export interface GetOrCreateProfileInput {
@@ -39,7 +64,7 @@ export interface GetOrCreateProfileInput {
 }
 
 export const getOrCreateProfile = async (
-  store: ProfileStore,
+  store: { userProfile: UserProfileUpsertDelegate },
   input: GetOrCreateProfileInput
 ): Promise<UserProfileRecord> => {
   return store.userProfile.upsert({
@@ -56,6 +81,47 @@ export const getOrCreateProfile = async (
     },
     update: {
       displayName: input.displayName
+    }
+  });
+};
+
+export const findProfile = async (
+  store: { userProfile: UserProfileFindDelegate },
+  input: Pick<GetOrCreateProfileInput, "guildId" | "userId">
+): Promise<UserProfileRecord | null> => {
+  return store.userProfile.findUnique({
+    where: {
+      guildId_userId: {
+        guildId: input.guildId,
+        userId: input.userId
+      }
+    }
+  });
+};
+
+export const updateProfile = async (
+  store: { userProfile: UserProfileUpdateDelegate },
+  input: {
+    guildId: string;
+    userId: string;
+    displayName: string;
+    xp?: number;
+    level?: number;
+    lastMessageXpAt?: Date | null;
+  }
+): Promise<UserProfileRecord> => {
+  return store.userProfile.update({
+    where: {
+      guildId_userId: {
+        guildId: input.guildId,
+        userId: input.userId
+      }
+    },
+    data: {
+      displayName: input.displayName,
+      xp: input.xp,
+      level: input.level,
+      lastMessageXpAt: input.lastMessageXpAt
     }
   });
 };

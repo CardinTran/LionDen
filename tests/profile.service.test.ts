@@ -14,6 +14,7 @@ const buildProfile = (
   displayName: "Cardin",
   xp: 0,
   level: 1,
+  lastMessageXpAt: null,
   createdAt: new Date("2026-05-13T00:00:00.000Z"),
   updatedAt: new Date("2026-05-13T00:00:00.000Z"),
   ...overrides

@@ -8,14 +8,15 @@ datasource db {
 }
 
 model UserProfile {
-  id          String   @id @default(cuid())
-  guildId     String
-  userId      String
-  displayName String
-  xp          Int      @default(0)
-  level       Int      @default(1)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String    @id @default(cuid())
+  guildId         String
+  userId          String
+  displayName     String
+  xp              Int       @default(0)
+  level           Int       @default(1)
+  lastMessageXpAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   @@unique([guildId, userId])
 }

@@ -42,6 +42,13 @@ Current thresholds:
 
 XP earning sources are intentionally still narrow. The bot can now display progression, but automatic XP awards should continue to prioritize real lion dance participation over passive or spam-friendly behavior.
 
+Current message XP rule:
+
+- award 5 XP for an eligible guild text message
+- enforce one award per user per guild every 10 minutes
+- ignore bot messages
+- do not award passive VC XP in the MVP
+
 ## Roadmap
 
 1. Phase 0: repo foundation, toolchain, CI, `/ping`
