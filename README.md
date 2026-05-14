@@ -26,7 +26,7 @@ Phase 0 foundation is in progress. This repo currently includes:
 - message XP foundation with a persisted cooldown
 - `/leaderboard` rankings by total XP
 - admin XP adjustment commands
-- practice sessions with bot-managed RSVP and attendance posts
+- practice sessions with separate RSVP and attendance posts plus weekly scheduling
 - starter docs and CI
 
 ## Quick Start

@@ -64,10 +64,14 @@ Current admin XP control rule:
 Current practice attendance rule:
 
 - only one active practice session may exist per guild
-- `/practice start` posts the official attendance message
-- members can record RSVP separately from attendance
+- manual practice can still be started with `/practice start`
+- scheduled practice posts use one RSVP post earlier in the day and one attendance post at practice time
+- RSVP is informational only
 - `I'm Here` and `Not Here` are the authoritative attendance states
-- `/practice end` closes the session and stops further check-ins
+- current fixed weekly schedule is:
+  - RSVP on Sunday, Tuesday, and Thursday at 5:00 PM Central Time
+  - Attendance on Monday, Wednesday, and Friday at 5:00 PM Central Time
+- `/practice end` closes the active session and stops further check-ins
 
 ## Roadmap
 

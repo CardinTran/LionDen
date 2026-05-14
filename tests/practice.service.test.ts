@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  attachPracticeAnnouncementMessage,
+  attachPracticeAttendanceMessage,
+  attachPracticeRsvpMessage,
   endPracticeSession,
+  getOrCreateScheduledPracticeSession,
   recordPracticeAttendance,
   recordPracticeRsvp,
   startPracticeSession,
@@ -18,7 +20,14 @@ const buildSession = (
   startedByUserId: "user_123",
   startedByDisplayName: "CoachA",
   announcementChannelId: "channel_123",
-  announcementMessageId: null,
+  source: "MANUAL",
+  scheduledDateKey: null,
+  scheduledStartAt: null,
+  scheduledEndAt: null,
+  rsvpMessageId: null,
+  rsvpPostedAt: null,
+  attendanceMessageId: null,
+  attendancePostedAt: null,
   status: "ACTIVE",
   startedAt: new Date("2026-05-13T00:00:00.000Z"),
   endedAt: null,
@@ -55,6 +64,10 @@ describe("practice service", () => {
         findUnique: vi.fn(),
         upsert: vi.fn(),
         count: vi.fn()
+      },
+      practiceSchedule: {
+        findMany: vi.fn(),
+        upsert: vi.fn()
       }
     };
 
@@ -62,7 +75,7 @@ describe("practice service", () => {
       guildId: "guild_123",
       startedByUserId: "user_123",
       startedByDisplayName: "CoachA",
-      announcementChannelId: "channel_123"
+      channelId: "channel_123"
     });
 
     expect(result).toEqual({
@@ -71,29 +84,50 @@ describe("practice service", () => {
     });
   });
 
-  it("attaches the announcement message id after posting", async () => {
-    const updatedSession = buildSession({
-      announcementMessageId: "message_123"
+  it("attaches RSVP and attendance message ids after posting", async () => {
+    const rsvpSession = buildSession({
+      rsvpMessageId: "message_rsvp_123"
     });
-    const update = vi.fn().mockResolvedValue(updatedSession);
+    const updatedSession = buildSession({
+      attendanceMessageId: "message_attendance_123"
+    });
+    const update = vi
+      .fn()
+      .mockResolvedValueOnce(rsvpSession)
+      .mockResolvedValueOnce(updatedSession);
 
-    const result = await attachPracticeAnnouncementMessage(
-      {
-        practiceSession: {
-          findFirst: vi.fn(),
-          findUnique: vi.fn(),
-          create: vi.fn(),
-          update
-        },
-        practiceCheckIn: {
-          findUnique: vi.fn(),
-          upsert: vi.fn(),
-          count: vi.fn()
-        }
-      },
+    const rsvpStore: Parameters<typeof attachPracticeRsvpMessage>[0] = {
+      practiceSession: {
+        findFirst: vi.fn(),
+        findUnique: vi.fn(),
+        create: vi.fn(),
+        update
+      }
+    };
+
+    const rsvpResult = await attachPracticeRsvpMessage(
+      rsvpStore,
       {
         sessionId: "session_123",
-        announcementMessageId: "message_123"
+        rsvpMessageId: "message_rsvp_123"
+      }
+    );
+
+    const attendanceStore: Parameters<typeof attachPracticeAttendanceMessage>[0] = {
+      practiceSession: {
+        findFirst: vi.fn(),
+        findUnique: vi.fn(),
+        create: vi.fn(),
+        update
+      }
+    };
+
+    const attendanceResult = await attachPracticeAttendanceMessage(
+      attendanceStore,
+      {
+        sessionId: "session_123",
+        attendanceMessageId: "message_attendance_123",
+        activate: false
       }
     );
 
@@ -102,10 +136,22 @@ describe("practice service", () => {
         id: "session_123"
       },
       data: {
-        announcementMessageId: "message_123"
+        rsvpMessageId: "message_rsvp_123",
+        rsvpPostedAt: expect.any(Date)
       }
     });
-    expect(result.announcementMessageId).toBe("message_123");
+    expect(update).toHaveBeenCalledWith({
+      where: {
+        id: "session_123"
+      },
+      data: {
+        attendanceMessageId: "message_attendance_123",
+        attendancePostedAt: expect.any(Date),
+        status: undefined
+      }
+    });
+    expect(rsvpResult.rsvpMessageId).toBe("message_rsvp_123");
+    expect(attendanceResult.attendanceMessageId).toBe("message_attendance_123");
   });
 
   it("stores RSVP separately from actual attendance", async () => {
@@ -141,6 +187,10 @@ describe("practice service", () => {
         count: vi.fn(async ({ where }) =>
           currentCheckIn?.attendanceStatus === where.attendanceStatus ? 1 : 0
         )
+      },
+      practiceSchedule: {
+        findMany: vi.fn(),
+        upsert: vi.fn()
       }
     };
 
@@ -195,6 +245,10 @@ describe("practice service", () => {
         count: vi.fn(async ({ where }) =>
           currentCheckIn?.attendanceStatus === where.attendanceStatus ? 1 : 0
         )
+      },
+      practiceSchedule: {
+        findMany: vi.fn(),
+        upsert: vi.fn()
       }
     };
 
@@ -211,6 +265,34 @@ describe("practice service", () => {
     expect(result.participant?.attendanceStatus).toBe("NOT_HERE");
   });
 
+  it("reuses a scheduled practice session for the same practice date", async () => {
+    const existingScheduledSession = buildSession({
+      source: "SCHEDULED",
+      status: "SCHEDULED",
+      scheduledDateKey: "2026-05-18"
+    });
+
+    const result = await getOrCreateScheduledPracticeSession(
+      {
+        practiceSession: {
+          findFirst: vi.fn(),
+          findUnique: vi.fn().mockResolvedValue(existingScheduledSession),
+          create: vi.fn(),
+          update: vi.fn()
+        }
+      },
+      {
+        guildId: "guild_123",
+        channelId: "channel_123",
+        startedByUserId: "scheduler",
+        startedByDisplayName: "LionDen Scheduler",
+        scheduledDateKey: "2026-05-18"
+      }
+    );
+
+    expect(result).toBe(existingScheduledSession);
+  });
+
   it("ends the active session and returns the attendance count", async () => {
     const activeSession = buildSession();
     const endedSession = buildSession({
@@ -219,20 +301,22 @@ describe("practice service", () => {
       endedByUserId: "coach_123"
     });
 
-    const result = await endPracticeSession(
-      {
-        practiceSession: {
-          findFirst: vi.fn().mockResolvedValue(activeSession),
-          findUnique: vi.fn(),
-          create: vi.fn(),
-          update: vi.fn().mockResolvedValue(endedSession)
-        },
-        practiceCheckIn: {
-          findUnique: vi.fn(),
-          upsert: vi.fn(),
-          count: vi.fn().mockResolvedValue(8)
-        }
+    const endStore: Parameters<typeof endPracticeSession>[0] = {
+      practiceSession: {
+        findFirst: vi.fn().mockResolvedValue(activeSession),
+        findUnique: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn().mockResolvedValue(endedSession)
       },
+      practiceCheckIn: {
+        findUnique: vi.fn(),
+        upsert: vi.fn(),
+        count: vi.fn().mockResolvedValue(8)
+      }
+    };
+
+    const result = await endPracticeSession(
+      endStore,
       {
         guildId: "guild_123",
         endedByUserId: "coach_123",

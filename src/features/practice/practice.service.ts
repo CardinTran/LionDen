@@ -1,4 +1,5 @@
-export type PracticeSessionStatus = "ACTIVE" | "ENDED";
+export type PracticeSessionStatus = "SCHEDULED" | "ACTIVE" | "ENDED";
+export type PracticeSessionSource = "MANUAL" | "SCHEDULED";
 export type PracticeRsvpStatus =
   | "GOING"
   | "LATE"
@@ -12,7 +13,14 @@ export interface PracticeSessionRecord {
   startedByUserId: string;
   startedByDisplayName: string;
   announcementChannelId: string;
-  announcementMessageId: string | null;
+  source: PracticeSessionSource;
+  scheduledDateKey: string | null;
+  scheduledStartAt: Date | null;
+  scheduledEndAt: Date | null;
+  rsvpMessageId: string | null;
+  rsvpPostedAt: Date | null;
+  attendanceMessageId: string | null;
+  attendancePostedAt: Date | null;
   status: PracticeSessionStatus;
   startedAt: Date;
   endedAt: Date | null;
@@ -31,104 +39,60 @@ export interface PracticeCheckInRecord {
   updatedAt: Date;
 }
 
+export interface PracticeScheduleRecord {
+  id: string;
+  guildId: string;
+  channelId: string | null;
+  timezone: string;
+  enabled: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 interface PracticeSessionDelegate {
-  findFirst(args: {
-    where: {
-      guildId: string;
-      status: PracticeSessionStatus;
-    };
-    orderBy: {
-      startedAt: "asc" | "desc";
-    };
-  }): Promise<PracticeSessionRecord | null>;
-  findUnique(args: {
-    where: {
-      id: string;
-    };
-  }): Promise<PracticeSessionRecord | null>;
-  create(args: {
-    data: {
-      guildId: string;
-      startedByUserId: string;
-      startedByDisplayName: string;
-      announcementChannelId: string;
-    };
-  }): Promise<PracticeSessionRecord>;
-  update(args: {
-    where: {
-      id: string;
-    };
-    data: {
-      announcementMessageId?: string;
-      status?: PracticeSessionStatus;
-      endedAt?: Date;
-      endedByUserId?: string;
-    };
-  }): Promise<PracticeSessionRecord>;
+  findFirst(args: unknown): Promise<PracticeSessionRecord | null>;
+  findUnique(args: unknown): Promise<PracticeSessionRecord | null>;
+  create(args: unknown): Promise<PracticeSessionRecord>;
+  update(args: unknown): Promise<PracticeSessionRecord>;
 }
 
 interface PracticeCheckInDelegate {
-  findUnique(args: {
-    where: {
-      sessionId_userId: {
-        sessionId: string;
-        userId: string;
-      };
-    };
-  }): Promise<PracticeCheckInRecord | null>;
-  upsert(args: {
-    where: {
-      sessionId_userId: {
-        sessionId: string;
-        userId: string;
-      };
-    };
-    create: {
-      sessionId: string;
-      guildId: string;
-      userId: string;
-      displayName: string;
-      rsvpStatus?: PracticeRsvpStatus | null;
-      attendanceStatus?: PracticeAttendanceStatus | null;
-    };
-    update: {
-      displayName: string;
-      rsvpStatus?: PracticeRsvpStatus | null;
-      attendanceStatus?: PracticeAttendanceStatus | null;
-    };
-  }): Promise<PracticeCheckInRecord>;
-  count(args: {
-    where: {
-      sessionId: string;
-      attendanceStatus?: PracticeAttendanceStatus;
-    };
-  }): Promise<number>;
+  findUnique(args: unknown): Promise<PracticeCheckInRecord | null>;
+  upsert(args: unknown): Promise<PracticeCheckInRecord>;
+  count(args: unknown): Promise<number>;
 }
 
-interface PracticeStore {
+interface PracticeScheduleDelegate {
+  findMany(args: unknown): Promise<PracticeScheduleRecord[]>;
+  upsert(args: unknown): Promise<PracticeScheduleRecord>;
+}
+
+export interface PracticeStore {
   practiceSession: PracticeSessionDelegate;
   practiceCheckIn: PracticeCheckInDelegate;
+  practiceSchedule: PracticeScheduleDelegate;
 }
 
 export interface StartPracticeSessionInput {
   guildId: string;
   startedByUserId: string;
   startedByDisplayName: string;
-  announcementChannelId: string;
+  channelId: string;
 }
 
-export interface RecordPracticeCheckInInput {
+export interface RecordPracticeRsvpInput {
   sessionId: string;
   guildId: string;
   userId: string;
   displayName: string;
-}
-
-export interface RecordPracticeRsvpInput extends RecordPracticeCheckInInput {
   rsvpStatus: PracticeRsvpStatus;
 }
 
-export interface RecordPracticeAttendanceInput extends RecordPracticeCheckInInput {
+export interface RecordPracticeAttendanceInput {
+  sessionId: string;
+  guildId: string;
+  userId: string;
+  displayName: string;
   attendanceStatus: PracticeAttendanceStatus;
 }
 
@@ -138,11 +102,18 @@ export interface EndPracticeSessionInput {
   endedAt: Date;
 }
 
-export interface RecordPracticeCheckInResult {
-  outcome:
-    | "rsvp_recorded"
-    | "attendance_recorded"
-    | "session_closed";
+export interface ScheduledPracticeInput {
+  guildId: string;
+  channelId: string;
+  startedByUserId: string;
+  startedByDisplayName: string;
+  scheduledDateKey: string;
+  scheduledStartAt?: Date;
+  scheduledEndAt?: Date;
+}
+
+export interface RecordPracticeResponseResult {
+  outcome: "rsvp_recorded" | "attendance_recorded" | "session_closed";
   session: PracticeSessionRecord;
   checkInCount: number;
   participant: PracticeCheckInRecord | null;
@@ -154,7 +125,7 @@ export interface EndPracticeSessionResult {
 }
 
 export const getActivePracticeSession = async (
-  store: PracticeStore,
+  store: Pick<PracticeStore, "practiceSession">,
   guildId: string
 ): Promise<PracticeSessionRecord | null> => {
   return store.practiceSession.findFirst({
@@ -168,18 +139,30 @@ export const getActivePracticeSession = async (
   });
 };
 
+export const getScheduledPracticeSession = async (
+  store: Pick<PracticeStore, "practiceSession">,
+  input: {
+    guildId: string;
+    scheduledDateKey: string;
+  }
+): Promise<PracticeSessionRecord | null> => {
+  return store.practiceSession.findUnique({
+    where: {
+      guildId_source_scheduledDateKey: {
+        guildId: input.guildId,
+        source: "SCHEDULED",
+        scheduledDateKey: input.scheduledDateKey
+      }
+    }
+  });
+};
+
 export const startPracticeSession = async (
-  store: PracticeStore,
+  store: Pick<PracticeStore, "practiceSession">,
   input: StartPracticeSessionInput
 ): Promise<
-  | {
-      outcome: "started";
-      session: PracticeSessionRecord;
-    }
-  | {
-      outcome: "already_active";
-      session: PracticeSessionRecord;
-    }
+  | { outcome: "started"; session: PracticeSessionRecord }
+  | { outcome: "already_active"; session: PracticeSessionRecord }
 > => {
   const activeSession = await getActivePracticeSession(store, input.guildId);
 
@@ -195,7 +178,9 @@ export const startPracticeSession = async (
       guildId: input.guildId,
       startedByUserId: input.startedByUserId,
       startedByDisplayName: input.startedByDisplayName,
-      announcementChannelId: input.announcementChannelId
+      announcementChannelId: input.channelId,
+      source: "MANUAL",
+      status: "ACTIVE"
     }
   });
 
@@ -205,25 +190,70 @@ export const startPracticeSession = async (
   };
 };
 
-export const attachPracticeAnnouncementMessage = async (
-  store: PracticeStore,
+export const getOrCreateScheduledPracticeSession = async (
+  store: Pick<PracticeStore, "practiceSession">,
+  input: ScheduledPracticeInput
+): Promise<PracticeSessionRecord> => {
+  const existingSession = await getScheduledPracticeSession(store, {
+    guildId: input.guildId,
+    scheduledDateKey: input.scheduledDateKey
+  });
+
+  if (existingSession) {
+    return existingSession;
+  }
+
+  return store.practiceSession.create({
+    data: {
+      guildId: input.guildId,
+      startedByUserId: input.startedByUserId,
+      startedByDisplayName: input.startedByDisplayName,
+      announcementChannelId: input.channelId,
+      source: "SCHEDULED",
+      scheduledDateKey: input.scheduledDateKey,
+      scheduledStartAt: input.scheduledStartAt,
+      scheduledEndAt: input.scheduledEndAt,
+      status: "SCHEDULED"
+    }
+  });
+};
+
+export const attachPracticeRsvpMessage = async (
+  store: Pick<PracticeStore, "practiceSession">,
   input: {
     sessionId: string;
-    announcementMessageId: string;
+    rsvpMessageId: string;
   }
 ): Promise<PracticeSessionRecord> => {
   return store.practiceSession.update({
-    where: {
-      id: input.sessionId
-    },
+    where: { id: input.sessionId },
     data: {
-      announcementMessageId: input.announcementMessageId
+      rsvpMessageId: input.rsvpMessageId,
+      rsvpPostedAt: new Date()
+    }
+  });
+};
+
+export const attachPracticeAttendanceMessage = async (
+  store: Pick<PracticeStore, "practiceSession">,
+  input: {
+    sessionId: string;
+    attendanceMessageId: string;
+    activate: boolean;
+  }
+): Promise<PracticeSessionRecord> => {
+  return store.practiceSession.update({
+    where: { id: input.sessionId },
+    data: {
+      attendanceMessageId: input.attendanceMessageId,
+      attendancePostedAt: new Date(),
+      status: input.activate ? "ACTIVE" : undefined
     }
   });
 };
 
 const getAttendanceCount = async (
-  store: PracticeStore,
+  store: Pick<PracticeStore, "practiceCheckIn">,
   sessionId: string
 ): Promise<number> => {
   return store.practiceCheckIn.count({
@@ -234,14 +264,50 @@ const getAttendanceCount = async (
   });
 };
 
-const getSessionOrClosedResult = async (
-  store: PracticeStore,
+const buildClosedSessionPlaceholder = (input: {
+  sessionId: string;
+  guildId: string;
+}): PracticeSessionRecord => ({
+  id: input.sessionId,
+  guildId: input.guildId,
+  startedByUserId: "",
+  startedByDisplayName: "",
+  announcementChannelId: "",
+  source: "MANUAL",
+  scheduledDateKey: null,
+  scheduledStartAt: null,
+  scheduledEndAt: null,
+  rsvpMessageId: null,
+  rsvpPostedAt: null,
+  attendanceMessageId: null,
+  attendancePostedAt: null,
+  status: "ENDED",
+  startedAt: new Date(0),
+  endedAt: new Date(0),
+  endedByUserId: null
+});
+
+const getSessionForRsvp = async (
+  store: Pick<PracticeStore, "practiceSession">,
   sessionId: string
 ): Promise<PracticeSessionRecord | null> => {
   const session = await store.practiceSession.findUnique({
-    where: {
-      id: sessionId
-    }
+    where: { id: sessionId }
+  });
+
+  if (!session || session.status === "ENDED") {
+    return null;
+  }
+
+  return session;
+};
+
+const getSessionForAttendance = async (
+  store: Pick<PracticeStore, "practiceSession">,
+  sessionId: string
+): Promise<PracticeSessionRecord | null> => {
+  const session = await store.practiceSession.findUnique({
+    where: { id: sessionId }
   });
 
   if (!session || session.status !== "ACTIVE") {
@@ -252,29 +318,15 @@ const getSessionOrClosedResult = async (
 };
 
 export const recordPracticeRsvp = async (
-  store: PracticeStore,
+  store: Pick<PracticeStore, "practiceSession" | "practiceCheckIn">,
   input: RecordPracticeRsvpInput
-): Promise<RecordPracticeCheckInResult> => {
-  const session = await getSessionOrClosedResult(
-    store,
-    input.sessionId
-  );
+): Promise<RecordPracticeResponseResult> => {
+  const session = await getSessionForRsvp(store, input.sessionId);
 
   if (!session) {
     return {
       outcome: "session_closed",
-      session: {
-        id: input.sessionId,
-        guildId: input.guildId,
-        startedByUserId: "",
-        startedByDisplayName: "",
-        announcementChannelId: "",
-        announcementMessageId: null,
-        status: "ENDED",
-        startedAt: new Date(0),
-        endedAt: new Date(0),
-        endedByUserId: null
-      },
+      session: buildClosedSessionPlaceholder(input),
       checkInCount: 0,
       participant: null
     };
@@ -309,29 +361,15 @@ export const recordPracticeRsvp = async (
 };
 
 export const recordPracticeAttendance = async (
-  store: PracticeStore,
+  store: Pick<PracticeStore, "practiceSession" | "practiceCheckIn">,
   input: RecordPracticeAttendanceInput
-): Promise<RecordPracticeCheckInResult> => {
-  const session = await getSessionOrClosedResult(
-    store,
-    input.sessionId
-  );
+): Promise<RecordPracticeResponseResult> => {
+  const session = await getSessionForAttendance(store, input.sessionId);
 
   if (!session) {
     return {
       outcome: "session_closed",
-      session: {
-        id: input.sessionId,
-        guildId: input.guildId,
-        startedByUserId: "",
-        startedByDisplayName: "",
-        announcementChannelId: "",
-        announcementMessageId: null,
-        status: "ENDED",
-        startedAt: new Date(0),
-        endedAt: new Date(0),
-        endedByUserId: null
-      },
+      session: buildClosedSessionPlaceholder(input),
       checkInCount: 0,
       participant: null
     };
@@ -376,7 +414,7 @@ export const recordPracticeAttendance = async (
 };
 
 export const endPracticeSession = async (
-  store: PracticeStore,
+  store: Pick<PracticeStore, "practiceSession" | "practiceCheckIn">,
   input: EndPracticeSessionInput
 ): Promise<EndPracticeSessionResult | null> => {
   const activeSession = await getActivePracticeSession(store, input.guildId);
@@ -386,9 +424,7 @@ export const endPracticeSession = async (
   }
 
   const session = await store.practiceSession.update({
-    where: {
-      id: activeSession.id
-    },
+    where: { id: activeSession.id },
     data: {
       status: "ENDED",
       endedAt: input.endedAt,
@@ -400,4 +436,41 @@ export const endPracticeSession = async (
     session,
     checkInCount: await getAttendanceCount(store, session.id)
   };
+};
+
+export const upsertPracticeSchedule = async (
+  store: Pick<PracticeStore, "practiceSchedule">,
+  input: {
+    guildId: string;
+    channelId?: string | null;
+    timezone?: string;
+    enabled?: boolean;
+  }
+): Promise<PracticeScheduleRecord> => {
+  return store.practiceSchedule.upsert({
+    where: {
+      guildId: input.guildId
+    },
+    create: {
+      guildId: input.guildId,
+      channelId: input.channelId,
+      timezone: input.timezone,
+      enabled: input.enabled
+    },
+    update: {
+      channelId: input.channelId,
+      timezone: input.timezone,
+      enabled: input.enabled
+    }
+  });
+};
+
+export const listEnabledPracticeSchedules = async (
+  store: Pick<PracticeStore, "practiceSchedule">
+): Promise<PracticeScheduleRecord[]> => {
+  return store.practiceSchedule.findMany({
+    where: {
+      enabled: true
+    }
+  });
 };
