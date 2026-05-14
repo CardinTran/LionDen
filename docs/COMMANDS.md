@@ -37,6 +37,14 @@ Officer/admin command that posts a manual LionDen red envelope in the current ch
 
 Officer/admin command that enables random red envelope drops for the server, stores the amount plus interval ranges LionDen should use, and uses the current channel as the fallback channel if no active channel qualifies.
 
+### `/redenvelope pause`
+
+Officer/admin command that pauses automated random red envelope drops without deleting the stored configuration.
+
+### `/redenvelope dropnow`
+
+Officer/admin command that forces one immediate configured random red envelope drop using the stored amount range and active-channel targeting rules.
+
 ### `/coins add`
 
 Officer/admin command that adds coins to a member and returns their updated coin balance.
@@ -100,6 +108,8 @@ RSVP is for planning. Attendance is the authoritative record for rewards.
 - automatic drops target the most active eligible channel from the last 60 minutes of human message activity
 - a channel needs at least 5 recent non-bot messages to qualify for active targeting
 - if no channel qualifies, LionDen falls back to the configured channel
+- `/redenvelope pause` stops automated drops until an officer configures them again
+- `/redenvelope dropnow` gives officers a manual override without removing the competitive `~grab` race
 
 ## Planned MVP Commands
 

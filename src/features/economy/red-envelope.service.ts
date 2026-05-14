@@ -79,6 +79,11 @@ interface RedEnvelopeStore {
     }): Promise<RedEnvelopeRecord | null>;
   };
   redEnvelopeDropConfig: {
+    findUnique(args: {
+      where: {
+        guildId: string;
+      };
+    }): Promise<RedEnvelopeDropConfigRecord | null>;
     findMany(args: {
       where: {
         enabled: boolean;
@@ -115,6 +120,7 @@ interface RedEnvelopeStore {
         guildId: string;
       };
       data: {
+        enabled?: boolean;
         lastDroppedAt?: Date | null;
         nextDropAt?: Date | null;
       };
@@ -378,6 +384,34 @@ export const listEnabledRedEnvelopeDropConfigs = async (
   return store.redEnvelopeDropConfig.findMany({
     where: {
       enabled: true
+    }
+  });
+};
+
+export const getRedEnvelopeDropConfig = async (
+  store: Pick<RedEnvelopeStore, "redEnvelopeDropConfig">,
+  guildId: string
+): Promise<RedEnvelopeDropConfigRecord | null> => {
+  return store.redEnvelopeDropConfig.findUnique({
+    where: {
+      guildId
+    }
+  });
+};
+
+export const setRedEnvelopeDropConfigEnabled = async (
+  store: Pick<RedEnvelopeStore, "redEnvelopeDropConfig">,
+  input: {
+    guildId: string;
+    enabled: boolean;
+  }
+): Promise<RedEnvelopeDropConfigRecord> => {
+  return store.redEnvelopeDropConfig.update({
+    where: {
+      guildId: input.guildId
+    },
+    data: {
+      enabled: input.enabled
     }
   });
 };

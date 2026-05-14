@@ -6,7 +6,9 @@ import {
   configureRedEnvelopeDrops,
   createRedEnvelope,
   generateRandomDrop,
+  getRedEnvelopeDropConfig,
   getOpenRedEnvelopeForChannel,
+  setRedEnvelopeDropConfigEnabled,
   type RedEnvelopeRecord
 } from "../src/features/economy/red-envelope.service.js";
 import type { UserProfileRecord } from "../src/features/profiles/profile.service.js";
@@ -251,6 +253,7 @@ describe("red envelope service", () => {
     const config = await configureRedEnvelopeDrops(
       {
         redEnvelopeDropConfig: {
+          findUnique: vi.fn(),
           findMany: vi.fn(),
           upsert,
           update: vi.fn()
@@ -293,6 +296,84 @@ describe("red envelope service", () => {
       }
     });
     expect(config.channelId).toBe("channel_123");
+  });
+
+  it("loads the stored red envelope drop configuration for a guild", async () => {
+    const findUnique = vi.fn().mockResolvedValue({
+      id: "config_123",
+      guildId: "guild_123",
+      channelId: "channel_123",
+      enabled: true,
+      minAmount: 10,
+      maxAmount: 50,
+      minIntervalMinutes: 60,
+      maxIntervalMinutes: 180,
+      nextDropAt: new Date("2026-05-14T13:00:00.000Z"),
+      lastDroppedAt: null,
+      createdAt: new Date("2026-05-14T12:00:00.000Z"),
+      updatedAt: new Date("2026-05-14T12:00:00.000Z")
+    });
+
+    const config = await getRedEnvelopeDropConfig(
+      {
+        redEnvelopeDropConfig: {
+          findUnique,
+          findMany: vi.fn(),
+          upsert: vi.fn(),
+          update: vi.fn()
+        }
+      },
+      "guild_123"
+    );
+
+    expect(findUnique).toHaveBeenCalledWith({
+      where: {
+        guildId: "guild_123"
+      }
+    });
+    expect(config?.guildId).toBe("guild_123");
+  });
+
+  it("can pause random red envelope drops for a guild", async () => {
+    const update = vi.fn().mockResolvedValue({
+      id: "config_123",
+      guildId: "guild_123",
+      channelId: "channel_123",
+      enabled: false,
+      minAmount: 10,
+      maxAmount: 50,
+      minIntervalMinutes: 60,
+      maxIntervalMinutes: 180,
+      nextDropAt: new Date("2026-05-14T13:00:00.000Z"),
+      lastDroppedAt: null,
+      createdAt: new Date("2026-05-14T12:00:00.000Z"),
+      updatedAt: new Date("2026-05-14T12:05:00.000Z")
+    });
+
+    const config = await setRedEnvelopeDropConfigEnabled(
+      {
+        redEnvelopeDropConfig: {
+          findUnique: vi.fn(),
+          findMany: vi.fn(),
+          upsert: vi.fn(),
+          update
+        }
+      },
+      {
+        guildId: "guild_123",
+        enabled: false
+      }
+    );
+
+    expect(update).toHaveBeenCalledWith({
+      where: {
+        guildId: "guild_123"
+      },
+      data: {
+        enabled: false
+      }
+    });
+    expect(config.enabled).toBe(false);
   });
 
   it("finds the open red envelope for a specific channel", async () => {

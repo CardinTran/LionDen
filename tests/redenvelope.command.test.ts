@@ -17,7 +17,9 @@ describe("redenvelope command", () => {
     );
     expect(redEnvelopeCommandJson.options?.map((option) => option.name)).toEqual([
       "configure",
-      "create"
+      "create",
+      "pause",
+      "dropnow"
     ]);
   });
 

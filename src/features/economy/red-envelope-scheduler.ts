@@ -7,6 +7,7 @@ import {
   createRedEnvelope,
   generateRandomDrop,
   getOpenRedEnvelopeForGuild,
+  type RedEnvelopeDropConfigRecord,
   listEnabledRedEnvelopeDropConfigs,
   updateRedEnvelopeDropSchedule
 } from "./red-envelope.service.js";
@@ -91,6 +92,80 @@ export const resolveDropChannel = async (
   };
 };
 
+export const postConfiguredRedEnvelopeDrop = async (
+  client: Client,
+  input: {
+    config: RedEnvelopeDropConfigRecord;
+    now: Date;
+    createdByUserId: string;
+    createdByDisplayName: string;
+  }
+): Promise<
+  | {
+      envelopeId: string;
+      channelId: string;
+      nextDropAt: Date;
+      usedActiveTargeting: boolean;
+      amount: number;
+    }
+  | null
+> => {
+  const openEnvelope = await getOpenRedEnvelopeForGuild(prisma, input.config.guildId);
+
+  if (openEnvelope) {
+    return null;
+  }
+
+  const resolvedChannel = await resolveDropChannel(client, {
+    guildId: input.config.guildId,
+    fallbackChannelId: input.config.channelId,
+    now: input.now
+  });
+
+  if (!resolvedChannel) {
+    return null;
+  }
+
+  const generation = generateRandomDrop({
+    config: input.config,
+    now: input.now,
+    random: Math.random
+  });
+
+  const envelope = await createRedEnvelope(prisma, {
+    guildId: input.config.guildId,
+    channelId: resolvedChannel.channel.id,
+    createdByUserId: input.createdByUserId,
+    createdByDisplayName: input.createdByDisplayName,
+    amount: generation.amount
+  });
+
+  const message = await resolvedChannel.channel.send({
+    content: formatRedEnvelopeMessage({
+      createdByDisplayName: input.createdByDisplayName,
+      amount: generation.amount
+    })
+  });
+
+  await attachRedEnvelopeMessage(prisma, {
+    envelopeId: envelope.id,
+    messageId: message.id
+  });
+  await updateRedEnvelopeDropSchedule(prisma, {
+    guildId: input.config.guildId,
+    lastDroppedAt: input.now,
+    nextDropAt: generation.nextDropAt
+  });
+
+  return {
+    envelopeId: envelope.id,
+    channelId: resolvedChannel.channel.id,
+    nextDropAt: generation.nextDropAt,
+    usedActiveTargeting: resolvedChannel.usedActiveTargeting,
+    amount: generation.amount
+  };
+};
+
 export const runRedEnvelopeSchedulerTick = async (
   client: Client,
   now = new Date()
@@ -102,57 +177,21 @@ export const runRedEnvelopeSchedulerTick = async (
       continue;
     }
 
-    const openEnvelope = await getOpenRedEnvelopeForGuild(prisma, config.guildId);
-
-    if (openEnvelope) {
-      continue;
-    }
-
-    const resolvedChannel = await resolveDropChannel(client, {
-      guildId: config.guildId,
-      fallbackChannelId: config.channelId,
-      now
-    });
-
-    if (!resolvedChannel) {
-      continue;
-    }
-
-    const generation = generateRandomDrop({
+    const postedDrop = await postConfiguredRedEnvelopeDrop(client, {
       config,
       now,
-      random: Math.random
-    });
-
-    const envelope = await createRedEnvelope(prisma, {
-      guildId: config.guildId,
-      channelId: resolvedChannel.channel.id,
       createdByUserId: SCHEDULER_USER_ID,
-      createdByDisplayName: SCHEDULER_DISPLAY_NAME,
-      amount: generation.amount
+      createdByDisplayName: SCHEDULER_DISPLAY_NAME
     });
 
-    const message = await resolvedChannel.channel.send({
-      content: formatRedEnvelopeMessage({
-        createdByDisplayName: SCHEDULER_DISPLAY_NAME,
-        amount: generation.amount
-      })
-    });
-
-    await attachRedEnvelopeMessage(prisma, {
-      envelopeId: envelope.id,
-      messageId: message.id
-    });
-    await updateRedEnvelopeDropSchedule(prisma, {
-      guildId: config.guildId,
-      lastDroppedAt: now,
-      nextDropAt: generation.nextDropAt
-    });
+    if (!postedDrop) {
+      continue;
+    }
 
     logger.info("Posted random red envelope drop", {
       guildId: config.guildId,
-      channelId: resolvedChannel.channel.id,
-      usedActiveTargeting: resolvedChannel.usedActiveTargeting
+      channelId: postedDrop.channelId,
+      usedActiveTargeting: postedDrop.usedActiveTargeting
     });
   }
 };

@@ -89,6 +89,8 @@ Current red envelope foundation rule:
 Current random red envelope rule:
 
 - `/redenvelope configure` enables random drops for the guild and stores a fallback channel
+- `/redenvelope pause` disables automated random drops without clearing the stored configuration
+- `/redenvelope dropnow` lets an officer force one immediate configured drop
 - each guild stores a min/max coin amount and a min/max interval in minutes
 - LionDen posts random drops using those ranges when no other open red envelope exists in the guild
 - automatic drops target the most active eligible channel from the last 60 minutes of human message activity

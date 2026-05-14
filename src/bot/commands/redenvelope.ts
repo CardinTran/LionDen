@@ -11,9 +11,13 @@ import {
   configureRedEnvelopeDrops,
   createRedEnvelope,
   generateRandomDrop,
+  getRedEnvelopeDropConfig,
+  getOpenRedEnvelopeForGuild,
+  setRedEnvelopeDropConfigEnabled,
   type ClaimRedEnvelopeResult,
   type RedEnvelopeRecord
 } from "../../features/economy/red-envelope.service.js";
+import { postConfiguredRedEnvelopeDrop } from "../../features/economy/red-envelope-scheduler.js";
 import { prisma } from "../../lib/prisma.js";
 import type { SlashCommand } from "./ping.js";
 
@@ -108,6 +112,16 @@ export const redEnvelopeCommand: SlashCommand = {
             .setMinValue(1)
             .setRequired(true)
         )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("pause")
+        .setDescription("Pause automated random red envelope drops.")
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("dropnow")
+        .setDescription("Force one immediate configured random red envelope drop.")
     ) as SlashCommandBuilder,
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     const guildId = interaction.guildId;
@@ -173,6 +187,76 @@ export const redEnvelopeCommand: SlashCommand = {
 
       await interaction.reply({
         content: `Random red envelope drops are enabled. LionDen will target the most active eligible channel, using <#${channel.id}> as the fallback channel. Range: ${Math.min(minAmount, maxAmount)}-${Math.max(minAmount, maxAmount)} coins, every ${Math.min(minIntervalMinutes, maxIntervalMinutes)}-${Math.max(minIntervalMinutes, maxIntervalMinutes)} minutes.`,
+        ephemeral: true
+      });
+      return;
+    }
+
+    if (subcommand === "pause") {
+      const config = await getRedEnvelopeDropConfig(prisma, guildId);
+
+      if (!config) {
+        await interaction.reply({
+          content:
+            "Random red envelope drops are not configured yet. Run `/redenvelope configure` first.",
+          ephemeral: true
+        });
+        return;
+      }
+
+      await setRedEnvelopeDropConfigEnabled(prisma, {
+        guildId,
+        enabled: false
+      });
+
+      await interaction.reply({
+        content: "Random red envelope drops are now paused.",
+        ephemeral: true
+      });
+      return;
+    }
+
+    if (subcommand === "dropnow") {
+      const config = await getRedEnvelopeDropConfig(prisma, guildId);
+
+      if (!config) {
+        await interaction.reply({
+          content:
+            "Random red envelope drops are not configured yet. Run `/redenvelope configure` first.",
+          ephemeral: true
+        });
+        return;
+      }
+
+      const openEnvelope = await getOpenRedEnvelopeForGuild(prisma, guildId);
+
+      if (openEnvelope) {
+        await interaction.reply({
+          content:
+            "There is already an open red envelope in this server. Wait for it to be claimed before forcing another drop.",
+          ephemeral: true
+        });
+        return;
+      }
+
+      const postedDrop = await postConfiguredRedEnvelopeDrop(interaction.client, {
+        config,
+        now: new Date(),
+        createdByUserId: interaction.user.id,
+        createdByDisplayName: interaction.user.username
+      });
+
+      if (!postedDrop) {
+        await interaction.reply({
+          content:
+            "LionDen could not find an eligible channel for the drop. Make sure the fallback channel still exists and LionDen can post there.",
+          ephemeral: true
+        });
+        return;
+      }
+
+      await interaction.reply({
+        content: `Random red envelope dropped in <#${postedDrop.channelId}> for ${postedDrop.amount} coins.`,
         ephemeral: true
       });
       return;
