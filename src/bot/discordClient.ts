@@ -18,6 +18,10 @@ import {
   handlePracticeButton,
   isPracticeButtonCustomId
 } from "./commands/practice.js";
+import {
+  handleRedEnvelopeButton,
+  isRedEnvelopeButtonCustomId
+} from "./commands/redenvelope.js";
 
 export const createDiscordClient = (): Client => {
   const client = new Client({
@@ -51,6 +55,31 @@ export const createDiscordClient = (): Client => {
 
         await interaction.reply({
           content: "Something went wrong while recording that practice check-in.",
+          ephemeral: true
+        });
+      }
+      return;
+    }
+
+    if (interaction.isButton() && isRedEnvelopeButtonCustomId(interaction.customId)) {
+      try {
+        await handleRedEnvelopeButton(interaction);
+      } catch (error) {
+        logger.error("Red envelope interaction failed", {
+          customId: interaction.customId,
+          error
+        });
+
+        if (interaction.replied || interaction.deferred) {
+          await interaction.followUp({
+            content: "Something went wrong while claiming that red envelope.",
+            ephemeral: true
+          });
+          return;
+        }
+
+        await interaction.reply({
+          content: "Something went wrong while claiming that red envelope.",
           ephemeral: true
         });
       }

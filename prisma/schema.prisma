@@ -23,6 +23,24 @@ model UserProfile {
   @@unique([guildId, userId])
 }
 
+model RedEnvelope {
+  id                   String            @id @default(cuid())
+  guildId              String
+  channelId            String
+  createdByUserId      String
+  createdByDisplayName String
+  amount               Int
+  status               RedEnvelopeStatus @default(OPEN)
+  messageId            String?
+  claimedByUserId      String?
+  claimedByDisplayName String?
+  claimedAt            DateTime?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  @@index([guildId, status])
+}
+
 model PracticeSession {
   id                   String                @id @default(cuid())
   guildId              String
@@ -97,4 +115,9 @@ enum PracticeRsvpStatus {
 enum PracticeAttendanceStatus {
   HERE
   NOT_HERE
+}
+
+enum RedEnvelopeStatus {
+  OPEN
+  CLAIMED
 }

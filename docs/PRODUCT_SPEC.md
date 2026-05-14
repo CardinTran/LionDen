@@ -80,6 +80,13 @@ Current admin coin control rule:
 - coin removals clamp at 0 rather than going negative
 - admin adjustments update the stored balance immediately
 
+Current red envelope foundation rule:
+
+- `/redenvelope create` creates a manual red envelope in the current channel
+- the first successful claimant receives the full configured coin amount
+- each red envelope can only be claimed once
+- random timed drops are intentionally a later follow-up
+
 Current practice attendance rule:
 
 - only one active practice session may exist per guild
