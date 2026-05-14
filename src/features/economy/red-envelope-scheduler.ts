@@ -10,6 +10,7 @@ import {
   listEnabledRedEnvelopeDropConfigs,
   updateRedEnvelopeDropSchedule
 } from "./red-envelope.service.js";
+import { listMostActiveChannels } from "./channel-activity.service.js";
 import {
   formatRedEnvelopeMessage
 } from "../../bot/commands/redenvelope.js";
@@ -39,6 +40,57 @@ const fetchConfiguredChannel = async (
   };
 };
 
+export const resolveDropChannel = async (
+  client: Client,
+  input: {
+    guildId: string;
+    fallbackChannelId: string;
+    now: Date;
+  }
+): Promise<
+  | {
+      channel: {
+        id: string;
+        send: (...args: unknown[]) => Promise<{ id: string }>;
+      };
+      usedActiveTargeting: boolean;
+    }
+  | null
+> => {
+  const activeChannels = listMostActiveChannels({
+    guildId: input.guildId,
+    now: input.now
+  });
+
+  for (const activityEntry of activeChannels) {
+    const channel = await fetchConfiguredChannel(client, activityEntry.channelId);
+
+    if (channel) {
+      return {
+        channel: {
+          ...channel,
+          id: activityEntry.channelId
+        },
+        usedActiveTargeting: true
+      };
+    }
+  }
+
+  const fallbackChannel = await fetchConfiguredChannel(client, input.fallbackChannelId);
+
+  if (!fallbackChannel) {
+    return null;
+  }
+
+  return {
+    channel: {
+      ...fallbackChannel,
+      id: input.fallbackChannelId
+    },
+    usedActiveTargeting: false
+  };
+};
+
 export const runRedEnvelopeSchedulerTick = async (
   client: Client,
   now = new Date()
@@ -56,9 +108,13 @@ export const runRedEnvelopeSchedulerTick = async (
       continue;
     }
 
-    const channel = await fetchConfiguredChannel(client, config.channelId);
+    const resolvedChannel = await resolveDropChannel(client, {
+      guildId: config.guildId,
+      fallbackChannelId: config.channelId,
+      now
+    });
 
-    if (!channel) {
+    if (!resolvedChannel) {
       continue;
     }
 
@@ -70,13 +126,13 @@ export const runRedEnvelopeSchedulerTick = async (
 
     const envelope = await createRedEnvelope(prisma, {
       guildId: config.guildId,
-      channelId: config.channelId,
+      channelId: resolvedChannel.channel.id,
       createdByUserId: SCHEDULER_USER_ID,
       createdByDisplayName: SCHEDULER_DISPLAY_NAME,
       amount: generation.amount
     });
 
-    const message = await channel.send({
+    const message = await resolvedChannel.channel.send({
       content: formatRedEnvelopeMessage({
         createdByDisplayName: SCHEDULER_DISPLAY_NAME,
         amount: generation.amount
@@ -91,6 +147,12 @@ export const runRedEnvelopeSchedulerTick = async (
       guildId: config.guildId,
       lastDroppedAt: now,
       nextDropAt: generation.nextDropAt
+    });
+
+    logger.info("Posted random red envelope drop", {
+      guildId: config.guildId,
+      channelId: resolvedChannel.channel.id,
+      usedActiveTargeting: resolvedChannel.usedActiveTargeting
     });
   }
 };

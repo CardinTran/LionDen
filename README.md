@@ -28,7 +28,7 @@ Phase 0 foundation is in progress. This repo currently includes:
 - admin XP adjustment commands
 - admin coin adjustment commands
 - red envelope foundation with manual create-and-claim flow
-- random red envelope drops with admin channel configuration
+- random red envelope drops with activity-based channel targeting
 - public `~grab` red envelope claims
 - practice sessions with separate RSVP and attendance posts plus weekly scheduling
 - practice-end XP rewards for members marked `I'm Here`

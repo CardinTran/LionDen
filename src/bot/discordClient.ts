@@ -12,6 +12,7 @@ import {
   claimRedEnvelope,
   getOpenRedEnvelopeForChannel
 } from "../features/economy/red-envelope.service.js";
+import { recordChannelActivity } from "../features/economy/channel-activity.service.js";
 import { awardMessageXp } from "../features/progression/message-xp.service.js";
 import { startRedEnvelopeScheduler } from "../features/economy/red-envelope-scheduler.js";
 import { startPracticeScheduler } from "../features/practice/practice-scheduler.js";
@@ -164,6 +165,12 @@ export const createDiscordClient = (): Client => {
 
       return;
     }
+
+    recordChannelActivity({
+      guildId: message.guildId,
+      channelId: message.channelId,
+      occurredAt: message.createdAt
+    });
 
     try {
       await awardMessageXp(prisma, {
