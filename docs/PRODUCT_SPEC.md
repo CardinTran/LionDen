@@ -88,9 +88,12 @@ Current red envelope foundation rule:
 
 Current random red envelope rule:
 
-- `/redenvelope configure` enables random drops in a chosen channel
+- `/redenvelope configure` enables random drops for the guild and stores a fallback channel
 - each guild stores a min/max coin amount and a min/max interval in minutes
 - LionDen posts random drops using those ranges when no other open red envelope exists in the guild
+- automatic drops target the most active eligible channel from the last 60 minutes of human message activity
+- a channel must have at least 5 recent non-bot messages to qualify for active targeting
+- if no channel meets that threshold, LionDen falls back to the configured channel
 - current claim flow uses the first successful `~grab` message in the drop channel
 
 Current practice attendance rule:

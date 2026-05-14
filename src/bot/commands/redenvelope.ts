@@ -71,7 +71,7 @@ export const redEnvelopeCommand: SlashCommand = {
     .addSubcommand((subcommand) =>
       subcommand
         .setName("configure")
-        .setDescription("Configure random red envelope drops for this channel.")
+        .setDescription("Configure random red envelope drops for this server.")
         .addIntegerOption((option) =>
           option
             .setName("min_amount")
@@ -172,7 +172,7 @@ export const redEnvelopeCommand: SlashCommand = {
       });
 
       await interaction.reply({
-        content: `Random red envelope drops are configured for <#${channel.id}>. Range: ${Math.min(minAmount, maxAmount)}-${Math.max(minAmount, maxAmount)} coins, every ${Math.min(minIntervalMinutes, maxIntervalMinutes)}-${Math.max(minIntervalMinutes, maxIntervalMinutes)} minutes.`,
+        content: `Random red envelope drops are enabled. LionDen will target the most active eligible channel, using <#${channel.id}> as the fallback channel. Range: ${Math.min(minAmount, maxAmount)}-${Math.max(minAmount, maxAmount)} coins, every ${Math.min(minIntervalMinutes, maxIntervalMinutes)}-${Math.max(minIntervalMinutes, maxIntervalMinutes)} minutes.`,
         ephemeral: true
       });
       return;
