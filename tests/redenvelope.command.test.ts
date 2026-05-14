@@ -14,6 +14,7 @@ describe("redenvelope command", () => {
       "Create a LionDen red envelope for the server."
     );
     expect(redEnvelopeCommandJson.options?.map((option) => option.name)).toEqual([
+      "configure",
       "create"
     ]);
   });

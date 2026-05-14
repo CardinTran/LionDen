@@ -3,7 +3,9 @@ import { describe, expect, it, vi } from "vitest";
 import {
   attachRedEnvelopeMessage,
   claimRedEnvelope,
+  configureRedEnvelopeDrops,
   createRedEnvelope,
+  generateRandomDrop,
   type RedEnvelopeRecord
 } from "../src/features/economy/red-envelope.service.js";
 import type { UserProfileRecord } from "../src/features/profiles/profile.service.js";
@@ -45,6 +47,25 @@ const buildProfile = (
 });
 
 describe("red envelope service", () => {
+  it("generates a random drop amount and next drop time within the configured bounds", () => {
+    const result = generateRandomDrop({
+      config: {
+        minAmount: 10,
+        maxAmount: 50,
+        minIntervalMinutes: 60,
+        maxIntervalMinutes: 180
+      },
+      now: new Date("2026-05-14T12:00:00.000Z"),
+      random: () => 0.5
+    });
+
+    expect(result.amount).toBeGreaterThanOrEqual(10);
+    expect(result.amount).toBeLessThanOrEqual(50);
+    expect(result.nextDropAt.getTime()).toBeGreaterThan(
+      new Date("2026-05-14T12:00:00.000Z").getTime()
+    );
+  });
+
   it("creates and attaches a red envelope message id", async () => {
     const envelope = buildEnvelope();
     const create = vi.fn().mockResolvedValue(envelope);
@@ -58,6 +79,7 @@ describe("red envelope service", () => {
       {
         redEnvelope: {
           create,
+          findFirst: vi.fn(),
           findUnique: vi.fn(),
           update,
           updateMany: vi.fn()
@@ -76,6 +98,7 @@ describe("red envelope service", () => {
       {
         redEnvelope: {
           create,
+          findFirst: vi.fn(),
           findUnique: vi.fn(),
           update,
           updateMany: vi.fn()
@@ -117,6 +140,7 @@ describe("red envelope service", () => {
     const store = {
       redEnvelope: {
         create: vi.fn(),
+        findFirst: vi.fn(),
         findUnique: vi.fn(async () => currentEnvelope),
         update: vi.fn(),
         updateMany: vi.fn(async ({ data }) => {
@@ -184,6 +208,7 @@ describe("red envelope service", () => {
       {
         redEnvelope: {
           create: vi.fn(),
+          findFirst: vi.fn(),
           findUnique: vi.fn().mockResolvedValue(claimedEnvelope),
           update: vi.fn(),
           updateMany: vi.fn()
@@ -204,5 +229,68 @@ describe("red envelope service", () => {
     expect(result.outcome).toBe("already_claimed");
     expect(result.profile).toBeNull();
     expect(result.envelope?.claimedByDisplayName).toBe("MemberA");
+  });
+
+  it("stores random drop configuration per guild", async () => {
+    const upsert = vi.fn().mockResolvedValue({
+      id: "config_123",
+      guildId: "guild_123",
+      channelId: "channel_123",
+      enabled: true,
+      minAmount: 10,
+      maxAmount: 50,
+      minIntervalMinutes: 60,
+      maxIntervalMinutes: 180,
+      nextDropAt: new Date("2026-05-14T13:00:00.000Z"),
+      lastDroppedAt: null,
+      createdAt: new Date("2026-05-14T12:00:00.000Z"),
+      updatedAt: new Date("2026-05-14T12:00:00.000Z")
+    });
+
+    const config = await configureRedEnvelopeDrops(
+      {
+        redEnvelopeDropConfig: {
+          findMany: vi.fn(),
+          upsert,
+          update: vi.fn()
+        }
+      },
+      {
+        guildId: "guild_123",
+        channelId: "channel_123",
+        enabled: true,
+        minAmount: 10,
+        maxAmount: 50,
+        minIntervalMinutes: 60,
+        maxIntervalMinutes: 180,
+        nextDropAt: new Date("2026-05-14T13:00:00.000Z")
+      }
+    );
+
+    expect(upsert).toHaveBeenCalledWith({
+      where: {
+        guildId: "guild_123"
+      },
+      create: {
+        guildId: "guild_123",
+        channelId: "channel_123",
+        enabled: true,
+        minAmount: 10,
+        maxAmount: 50,
+        minIntervalMinutes: 60,
+        maxIntervalMinutes: 180,
+        nextDropAt: new Date("2026-05-14T13:00:00.000Z")
+      },
+      update: {
+        channelId: "channel_123",
+        enabled: true,
+        minAmount: 10,
+        maxAmount: 50,
+        minIntervalMinutes: 60,
+        maxIntervalMinutes: 180,
+        nextDropAt: new Date("2026-05-14T13:00:00.000Z")
+      }
+    });
+    expect(config.channelId).toBe("channel_123");
   });
 });

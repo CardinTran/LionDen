@@ -33,6 +33,10 @@ Claims a fixed daily coin reward once per calendar day using LionDen's Central T
 
 Officer/admin command that posts a manual LionDen red envelope in the current channel. The first successful claimant receives the configured coin amount.
 
+### `/redenvelope configure`
+
+Officer/admin command that enables random red envelope drops in the current channel and stores the amount plus interval ranges LionDen should use.
+
 ### `/coins add`
 
 Officer/admin command that adds coins to a member and returns their updated coin balance.
@@ -91,6 +95,7 @@ RSVP is for planning. Attendance is the authoritative record for rewards.
 - no streaks or randomness are included yet
 - `/coins add` and `/coins remove` give officers simple balance correction tools
 - `/redenvelope create` posts a first-come, first-claimed coin envelope in the current channel
+- `/redenvelope configure` enables random drops with stored amount and interval ranges
 
 ## Planned MVP Commands
 

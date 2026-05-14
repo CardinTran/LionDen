@@ -9,6 +9,7 @@ import {
 } from "discord.js";
 
 import { awardMessageXp } from "../features/progression/message-xp.service.js";
+import { startRedEnvelopeScheduler } from "../features/economy/red-envelope-scheduler.js";
 import { startPracticeScheduler } from "../features/practice/practice-scheduler.js";
 import { env } from "../config/env.js";
 import { logger } from "../lib/logger.js";
@@ -33,6 +34,7 @@ export const createDiscordClient = (): Client => {
       tag: readyClient.user.tag
     });
     startPracticeScheduler(client);
+    startRedEnvelopeScheduler(client);
   });
 
   client.on(Events.InteractionCreate, async (interaction: Interaction) => {
