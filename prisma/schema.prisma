@@ -20,3 +20,37 @@ model UserProfile {
 
   @@unique([guildId, userId])
 }
+
+model PracticeSession {
+  id                    String                 @id @default(cuid())
+  guildId               String
+  startedByUserId       String
+  startedByDisplayName  String
+  announcementChannelId String
+  announcementMessageId String?
+  status                PracticeSessionStatus  @default(ACTIVE)
+  startedAt             DateTime               @default(now())
+  endedAt               DateTime?
+  endedByUserId         String?
+  checkIns              PracticeCheckIn[]
+
+  @@index([guildId, status])
+}
+
+model PracticeCheckIn {
+  id          String          @id @default(cuid())
+  sessionId   String
+  guildId     String
+  userId      String
+  displayName String
+  checkedInAt DateTime        @default(now())
+  session     PracticeSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, userId])
+  @@index([guildId, sessionId])
+}
+
+enum PracticeSessionStatus {
+  ACTIVE
+  ENDED
+}
