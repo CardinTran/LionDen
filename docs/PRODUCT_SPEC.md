@@ -71,7 +71,9 @@ Current practice attendance rule:
 - current fixed weekly schedule is:
   - RSVP on Sunday, Tuesday, and Thursday at 5:00 PM Central Time
   - Attendance on Monday, Wednesday, and Friday at 5:00 PM Central Time
-- `/practice end` closes the active session and stops further check-ins
+- `/practice end` closes the active session, stops further check-ins, and awards 30 XP to each member whose final attendance state is `HERE`
+- `NOT_HERE`, or no attendance response, does not earn practice XP
+- each practice participant can only be rewarded once per session
 
 ## Roadmap
 

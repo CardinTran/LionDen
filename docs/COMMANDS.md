@@ -42,7 +42,7 @@ Officer/admin command that sets the current channel as the scheduled practice ch
 
 ### `/practice end`
 
-Officer/admin command that closes the active practice session and disables the attendance button.
+Officer/admin command that closes the active practice session, disables the attendance button, and awards practice XP to members whose final attendance state is `I'm Here`.
 
 ### Practice Scheduler
 
@@ -59,6 +59,12 @@ When practice is live, members use two separate practice posts:
 - Attendance buttons: `I'm Here`, `Not Here`
 
 RSVP is for planning. Attendance is the authoritative record for rewards.
+
+### Practice Reward Rule
+
+- `/practice end` awards 30 XP to each member marked `I'm Here`
+- members marked `Not Here`, or members with no attendance response, do not earn practice XP
+- each session can only reward a participant once
 
 ## Planned MVP Commands
 

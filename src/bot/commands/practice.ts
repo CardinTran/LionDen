@@ -14,6 +14,7 @@ import {
   attachPracticeAttendanceMessage,
   attachPracticeRsvpMessage,
   endPracticeSession,
+  PRACTICE_ATTENDANCE_XP,
   recordPracticeAttendance,
   recordPracticeRsvp,
   startPracticeSession,
@@ -294,7 +295,7 @@ export const practiceCommand: SlashCommand = {
     }
 
     await interaction.reply({
-      content: `Practice session ended with ${result.checkInCount} member${result.checkInCount === 1 ? "" : "s"} marked here.`,
+      content: `Practice session ended with ${result.checkInCount} member${result.checkInCount === 1 ? "" : "s"} marked here. Awarded ${PRACTICE_ATTENDANCE_XP} XP to ${result.rewardedCount} attendee${result.rewardedCount === 1 ? "" : "s"}.`,
       ephemeral: true
     });
   }

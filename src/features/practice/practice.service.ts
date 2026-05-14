@@ -1,3 +1,6 @@
+import { adjustXp } from "../progression/xp-adjustment.service.js";
+import type { UserProfileRecord } from "../profiles/profile.service.js";
+
 export type PracticeSessionStatus = "SCHEDULED" | "ACTIVE" | "ENDED";
 export type PracticeSessionSource = "MANUAL" | "SCHEDULED";
 export type PracticeRsvpStatus =
@@ -35,6 +38,8 @@ export interface PracticeCheckInRecord {
   displayName: string;
   rsvpStatus: PracticeRsvpStatus | null;
   attendanceStatus: PracticeAttendanceStatus | null;
+  rewardAppliedAt: Date | null;
+  rewardXp: number;
   checkedInAt: Date;
   updatedAt: Date;
 }
@@ -58,7 +63,9 @@ interface PracticeSessionDelegate {
 
 interface PracticeCheckInDelegate {
   findUnique(args: unknown): Promise<PracticeCheckInRecord | null>;
+  findMany(args: unknown): Promise<PracticeCheckInRecord[]>;
   upsert(args: unknown): Promise<PracticeCheckInRecord>;
+  updateMany(args: unknown): Promise<{ count: number }>;
   count(args: unknown): Promise<number>;
 }
 
@@ -71,6 +78,38 @@ export interface PracticeStore {
   practiceSession: PracticeSessionDelegate;
   practiceCheckIn: PracticeCheckInDelegate;
   practiceSchedule: PracticeScheduleDelegate;
+  userProfile?: {
+    upsert(args: {
+      where: {
+        guildId_userId: {
+          guildId: string;
+          userId: string;
+        };
+      };
+      create: {
+        guildId: string;
+        userId: string;
+        displayName: string;
+      };
+      update: {
+        displayName: string;
+      };
+    }): Promise<UserProfileRecord>;
+    update(args: {
+      where: {
+        guildId_userId: {
+          guildId: string;
+          userId: string;
+        };
+      };
+      data: {
+        displayName: string;
+        xp?: number;
+        level?: number;
+        lastMessageXpAt?: Date | null;
+      };
+    }): Promise<UserProfileRecord>;
+  };
 }
 
 export interface StartPracticeSessionInput {
@@ -122,7 +161,11 @@ export interface RecordPracticeResponseResult {
 export interface EndPracticeSessionResult {
   session: PracticeSessionRecord;
   checkInCount: number;
+  rewardedCount: number;
+  rewardXpPerMember: number;
 }
+
+export const PRACTICE_ATTENDANCE_XP = 30;
 
 export const getActivePracticeSession = async (
   store: Pick<PracticeStore, "practiceSession">,
@@ -414,7 +457,10 @@ export const recordPracticeAttendance = async (
 };
 
 export const endPracticeSession = async (
-  store: Pick<PracticeStore, "practiceSession" | "practiceCheckIn">,
+  store: Pick<
+    PracticeStore,
+    "practiceSession" | "practiceCheckIn" | "userProfile"
+  >,
   input: EndPracticeSessionInput
 ): Promise<EndPracticeSessionResult | null> => {
   const activeSession = await getActivePracticeSession(store, input.guildId);
@@ -432,9 +478,54 @@ export const endPracticeSession = async (
     }
   });
 
+  let rewardedCount = 0;
+
+  if (store.userProfile) {
+    const eligibleParticipants = await store.practiceCheckIn.findMany({
+      where: {
+        sessionId: session.id,
+        attendanceStatus: "HERE",
+        rewardAppliedAt: null
+      }
+    });
+
+    for (const participant of eligibleParticipants) {
+      const updateResult = await store.practiceCheckIn.updateMany({
+        where: {
+          id: participant.id,
+          rewardAppliedAt: null
+        },
+        data: {
+          rewardAppliedAt: input.endedAt,
+          rewardXp: PRACTICE_ATTENDANCE_XP
+        }
+      });
+
+      if (updateResult.count === 0) {
+        continue;
+      }
+
+      await adjustXp(
+        {
+          userProfile: store.userProfile
+        },
+        {
+          guildId: participant.guildId,
+          userId: participant.userId,
+          displayName: participant.displayName,
+          delta: PRACTICE_ATTENDANCE_XP
+        }
+      );
+
+      rewardedCount += 1;
+    }
+  }
+
   return {
     session,
-    checkInCount: await getAttendanceCount(store, session.id)
+    checkInCount: await getAttendanceCount(store, session.id),
+    rewardedCount,
+    rewardXpPerMember: PRACTICE_ATTENDANCE_XP
   };
 };
 
