@@ -27,6 +27,7 @@ Phase 0 foundation is in progress. This repo currently includes:
 - `/leaderboard` rankings by total XP
 - admin XP adjustment commands
 - practice sessions with separate RSVP and attendance posts plus weekly scheduling
+- practice-end XP rewards for members marked `I'm Here`
 - starter docs and CI
 
 ## Quick Start

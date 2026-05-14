@@ -5,6 +5,7 @@ import {
   attachPracticeRsvpMessage,
   endPracticeSession,
   getOrCreateScheduledPracticeSession,
+  PRACTICE_ATTENDANCE_XP,
   recordPracticeAttendance,
   recordPracticeRsvp,
   startPracticeSession,
@@ -45,6 +46,8 @@ const buildCheckIn = (
   displayName: "MemberA",
   rsvpStatus: null,
   attendanceStatus: null,
+  rewardAppliedAt: null,
+  rewardXp: 0,
   checkedInAt: new Date("2026-05-13T00:10:00.000Z"),
   updatedAt: new Date("2026-05-13T00:10:00.000Z"),
   ...overrides
@@ -57,12 +60,16 @@ describe("practice service", () => {
       practiceSession: {
         findFirst: vi.fn().mockResolvedValue(activeSession),
         findUnique: vi.fn(),
+        findMany: vi.fn(),
         create: vi.fn(),
+        updateMany: vi.fn(),
         update: vi.fn()
       },
       practiceCheckIn: {
         findUnique: vi.fn(),
+        findMany: vi.fn(),
         upsert: vi.fn(),
+        updateMany: vi.fn(),
         count: vi.fn()
       },
       practiceSchedule: {
@@ -160,11 +167,13 @@ describe("practice service", () => {
       practiceSession: {
         findFirst: vi.fn().mockResolvedValue(buildSession()),
         findUnique: vi.fn().mockResolvedValue(buildSession()),
+        findMany: vi.fn(),
         create: vi.fn(),
         update: vi.fn()
       },
       practiceCheckIn: {
         findUnique: vi.fn(async () => currentCheckIn),
+        findMany: vi.fn(),
         upsert: vi.fn(async ({ create, update }) => {
           currentCheckIn = buildCheckIn({
             sessionId: create.sessionId,
@@ -184,6 +193,7 @@ describe("practice service", () => {
           });
           return currentCheckIn;
         }),
+        updateMany: vi.fn(),
         count: vi.fn(async ({ where }) =>
           currentCheckIn?.attendanceStatus === where.attendanceStatus ? 1 : 0
         )
@@ -227,11 +237,13 @@ describe("practice service", () => {
       practiceSession: {
         findFirst: vi.fn().mockResolvedValue(buildSession()),
         findUnique: vi.fn().mockResolvedValue(buildSession()),
+        findMany: vi.fn(),
         create: vi.fn(),
         update: vi.fn()
       },
       practiceCheckIn: {
         findUnique: vi.fn(async () => currentCheckIn),
+        findMany: vi.fn(),
         upsert: vi.fn(async ({ update }) => {
           currentCheckIn = buildCheckIn({
             ...currentCheckIn!,
@@ -242,6 +254,7 @@ describe("practice service", () => {
           });
           return currentCheckIn;
         }),
+        updateMany: vi.fn(),
         count: vi.fn(async ({ where }) =>
           currentCheckIn?.attendanceStatus === where.attendanceStatus ? 1 : 0
         )
@@ -263,6 +276,168 @@ describe("practice service", () => {
     expect(result.outcome).toBe("attendance_recorded");
     expect(result.checkInCount).toBe(0);
     expect(result.participant?.attendanceStatus).toBe("NOT_HERE");
+  });
+
+  it("awards practice xp only to members marked here when ending a session", async () => {
+    const hereParticipant = buildCheckIn({
+      id: "checkin_here",
+      userId: "member_here",
+      displayName: "MemberHere",
+      attendanceStatus: "HERE"
+    });
+    const notHereParticipant = buildCheckIn({
+      id: "checkin_not_here",
+      userId: "member_not_here",
+      displayName: "MemberNotHere",
+      attendanceStatus: "NOT_HERE"
+    });
+    const findMany = vi.fn().mockResolvedValue([hereParticipant]);
+    const updateMany = vi.fn().mockResolvedValue({ count: 1 });
+    const userProfileUpdate = vi.fn(async ({ data }) => ({
+      id: "profile_here",
+      guildId: "guild_123",
+      userId: "member_here",
+      displayName: data.displayName,
+      xp: data.xp,
+      level: data.level,
+      lastMessageXpAt: null,
+      createdAt: new Date("2026-05-13T00:00:00.000Z"),
+      updatedAt: new Date("2026-05-13T00:00:00.000Z")
+    }));
+
+    const store = {
+      practiceSession: {
+        findFirst: vi.fn().mockResolvedValue(buildSession()),
+        findUnique: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn().mockResolvedValue(
+          buildSession({
+            status: "ENDED",
+            endedAt: new Date("2026-05-13T02:00:00.000Z"),
+            endedByUserId: "officer_123"
+          })
+        )
+      },
+      practiceCheckIn: {
+        findUnique: vi.fn(),
+        findMany,
+        upsert: vi.fn(),
+        updateMany,
+        count: vi.fn().mockResolvedValue(1)
+      },
+      practiceSchedule: {
+        findMany: vi.fn(),
+        upsert: vi.fn()
+      },
+      userProfile: {
+        upsert: vi.fn(async ({ create, update }) => ({
+          id: "profile_here",
+          guildId: create.guildId,
+          userId: create.userId,
+          displayName: update.displayName,
+          xp: 90,
+          level: 1,
+          lastMessageXpAt: null,
+          createdAt: new Date("2026-05-13T00:00:00.000Z"),
+          updatedAt: new Date("2026-05-13T00:00:00.000Z")
+        })),
+        update: userProfileUpdate
+      }
+    };
+
+    const result = await endPracticeSession(store, {
+      guildId: "guild_123",
+      endedByUserId: "officer_123",
+      endedAt: new Date("2026-05-13T02:00:00.000Z")
+    });
+
+    expect(findMany).toHaveBeenCalledWith({
+      where: {
+        sessionId: "session_123",
+        attendanceStatus: "HERE",
+        rewardAppliedAt: null
+      }
+    });
+    expect(updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "checkin_here",
+        rewardAppliedAt: null
+      },
+      data: {
+        rewardAppliedAt: new Date("2026-05-13T02:00:00.000Z"),
+        rewardXp: PRACTICE_ATTENDANCE_XP
+      }
+    });
+    expect(userProfileUpdate).toHaveBeenCalledWith({
+      where: {
+        guildId_userId: {
+          guildId: "guild_123",
+          userId: "member_here"
+        }
+      },
+      data: {
+        displayName: "MemberHere",
+        xp: 120,
+        level: 2,
+        lastMessageXpAt: null
+      }
+    });
+    expect(result).toMatchObject({
+      checkInCount: 1,
+      rewardedCount: 1,
+      rewardXpPerMember: PRACTICE_ATTENDANCE_XP
+    });
+    expect(notHereParticipant.attendanceStatus).toBe("NOT_HERE");
+  });
+
+  it("does not double-reward a participant if a reward mark is already present", async () => {
+    const userProfileUpdate = vi.fn();
+    const store = {
+      practiceSession: {
+        findFirst: vi.fn().mockResolvedValue(buildSession()),
+        findUnique: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn().mockResolvedValue(
+          buildSession({
+            status: "ENDED",
+            endedAt: new Date("2026-05-13T02:00:00.000Z"),
+            endedByUserId: "officer_123"
+          })
+        )
+      },
+      practiceCheckIn: {
+        findUnique: vi.fn(),
+        findMany: vi.fn().mockResolvedValue([
+          buildCheckIn({
+            id: "checkin_here",
+            attendanceStatus: "HERE"
+          })
+        ]),
+        upsert: vi.fn(),
+        updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+        count: vi.fn().mockResolvedValue(1)
+      },
+      practiceSchedule: {
+        findMany: vi.fn(),
+        upsert: vi.fn()
+      },
+      userProfile: {
+        upsert: vi.fn(),
+        update: userProfileUpdate
+      }
+    };
+
+    const result = await endPracticeSession(store, {
+      guildId: "guild_123",
+      endedByUserId: "officer_123",
+      endedAt: new Date("2026-05-13T02:00:00.000Z")
+    });
+
+    expect(userProfileUpdate).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      rewardedCount: 0,
+      rewardXpPerMember: PRACTICE_ATTENDANCE_XP
+    });
   });
 
   it("reuses a scheduled practice session for the same practice date", async () => {
@@ -310,7 +485,9 @@ describe("practice service", () => {
       },
       practiceCheckIn: {
         findUnique: vi.fn(),
+        findMany: vi.fn().mockResolvedValue([]),
         upsert: vi.fn(),
+        updateMany: vi.fn(),
         count: vi.fn().mockResolvedValue(8)
       }
     };
