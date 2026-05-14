@@ -5,6 +5,7 @@ export interface UserProfileRecord {
   displayName: string;
   xp: number;
   level: number;
+  coins: number;
   lastMessageXpAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -66,6 +67,7 @@ interface UserProfileUpdateDelegate {
       displayName: string;
       xp?: number;
       level?: number;
+      coins?: number;
       lastMessageXpAt?: Date | null;
     };
   }): Promise<UserProfileRecord>;
@@ -121,6 +123,7 @@ export const updateProfile = async (
     displayName: string;
     xp?: number;
     level?: number;
+    coins?: number;
     lastMessageXpAt?: Date | null;
   }
 ): Promise<UserProfileRecord> => {
@@ -135,6 +138,7 @@ export const updateProfile = async (
       displayName: input.displayName,
       xp: input.xp,
       level: input.level,
+      coins: input.coins,
       lastMessageXpAt: input.lastMessageXpAt
     }
   });

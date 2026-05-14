@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { adjustXp } from "../src/features/progression/xp-adjustment.service.js";
+import { adjustCoins } from "../src/features/economy/coin-balance.service.js";
 import type { UserProfileRecord } from "../src/features/profiles/profile.service.js";
 
 const buildProfile = (
@@ -49,41 +49,43 @@ const buildStore = (profile: UserProfileRecord) => {
   };
 };
 
-describe("adjustXp", () => {
-  it("adds xp and recalculates level", async () => {
+describe("adjustCoins", () => {
+  it("adds coins without changing xp progression fields", async () => {
     const store = buildStore(
       buildProfile({
-        xp: 95,
-        level: 1
+        xp: 125,
+        level: 2,
+        coins: 10
       })
     );
 
-    const profile = await adjustXp(store, {
+    const profile = await adjustCoins(store, {
       guildId: "guild_123",
       userId: "user_123",
       displayName: "Cardin",
-      delta: 5
+      delta: 15
     });
 
-    expect(profile.xp).toBe(100);
+    expect(profile.coins).toBe(25);
+    expect(profile.xp).toBe(125);
     expect(profile.level).toBe(2);
   });
 
-  it("removes xp but clamps total xp at zero", async () => {
+  it("removes coins but clamps the balance at zero", async () => {
     const store = buildStore(
       buildProfile({
-        xp: 3,
-        level: 1
+        coins: 3
       })
     );
 
-    const profile = await adjustXp(store, {
+    const profile = await adjustCoins(store, {
       guildId: "guild_123",
       userId: "user_123",
       displayName: "Cardin",
       delta: -10
     });
 
+    expect(profile.coins).toBe(0);
     expect(profile.xp).toBe(0);
     expect(profile.level).toBe(1);
   });

@@ -106,6 +106,7 @@ export interface PracticeStore {
         displayName: string;
         xp?: number;
         level?: number;
+        coins?: number;
         lastMessageXpAt?: Date | null;
       };
     }): Promise<UserProfileRecord>;
