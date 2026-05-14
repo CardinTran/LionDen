@@ -61,6 +61,12 @@ Current admin XP control rule:
 - XP removals clamp at 0 rather than going negative
 - admin adjustments immediately recalculate the member's derived level
 
+Current economy foundation rule:
+
+- each user profile now stores a coin balance
+- coin balances clamp at 0 rather than going negative
+- the coin balance foundation is in place for `/daily` and future red envelope features
+
 Current practice attendance rule:
 
 - only one active practice session may exist per guild

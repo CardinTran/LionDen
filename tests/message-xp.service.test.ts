@@ -17,6 +17,7 @@ const buildProfile = (
   displayName: "Cardin",
   xp: 0,
   level: 1,
+  coins: 0,
   lastMessageXpAt: null,
   createdAt: new Date("2026-05-13T00:00:00.000Z"),
   updatedAt: new Date("2026-05-13T00:00:00.000Z"),
@@ -55,6 +56,7 @@ const buildStore = (profile: UserProfileRecord | null) => {
           displayName: data.displayName,
           xp: data.xp ?? currentProfile.xp,
           level: data.level ?? currentProfile.level,
+          coins: data.coins ?? currentProfile.coins,
           lastMessageXpAt:
             data.lastMessageXpAt === undefined
               ? currentProfile.lastMessageXpAt

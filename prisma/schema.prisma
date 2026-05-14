@@ -14,6 +14,7 @@ model UserProfile {
   displayName     String
   xp              Int       @default(0)
   level           Int       @default(1)
+  coins           Int       @default(0)
   lastMessageXpAt DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt

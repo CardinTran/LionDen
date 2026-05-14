@@ -1,18 +1,17 @@
-import { getLevelFromXp } from "./leveling.js";
 import {
   getOrCreateProfile,
   updateProfile,
   type UserProfileRecord
 } from "../profiles/profile.service.js";
 
-export interface AdjustXpInput {
+export interface AdjustCoinsInput {
   guildId: string;
   userId: string;
   displayName: string;
   delta: number;
 }
 
-interface XpAdjustmentStore {
+interface CoinBalanceStore {
   userProfile: {
     upsert(args: {
       where: {
@@ -48,9 +47,9 @@ interface XpAdjustmentStore {
   };
 }
 
-export const adjustXp = async (
-  store: XpAdjustmentStore,
-  input: AdjustXpInput
+export const adjustCoins = async (
+  store: CoinBalanceStore,
+  input: AdjustCoinsInput
 ): Promise<UserProfileRecord> => {
   const profile = await getOrCreateProfile(store, {
     guildId: input.guildId,
@@ -58,15 +57,15 @@ export const adjustXp = async (
     displayName: input.displayName
   });
 
-  const nextXp = Math.max(0, profile.xp + input.delta);
-  const nextLevel = getLevelFromXp(nextXp);
+  const nextCoins = Math.max(0, profile.coins + input.delta);
 
   return updateProfile(store, {
     guildId: input.guildId,
     userId: input.userId,
     displayName: input.displayName,
-    xp: nextXp,
-    level: nextLevel,
+    xp: profile.xp,
+    level: profile.level,
+    coins: nextCoins,
     lastMessageXpAt: profile.lastMessageXpAt
   });
 };

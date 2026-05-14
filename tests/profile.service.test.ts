@@ -14,6 +14,7 @@ const buildProfile = (
   displayName: "Cardin",
   xp: 0,
   level: 1,
+  coins: 0,
   lastMessageXpAt: null,
   createdAt: new Date("2026-05-13T00:00:00.000Z"),
   updatedAt: new Date("2026-05-13T00:00:00.000Z"),
@@ -53,5 +54,6 @@ describe("getOrCreateProfile", () => {
     });
     expect(profile.level).toBe(1);
     expect(profile.xp).toBe(0);
+    expect(profile.coins).toBe(0);
   });
 });

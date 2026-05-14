@@ -13,6 +13,7 @@ Shows:
 
 - current level
 - total XP
+- coin balance
 - progress toward the next level
 - remaining XP needed to level up
 
@@ -65,6 +66,11 @@ RSVP is for planning. Attendance is the authoritative record for rewards.
 - `/practice end` awards 30 XP to each member marked `I'm Here`
 - members marked `Not Here`, or members with no attendance response, do not earn practice XP
 - each session can only reward a participant once
+
+### Economy Foundation
+
+- coin balances now exist on user profiles
+- `/daily` is still pending and will build on this stored balance
 
 ## Planned MVP Commands
 

@@ -300,6 +300,7 @@ describe("practice service", () => {
       displayName: data.displayName,
       xp: data.xp,
       level: data.level,
+      coins: data.coins ?? 0,
       lastMessageXpAt: null,
       createdAt: new Date("2026-05-13T00:00:00.000Z"),
       updatedAt: new Date("2026-05-13T00:00:00.000Z")
@@ -337,6 +338,7 @@ describe("practice service", () => {
           displayName: update.displayName,
           xp: 90,
           level: 1,
+          coins: 0,
           lastMessageXpAt: null,
           createdAt: new Date("2026-05-13T00:00:00.000Z"),
           updatedAt: new Date("2026-05-13T00:00:00.000Z")

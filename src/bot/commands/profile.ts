@@ -12,6 +12,7 @@ import type { SlashCommand } from "./ping.js";
 const formatProfileMessage = (profile: {
   displayName: string;
   xp: number;
+  coins: number;
 }): string => {
   const progress = getLevelProgressFromXp(profile.xp);
 
@@ -19,6 +20,7 @@ const formatProfileMessage = (profile: {
     `Profile for ${profile.displayName}`,
     `Level: ${progress.currentLevel}`,
     `Total XP: ${profile.xp}`,
+    `Coins: ${profile.coins}`,
     `Progress to Level ${progress.nextLevel}: ${progress.xpIntoLevel}/${progress.xpSpanThisLevel} XP`,
     `XP Needed: ${progress.xpNeededForNextLevel}`
   ].join("\n");
