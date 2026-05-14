@@ -34,7 +34,7 @@ Officer/admin command that removes XP from a member, clamps the total at zero, a
 
 ### `/practice start`
 
-Officer/admin command that starts one active practice session for the server and posts the official LionDen attendance message in the current channel.
+Officer/admin command that starts one active practice session for the server and posts the official LionDen RSVP and attendance message in the current channel.
 
 ### `/practice end`
 
@@ -42,7 +42,12 @@ Officer/admin command that closes the active practice session and disables the a
 
 ### Practice Attendance Button
 
-When practice is live, members click the bot-posted `I'm Here` button. That button response is the official attendance record for the session.
+When practice is live, members use two kinds of buttons on the bot-posted message:
+
+- RSVP buttons: `Going`, `Late`, `Leaving Early`, `Not Going`
+- Attendance buttons: `I'm Here`, `Not Here`
+
+RSVP is for planning. Attendance is the authoritative record for rewards.
 
 ## Planned MVP Commands
 

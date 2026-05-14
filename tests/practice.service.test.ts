@@ -3,7 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import {
   attachPracticeAnnouncementMessage,
   endPracticeSession,
-  recordPracticeCheckIn,
+  recordPracticeAttendance,
+  recordPracticeRsvp,
   startPracticeSession,
   type PracticeCheckInRecord,
   type PracticeSessionRecord
@@ -33,7 +34,10 @@ const buildCheckIn = (
   guildId: "guild_123",
   userId: "member_123",
   displayName: "MemberA",
+  rsvpStatus: null,
+  attendanceStatus: null,
   checkedInAt: new Date("2026-05-13T00:10:00.000Z"),
+  updatedAt: new Date("2026-05-13T00:10:00.000Z"),
   ...overrides
 });
 
@@ -49,7 +53,7 @@ describe("practice service", () => {
       },
       practiceCheckIn: {
         findUnique: vi.fn(),
-        create: vi.fn(),
+        upsert: vi.fn(),
         count: vi.fn()
       }
     };
@@ -83,7 +87,7 @@ describe("practice service", () => {
         },
         practiceCheckIn: {
           findUnique: vi.fn(),
-          create: vi.fn(),
+          upsert: vi.fn(),
           count: vi.fn()
         }
       },
@@ -104,7 +108,7 @@ describe("practice service", () => {
     expect(result.announcementMessageId).toBe("message_123");
   });
 
-  it("records a member check-in only once per session", async () => {
+  it("stores RSVP separately from actual attendance", async () => {
     let currentCheckIn: PracticeCheckInRecord | null = null;
     const store = {
       practiceSession: {
@@ -115,36 +119,96 @@ describe("practice service", () => {
       },
       practiceCheckIn: {
         findUnique: vi.fn(async () => currentCheckIn),
-        create: vi.fn(async ({ data }) => {
+        upsert: vi.fn(async ({ create, update }) => {
           currentCheckIn = buildCheckIn({
-            sessionId: data.sessionId,
-            guildId: data.guildId,
-            userId: data.userId,
-            displayName: data.displayName
+            sessionId: create.sessionId,
+            guildId: create.guildId,
+            userId: create.userId,
+            displayName: update.displayName,
+            rsvpStatus:
+              update.rsvpStatus ??
+              create.rsvpStatus ??
+              currentCheckIn?.rsvpStatus ??
+              null,
+            attendanceStatus:
+              update.attendanceStatus ??
+              create.attendanceStatus ??
+              currentCheckIn?.attendanceStatus ??
+              null
           });
           return currentCheckIn;
         }),
-        count: vi.fn(async () => (currentCheckIn ? 1 : 0))
+        count: vi.fn(async ({ where }) =>
+          currentCheckIn?.attendanceStatus === where.attendanceStatus ? 1 : 0
+        )
       }
     };
 
-    const first = await recordPracticeCheckIn(store, {
+    const rsvp = await recordPracticeRsvp(store, {
       sessionId: "session_123",
       guildId: "guild_123",
       userId: "member_123",
-      displayName: "MemberA"
+      displayName: "MemberA",
+      rsvpStatus: "GOING"
     });
-    const second = await recordPracticeCheckIn(store, {
+    const attendance = await recordPracticeAttendance(store, {
       sessionId: "session_123",
       guildId: "guild_123",
       userId: "member_123",
-      displayName: "MemberA"
+      displayName: "MemberA",
+      attendanceStatus: "HERE"
     });
 
-    expect(first.outcome).toBe("checked_in");
-    expect(first.checkInCount).toBe(1);
-    expect(second.outcome).toBe("already_checked_in");
-    expect(second.checkInCount).toBe(1);
+    expect(rsvp.outcome).toBe("rsvp_recorded");
+    expect(rsvp.checkInCount).toBe(0);
+    expect(rsvp.participant?.rsvpStatus).toBe("GOING");
+    expect(attendance.outcome).toBe("attendance_recorded");
+    expect(attendance.checkInCount).toBe(1);
+    expect(attendance.participant?.rsvpStatus).toBe("GOING");
+    expect(attendance.participant?.attendanceStatus).toBe("HERE");
+  });
+
+  it("lets attendance switch between here and not here", async () => {
+    let currentCheckIn: PracticeCheckInRecord | null = buildCheckIn({
+      attendanceStatus: "HERE"
+    });
+
+    const store = {
+      practiceSession: {
+        findFirst: vi.fn().mockResolvedValue(buildSession()),
+        findUnique: vi.fn().mockResolvedValue(buildSession()),
+        create: vi.fn(),
+        update: vi.fn()
+      },
+      practiceCheckIn: {
+        findUnique: vi.fn(async () => currentCheckIn),
+        upsert: vi.fn(async ({ update }) => {
+          currentCheckIn = buildCheckIn({
+            ...currentCheckIn!,
+            displayName: update.displayName,
+            rsvpStatus: update.rsvpStatus ?? currentCheckIn?.rsvpStatus ?? null,
+            attendanceStatus:
+              update.attendanceStatus ?? currentCheckIn?.attendanceStatus ?? null
+          });
+          return currentCheckIn;
+        }),
+        count: vi.fn(async ({ where }) =>
+          currentCheckIn?.attendanceStatus === where.attendanceStatus ? 1 : 0
+        )
+      }
+    };
+
+    const result = await recordPracticeAttendance(store, {
+      sessionId: "session_123",
+      guildId: "guild_123",
+      userId: "member_123",
+      displayName: "MemberA",
+      attendanceStatus: "NOT_HERE"
+    });
+
+    expect(result.outcome).toBe("attendance_recorded");
+    expect(result.checkInCount).toBe(0);
+    expect(result.participant?.attendanceStatus).toBe("NOT_HERE");
   });
 
   it("ends the active session and returns the attendance count", async () => {
@@ -165,7 +229,7 @@ describe("practice service", () => {
         },
         practiceCheckIn: {
           findUnique: vi.fn(),
-          create: vi.fn(),
+          upsert: vi.fn(),
           count: vi.fn().mockResolvedValue(8)
         }
       },

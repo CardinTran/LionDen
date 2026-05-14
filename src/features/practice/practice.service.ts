@@ -1,4 +1,10 @@
 export type PracticeSessionStatus = "ACTIVE" | "ENDED";
+export type PracticeRsvpStatus =
+  | "GOING"
+  | "LATE"
+  | "LEAVING_EARLY"
+  | "NOT_GOING";
+export type PracticeAttendanceStatus = "HERE" | "NOT_HERE";
 
 export interface PracticeSessionRecord {
   id: string;
@@ -19,7 +25,10 @@ export interface PracticeCheckInRecord {
   guildId: string;
   userId: string;
   displayName: string;
+  rsvpStatus: PracticeRsvpStatus | null;
+  attendanceStatus: PracticeAttendanceStatus | null;
   checkedInAt: Date;
+  updatedAt: Date;
 }
 
 interface PracticeSessionDelegate {
@@ -67,17 +76,31 @@ interface PracticeCheckInDelegate {
       };
     };
   }): Promise<PracticeCheckInRecord | null>;
-  create(args: {
-    data: {
+  upsert(args: {
+    where: {
+      sessionId_userId: {
+        sessionId: string;
+        userId: string;
+      };
+    };
+    create: {
       sessionId: string;
       guildId: string;
       userId: string;
       displayName: string;
+      rsvpStatus?: PracticeRsvpStatus | null;
+      attendanceStatus?: PracticeAttendanceStatus | null;
+    };
+    update: {
+      displayName: string;
+      rsvpStatus?: PracticeRsvpStatus | null;
+      attendanceStatus?: PracticeAttendanceStatus | null;
     };
   }): Promise<PracticeCheckInRecord>;
   count(args: {
     where: {
       sessionId: string;
+      attendanceStatus?: PracticeAttendanceStatus;
     };
   }): Promise<number>;
 }
@@ -101,6 +124,14 @@ export interface RecordPracticeCheckInInput {
   displayName: string;
 }
 
+export interface RecordPracticeRsvpInput extends RecordPracticeCheckInInput {
+  rsvpStatus: PracticeRsvpStatus;
+}
+
+export interface RecordPracticeAttendanceInput extends RecordPracticeCheckInInput {
+  attendanceStatus: PracticeAttendanceStatus;
+}
+
 export interface EndPracticeSessionInput {
   guildId: string;
   endedByUserId: string;
@@ -108,9 +139,13 @@ export interface EndPracticeSessionInput {
 }
 
 export interface RecordPracticeCheckInResult {
-  outcome: "checked_in" | "already_checked_in" | "session_closed";
+  outcome:
+    | "rsvp_recorded"
+    | "attendance_recorded"
+    | "session_closed";
   session: PracticeSessionRecord;
   checkInCount: number;
+  participant: PracticeCheckInRecord | null;
 }
 
 export interface EndPracticeSessionResult {
@@ -187,34 +222,118 @@ export const attachPracticeAnnouncementMessage = async (
   });
 };
 
-export const recordPracticeCheckIn = async (
+const getAttendanceCount = async (
   store: PracticeStore,
-  input: RecordPracticeCheckInInput
-): Promise<RecordPracticeCheckInResult> => {
+  sessionId: string
+): Promise<number> => {
+  return store.practiceCheckIn.count({
+    where: {
+      sessionId,
+      attendanceStatus: "HERE"
+    }
+  });
+};
+
+const getSessionOrClosedResult = async (
+  store: PracticeStore,
+  sessionId: string
+): Promise<PracticeSessionRecord | null> => {
   const session = await store.practiceSession.findUnique({
     where: {
-      id: input.sessionId
+      id: sessionId
     }
   });
 
   if (!session || session.status !== "ACTIVE") {
+    return null;
+  }
+
+  return session;
+};
+
+export const recordPracticeRsvp = async (
+  store: PracticeStore,
+  input: RecordPracticeRsvpInput
+): Promise<RecordPracticeCheckInResult> => {
+  const session = await getSessionOrClosedResult(
+    store,
+    input.sessionId
+  );
+
+  if (!session) {
     return {
       outcome: "session_closed",
-      session:
-        session ??
-        ({
-          id: input.sessionId,
-          guildId: input.guildId,
-          startedByUserId: "",
-          startedByDisplayName: "",
-          announcementChannelId: "",
-          announcementMessageId: null,
-          status: "ENDED",
-          startedAt: new Date(0),
-          endedAt: new Date(0),
-          endedByUserId: null
-        } satisfies PracticeSessionRecord),
-      checkInCount: 0
+      session: {
+        id: input.sessionId,
+        guildId: input.guildId,
+        startedByUserId: "",
+        startedByDisplayName: "",
+        announcementChannelId: "",
+        announcementMessageId: null,
+        status: "ENDED",
+        startedAt: new Date(0),
+        endedAt: new Date(0),
+        endedByUserId: null
+      },
+      checkInCount: 0,
+      participant: null
+    };
+  }
+
+  const participant = await store.practiceCheckIn.upsert({
+    where: {
+      sessionId_userId: {
+        sessionId: input.sessionId,
+        userId: input.userId
+      }
+    },
+    create: {
+      sessionId: input.sessionId,
+      guildId: input.guildId,
+      userId: input.userId,
+      displayName: input.displayName,
+      rsvpStatus: input.rsvpStatus
+    },
+    update: {
+      displayName: input.displayName,
+      rsvpStatus: input.rsvpStatus
+    }
+  });
+
+  return {
+    outcome: "rsvp_recorded",
+    session,
+    checkInCount: await getAttendanceCount(store, input.sessionId),
+    participant
+  };
+};
+
+export const recordPracticeAttendance = async (
+  store: PracticeStore,
+  input: RecordPracticeAttendanceInput
+): Promise<RecordPracticeCheckInResult> => {
+  const session = await getSessionOrClosedResult(
+    store,
+    input.sessionId
+  );
+
+  if (!session) {
+    return {
+      outcome: "session_closed",
+      session: {
+        id: input.sessionId,
+        guildId: input.guildId,
+        startedByUserId: "",
+        startedByDisplayName: "",
+        announcementChannelId: "",
+        announcementMessageId: null,
+        status: "ENDED",
+        startedAt: new Date(0),
+        endedAt: new Date(0),
+        endedByUserId: null
+      },
+      checkInCount: 0,
+      participant: null
     };
   }
 
@@ -227,35 +346,32 @@ export const recordPracticeCheckIn = async (
     }
   });
 
-  if (existingCheckIn) {
-    return {
-      outcome: "already_checked_in",
-      session,
-      checkInCount: await store.practiceCheckIn.count({
-        where: {
-          sessionId: input.sessionId
-        }
-      })
-    };
-  }
-
-  await store.practiceCheckIn.create({
-    data: {
+  const participant = await store.practiceCheckIn.upsert({
+    where: {
+      sessionId_userId: {
+        sessionId: input.sessionId,
+        userId: input.userId
+      }
+    },
+    create: {
       sessionId: input.sessionId,
       guildId: input.guildId,
       userId: input.userId,
-      displayName: input.displayName
+      displayName: input.displayName,
+      attendanceStatus: input.attendanceStatus
+    },
+    update: {
+      displayName: input.displayName,
+      rsvpStatus: existingCheckIn?.rsvpStatus,
+      attendanceStatus: input.attendanceStatus
     }
   });
 
   return {
-    outcome: "checked_in",
+    outcome: "attendance_recorded",
     session,
-    checkInCount: await store.practiceCheckIn.count({
-      where: {
-        sessionId: input.sessionId
-      }
-    })
+    checkInCount: await getAttendanceCount(store, input.sessionId),
+    participant
   };
 };
 
@@ -282,10 +398,6 @@ export const endPracticeSession = async (
 
   return {
     session,
-    checkInCount: await store.practiceCheckIn.count({
-      where: {
-        sessionId: session.id
-      }
-    })
+    checkInCount: await getAttendanceCount(store, session.id)
   };
 };
