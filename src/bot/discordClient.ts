@@ -8,6 +8,10 @@ import {
   Routes
 } from "discord.js";
 
+import {
+  claimRedEnvelope,
+  getOpenRedEnvelopeForChannel
+} from "../features/economy/red-envelope.service.js";
 import { awardMessageXp } from "../features/progression/message-xp.service.js";
 import { startRedEnvelopeScheduler } from "../features/economy/red-envelope-scheduler.js";
 import { startPracticeScheduler } from "../features/practice/practice-scheduler.js";
@@ -20,8 +24,10 @@ import {
   isPracticeButtonCustomId
 } from "./commands/practice.js";
 import {
-  handleRedEnvelopeButton,
-  isRedEnvelopeButtonCustomId
+  formatRedEnvelopeAlreadyClaimedMessage,
+  formatRedEnvelopeClaimSuccessMessage,
+  formatRedEnvelopeClaimedMessage,
+  RED_ENVELOPE_GRAB_COMMAND
 } from "./commands/redenvelope.js";
 
 export const createDiscordClient = (): Client => {
@@ -57,31 +63,6 @@ export const createDiscordClient = (): Client => {
 
         await interaction.reply({
           content: "Something went wrong while recording that practice check-in.",
-          ephemeral: true
-        });
-      }
-      return;
-    }
-
-    if (interaction.isButton() && isRedEnvelopeButtonCustomId(interaction.customId)) {
-      try {
-        await handleRedEnvelopeButton(interaction);
-      } catch (error) {
-        logger.error("Red envelope interaction failed", {
-          customId: interaction.customId,
-          error
-        });
-
-        if (interaction.replied || interaction.deferred) {
-          await interaction.followUp({
-            content: "Something went wrong while claiming that red envelope.",
-            ephemeral: true
-          });
-          return;
-        }
-
-        await interaction.reply({
-          content: "Something went wrong while claiming that red envelope.",
           ephemeral: true
         });
       }
@@ -126,6 +107,61 @@ export const createDiscordClient = (): Client => {
 
   client.on(Events.MessageCreate, async (message: Message) => {
     if (message.author.bot || !message.guildId) {
+      return;
+    }
+
+    if (message.content.trim().toLowerCase() === RED_ENVELOPE_GRAB_COMMAND) {
+      try {
+        const openEnvelope = await getOpenRedEnvelopeForChannel(prisma, {
+          guildId: message.guildId,
+          channelId: message.channelId
+        });
+
+        if (!openEnvelope) {
+          return;
+        }
+
+        const result = await claimRedEnvelope(prisma, {
+          envelopeId: openEnvelope.id,
+          userId: message.author.id,
+          displayName: message.member?.user.username ?? message.author.username,
+          claimedAt: message.createdAt
+        });
+
+        if (!result.envelope) {
+          return;
+        }
+
+        if (result.outcome === "already_claimed") {
+          await message.reply(
+            formatRedEnvelopeAlreadyClaimedMessage({
+              envelope: result.envelope
+            })
+          );
+          return;
+        }
+
+        if (message.channel.isTextBased() && "send" in message.channel) {
+          await message.channel.send(
+            formatRedEnvelopeClaimedMessage({
+              envelope: result.envelope
+            })
+          );
+        }
+        await message.reply(
+          formatRedEnvelopeClaimSuccessMessage({
+            result
+          })
+        );
+      } catch (error) {
+        logger.error("Red envelope grab failed", {
+          guildId: message.guildId,
+          channelId: message.channelId,
+          userId: message.author.id,
+          error
+        });
+      }
+
       return;
     }
 

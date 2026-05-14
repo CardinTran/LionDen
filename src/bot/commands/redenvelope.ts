@@ -1,43 +1,23 @@
 import {
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
   ChannelType,
   ChatInputCommandInteraction,
   PermissionFlagsBits,
-  type ButtonInteraction,
   SlashCommandBuilder,
   type RESTPostAPIChatInputApplicationCommandsJSONBody
 } from "discord.js";
 
 import {
   attachRedEnvelopeMessage,
-  claimRedEnvelope,
   configureRedEnvelopeDrops,
   createRedEnvelope,
   generateRandomDrop,
+  type ClaimRedEnvelopeResult,
   type RedEnvelopeRecord
 } from "../../features/economy/red-envelope.service.js";
 import { prisma } from "../../lib/prisma.js";
 import type { SlashCommand } from "./ping.js";
 
-const RED_ENVELOPE_PREFIX = "redenvelope:claim:";
-
-export const buildRedEnvelopeCustomId = (envelopeId: string): string =>
-  `${RED_ENVELOPE_PREFIX}${envelopeId}`;
-
-export const buildRedEnvelopeComponents = (
-  envelopeId: string,
-  disabled = false
-): ActionRowBuilder<ButtonBuilder>[] => [
-  new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder()
-      .setCustomId(buildRedEnvelopeCustomId(envelopeId))
-      .setLabel(disabled ? "Claimed" : "Claim Red Envelope")
-      .setStyle(ButtonStyle.Danger)
-      .setDisabled(disabled)
-  )
-];
+export const RED_ENVELOPE_GRAB_COMMAND = "~grab";
 
 export const formatRedEnvelopeMessage = (input: {
   createdByDisplayName: string;
@@ -46,7 +26,8 @@ export const formatRedEnvelopeMessage = (input: {
   [
     "A LionDen red envelope has appeared.",
     `Created by ${input.createdByDisplayName}.`,
-    `First claim gets ${input.amount} coins.`
+    `First claim gets ${input.amount} coins.`,
+    `Type ${RED_ENVELOPE_GRAB_COMMAND} in this channel to claim it.`
   ].join("\n");
 
 export const formatRedEnvelopeClaimedMessage = (input: {
@@ -57,6 +38,16 @@ export const formatRedEnvelopeClaimedMessage = (input: {
     `Created by ${input.envelope.createdByDisplayName}.`,
     `${input.envelope.claimedByDisplayName ?? "A member"} claimed ${input.envelope.amount} coins.`
   ].join("\n");
+
+export const formatRedEnvelopeClaimSuccessMessage = (input: {
+  result: ClaimRedEnvelopeResult;
+}): string =>
+  `${input.result.envelope?.claimedByDisplayName ?? "A member"} grabbed the red envelope and won ${input.result.envelope?.amount ?? 0} coins.`;
+
+export const formatRedEnvelopeAlreadyClaimedMessage = (input: {
+  envelope: RedEnvelopeRecord;
+}): string =>
+  `${input.envelope.claimedByDisplayName ?? "Another member"} already grabbed this red envelope.`;
 
 const requireManageGuild = async (
   interaction: ChatInputCommandInteraction
@@ -200,8 +191,7 @@ export const redEnvelopeCommand: SlashCommand = {
       content: formatRedEnvelopeMessage({
         createdByDisplayName: interaction.user.username,
         amount
-      }),
-      components: buildRedEnvelopeComponents(envelope.id)
+      })
     });
 
     await attachRedEnvelopeMessage(prisma, {
@@ -215,59 +205,6 @@ export const redEnvelopeCommand: SlashCommand = {
     });
   }
 };
-
-export const handleRedEnvelopeButton = async (
-  interaction: ButtonInteraction
-): Promise<void> => {
-  const guildId = interaction.guildId;
-  const envelopeId = interaction.customId.slice(RED_ENVELOPE_PREFIX.length);
-
-  if (!guildId || !envelopeId) {
-    await interaction.reply({
-      content: "This red envelope is no longer valid.",
-      ephemeral: true
-    });
-    return;
-  }
-
-  const result = await claimRedEnvelope(prisma, {
-    envelopeId,
-    userId: interaction.user.id,
-    displayName: interaction.user.username,
-    claimedAt: new Date()
-  });
-
-  if (result.outcome === "not_found" || !result.envelope) {
-    await interaction.reply({
-      content: "This red envelope is no longer available.",
-      ephemeral: true
-    });
-    return;
-  }
-
-  if (result.outcome === "already_claimed") {
-    await interaction.reply({
-      content: `${result.envelope.claimedByDisplayName ?? "Another member"} already claimed this red envelope.`,
-      ephemeral: true
-    });
-    return;
-  }
-
-  await interaction.update({
-    content: formatRedEnvelopeClaimedMessage({
-      envelope: result.envelope
-    }),
-    components: buildRedEnvelopeComponents(result.envelope.id, true)
-  });
-
-  await interaction.followUp({
-    content: `You claimed ${result.envelope.amount} coins and now have ${result.profile?.coins ?? result.envelope.amount} total coins.`,
-    ephemeral: true
-  });
-};
-
-export const isRedEnvelopeButtonCustomId = (customId: string): boolean =>
-  customId.startsWith(RED_ENVELOPE_PREFIX);
 
 export const redEnvelopeCommandJson =
   redEnvelopeCommand.data.toJSON() satisfies RESTPostAPIChatInputApplicationCommandsJSONBody;

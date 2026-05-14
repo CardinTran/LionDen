@@ -6,6 +6,7 @@ import {
   configureRedEnvelopeDrops,
   createRedEnvelope,
   generateRandomDrop,
+  getOpenRedEnvelopeForChannel,
   type RedEnvelopeRecord
 } from "../src/features/economy/red-envelope.service.js";
 import type { UserProfileRecord } from "../src/features/profiles/profile.service.js";
@@ -292,5 +293,34 @@ describe("red envelope service", () => {
       }
     });
     expect(config.channelId).toBe("channel_123");
+  });
+
+  it("finds the open red envelope for a specific channel", async () => {
+    const findFirst = vi.fn().mockResolvedValue(buildEnvelope());
+
+    const envelope = await getOpenRedEnvelopeForChannel(
+      {
+        redEnvelope: {
+          create: vi.fn(),
+          findFirst,
+          findUnique: vi.fn(),
+          update: vi.fn(),
+          updateMany: vi.fn()
+        }
+      },
+      {
+        guildId: "guild_123",
+        channelId: "channel_123"
+      }
+    );
+
+    expect(findFirst).toHaveBeenCalledWith({
+      where: {
+        guildId: "guild_123",
+        channelId: "channel_123",
+        status: "OPEN"
+      }
+    });
+    expect(envelope?.id).toBe("envelope_123");
   });
 });
