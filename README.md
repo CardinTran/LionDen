@@ -26,6 +26,7 @@ Phase 0 foundation is in progress. This repo currently includes:
 - message XP foundation with a persisted cooldown
 - `/leaderboard` rankings by total XP
 - admin XP adjustment commands
+- admin coin adjustment commands
 - practice sessions with separate RSVP and attendance posts plus weekly scheduling
 - practice-end XP rewards for members marked `I'm Here`
 - coin balance foundation stored on user profiles

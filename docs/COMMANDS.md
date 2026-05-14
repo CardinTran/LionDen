@@ -29,6 +29,14 @@ Shows the top 10 server members ranked by total XP, with each member's current l
 
 Claims a fixed daily coin reward once per calendar day using LionDen's Central Time reset.
 
+### `/coins add`
+
+Officer/admin command that adds coins to a member and returns their updated coin balance.
+
+### `/coins remove`
+
+Officer/admin command that removes coins from a member, clamps the total at zero, and returns their updated coin balance.
+
 ### `/xp add`
 
 Officer/admin command that adds XP to a member and returns their updated total XP and level.
@@ -77,6 +85,7 @@ RSVP is for planning. Attendance is the authoritative record for rewards.
 - `/daily` now awards 25 coins once per calendar day
 - `/daily` does not award XP
 - no streaks or randomness are included yet
+- `/coins add` and `/coins remove` give officers simple balance correction tools
 
 ## Planned MVP Commands
 
