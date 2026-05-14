@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   attachRedEnvelopeMessage,
+  clearOpenRedEnvelopesForGuild,
   claimRedEnvelope,
   configureRedEnvelopeDrops,
   createRedEnvelope,
@@ -82,6 +83,7 @@ describe("red envelope service", () => {
       {
         redEnvelope: {
           create,
+          deleteMany: vi.fn(),
           findFirst: vi.fn(),
           findUnique: vi.fn(),
           update,
@@ -101,6 +103,7 @@ describe("red envelope service", () => {
       {
         redEnvelope: {
           create,
+          deleteMany: vi.fn(),
           findFirst: vi.fn(),
           findUnique: vi.fn(),
           update,
@@ -141,11 +144,12 @@ describe("red envelope service", () => {
     });
 
     const store = {
-      redEnvelope: {
-        create: vi.fn(),
-        findFirst: vi.fn(),
-        findUnique: vi.fn(async () => currentEnvelope),
-        update: vi.fn(),
+        redEnvelope: {
+          create: vi.fn(),
+          deleteMany: vi.fn(),
+          findFirst: vi.fn(),
+          findUnique: vi.fn(async () => currentEnvelope),
+          update: vi.fn(),
         updateMany: vi.fn(async ({ data }) => {
           currentEnvelope = buildEnvelope({
             ...currentEnvelope,
@@ -211,6 +215,7 @@ describe("red envelope service", () => {
       {
         redEnvelope: {
           create: vi.fn(),
+          deleteMany: vi.fn(),
           findFirst: vi.fn(),
           findUnique: vi.fn().mockResolvedValue(claimedEnvelope),
           update: vi.fn(),
@@ -383,6 +388,7 @@ describe("red envelope service", () => {
       {
         redEnvelope: {
           create: vi.fn(),
+          deleteMany: vi.fn(),
           findFirst,
           findUnique: vi.fn(),
           update: vi.fn(),
@@ -403,5 +409,33 @@ describe("red envelope service", () => {
       }
     });
     expect(envelope?.id).toBe("envelope_123");
+  });
+
+  it("clears all open red envelopes for a guild", async () => {
+    const deleteMany = vi.fn().mockResolvedValue({
+      count: 3
+    });
+
+    const clearedCount = await clearOpenRedEnvelopesForGuild(
+      {
+        redEnvelope: {
+          create: vi.fn(),
+          deleteMany,
+          findFirst: vi.fn(),
+          findUnique: vi.fn(),
+          update: vi.fn(),
+          updateMany: vi.fn()
+        }
+      },
+      "guild_123"
+    );
+
+    expect(deleteMany).toHaveBeenCalledWith({
+      where: {
+        guildId: "guild_123",
+        status: "OPEN"
+      }
+    });
+    expect(clearedCount).toBe(3);
   });
 });

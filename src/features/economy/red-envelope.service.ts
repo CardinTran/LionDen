@@ -77,6 +77,12 @@ interface RedEnvelopeStore {
         status: RedEnvelopeStatus;
       };
     }): Promise<RedEnvelopeRecord | null>;
+    deleteMany(args: {
+      where: {
+        guildId: string;
+        status: RedEnvelopeStatus;
+      };
+    }): Promise<{ count: number }>;
   };
   redEnvelopeDropConfig: {
     findUnique(args: {
@@ -461,4 +467,18 @@ export const getOpenRedEnvelopeForChannel = async (
       status: "OPEN"
     }
   });
+};
+
+export const clearOpenRedEnvelopesForGuild = async (
+  store: Pick<RedEnvelopeStore, "redEnvelope">,
+  guildId: string
+): Promise<number> => {
+  const result = await store.redEnvelope.deleteMany({
+    where: {
+      guildId,
+      status: "OPEN"
+    }
+  });
+
+  return result.count;
 };

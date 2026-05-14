@@ -45,6 +45,10 @@ Officer/admin command that pauses automated random red envelope drops without de
 
 Officer/admin command that forces one immediate configured random red envelope drop using the stored amount range and active-channel targeting rules.
 
+### `/redenvelope clearopen`
+
+Officer/admin command that clears stale open red envelopes when the server state got stuck and no visible envelope remains to claim.
+
 ### `/coins add`
 
 Officer/admin command that adds coins to a member and returns their updated coin balance.
@@ -110,6 +114,7 @@ RSVP is for planning. Attendance is the authoritative record for rewards.
 - if no channel qualifies, LionDen falls back to the configured channel
 - `/redenvelope pause` stops automated drops until an officer configures them again
 - `/redenvelope dropnow` gives officers a manual override without removing the competitive `~grab` race
+- `/redenvelope clearopen` gives officers a recovery path if stale open envelopes block new drops
 
 ## Planned MVP Commands
 

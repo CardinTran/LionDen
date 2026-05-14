@@ -19,7 +19,8 @@ describe("redenvelope command", () => {
       "configure",
       "create",
       "pause",
-      "dropnow"
+      "dropnow",
+      "clearopen"
     ]);
   });
 

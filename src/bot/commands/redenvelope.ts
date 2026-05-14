@@ -8,6 +8,7 @@ import {
 
 import {
   attachRedEnvelopeMessage,
+  clearOpenRedEnvelopesForGuild,
   configureRedEnvelopeDrops,
   createRedEnvelope,
   generateRandomDrop,
@@ -122,6 +123,11 @@ export const redEnvelopeCommand: SlashCommand = {
       subcommand
         .setName("dropnow")
         .setDescription("Force one immediate configured random red envelope drop.")
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("clearopen")
+        .setDescription("Clear stale open red envelopes for this server.")
     ) as SlashCommandBuilder,
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     const guildId = interaction.guildId;
@@ -257,6 +263,30 @@ export const redEnvelopeCommand: SlashCommand = {
 
       await interaction.reply({
         content: `Random red envelope dropped in <#${postedDrop.channelId}> for ${postedDrop.amount} coins.`,
+        ephemeral: true
+      });
+      return;
+    }
+
+    if (subcommand === "clearopen") {
+      const clearedCount = await clearOpenRedEnvelopesForGuild(prisma, guildId);
+
+      await interaction.reply({
+        content:
+          clearedCount === 0
+            ? "There were no open red envelopes to clear."
+            : `Cleared ${clearedCount} open red envelope${clearedCount === 1 ? "" : "s"} for this server.`,
+        ephemeral: true
+      });
+      return;
+    }
+
+    const existingOpenEnvelope = await getOpenRedEnvelopeForGuild(prisma, guildId);
+
+    if (existingOpenEnvelope) {
+      await interaction.reply({
+        content:
+          "There is already an open red envelope in this server. Claim it first, or use `/redenvelope clearopen` if it is stale.",
         ephemeral: true
       });
       return;
