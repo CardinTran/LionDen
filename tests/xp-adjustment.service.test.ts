@@ -14,6 +14,7 @@ const buildProfile = (
   level: 1,
   coins: 0,
   lastMessageXpAt: null,
+  lastDailyClaimAt: null,
   createdAt: new Date("2026-05-13T00:00:00.000Z"),
   updatedAt: new Date("2026-05-13T00:00:00.000Z"),
   ...overrides
@@ -41,7 +42,11 @@ const buildStore = (profile: UserProfileRecord) => {
           lastMessageXpAt:
             data.lastMessageXpAt === undefined
               ? currentProfile.lastMessageXpAt
-              : data.lastMessageXpAt
+              : data.lastMessageXpAt,
+          lastDailyClaimAt:
+            data.lastDailyClaimAt === undefined
+              ? currentProfile.lastDailyClaimAt
+              : data.lastDailyClaimAt
         };
         return currentProfile;
       })

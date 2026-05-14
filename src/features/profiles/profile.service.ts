@@ -7,6 +7,7 @@ export interface UserProfileRecord {
   level: number;
   coins: number;
   lastMessageXpAt: Date | null;
+  lastDailyClaimAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -69,6 +70,7 @@ interface UserProfileUpdateDelegate {
       level?: number;
       coins?: number;
       lastMessageXpAt?: Date | null;
+      lastDailyClaimAt?: Date | null;
     };
   }): Promise<UserProfileRecord>;
 }
@@ -125,6 +127,7 @@ export const updateProfile = async (
     level?: number;
     coins?: number;
     lastMessageXpAt?: Date | null;
+    lastDailyClaimAt?: Date | null;
   }
 ): Promise<UserProfileRecord> => {
   return store.userProfile.update({
@@ -139,7 +142,8 @@ export const updateProfile = async (
       xp: input.xp,
       level: input.level,
       coins: input.coins,
-      lastMessageXpAt: input.lastMessageXpAt
+      lastMessageXpAt: input.lastMessageXpAt,
+      lastDailyClaimAt: input.lastDailyClaimAt
     }
   });
 };

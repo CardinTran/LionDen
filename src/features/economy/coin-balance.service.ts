@@ -42,6 +42,7 @@ interface CoinBalanceStore {
         level?: number;
         coins?: number;
         lastMessageXpAt?: Date | null;
+        lastDailyClaimAt?: Date | null;
       };
     }): Promise<UserProfileRecord>;
   };
@@ -66,6 +67,7 @@ export const adjustCoins = async (
     xp: profile.xp,
     level: profile.level,
     coins: nextCoins,
-    lastMessageXpAt: profile.lastMessageXpAt
+    lastMessageXpAt: profile.lastMessageXpAt,
+    lastDailyClaimAt: profile.lastDailyClaimAt
   });
 };

@@ -16,6 +16,7 @@ model UserProfile {
   level           Int       @default(1)
   coins           Int       @default(0)
   lastMessageXpAt DateTime?
+  lastDailyClaimAt DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 

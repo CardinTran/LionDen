@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  MESSAGE_XP_AMOUNT,
-  MESSAGE_XP_COOLDOWN_MS,
-  awardMessageXp,
-  canAwardMessageXp
-} from "../src/features/progression/message-xp.service.js";
+  DAILY_COIN_REWARD,
+  DAILY_TIMEZONE,
+  canClaimDaily,
+  claimDaily,
+  isSameCalendarDay
+} from "../src/features/economy/daily-claim.service.js";
 import type { UserProfileRecord } from "../src/features/profiles/profile.service.js";
 
 const buildProfile = (
@@ -30,7 +31,6 @@ const buildStore = (profile: UserProfileRecord | null) => {
 
   return {
     userProfile: {
-      findUnique: vi.fn(async () => currentProfile),
       upsert: vi.fn(async ({ create, update }) => {
         if (currentProfile) {
           currentProfile = {
@@ -74,86 +74,81 @@ const buildStore = (profile: UserProfileRecord | null) => {
   };
 };
 
-describe("canAwardMessageXp", () => {
-  it("allows the first eligible message", () => {
-    expect(
-      canAwardMessageXp(null, new Date("2026-05-13T12:00:00.000Z"))
-    ).toEqual({
-      eligible: true,
-      cooldownEndsAt: null
-    });
+describe("daily claim eligibility", () => {
+  it("treats two timestamps on the same Central Time day as the same claim day", () => {
+    const first = new Date("2026-05-14T03:00:00.000Z");
+    const second = new Date("2026-05-14T04:30:00.000Z");
+
+    expect(isSameCalendarDay(first, second, DAILY_TIMEZONE)).toBe(true);
   });
 
-  it("blocks awards during the cooldown window", () => {
-    const lastAwardedAt = new Date("2026-05-13T12:00:00.000Z");
-    const now = new Date(lastAwardedAt.getTime() + MESSAGE_XP_COOLDOWN_MS - 1);
+  it("allows a new claim after the calendar day changes in Central Time", () => {
+    const lastClaimAt = new Date("2026-05-14T04:30:00.000Z");
+    const nextDay = new Date("2026-05-15T05:00:00.000Z");
 
-    expect(canAwardMessageXp(lastAwardedAt, now)).toEqual({
-      eligible: false,
-      cooldownEndsAt: new Date(lastAwardedAt.getTime() + MESSAGE_XP_COOLDOWN_MS)
+    expect(canClaimDaily(lastClaimAt, nextDay, DAILY_TIMEZONE)).toMatchObject({
+      eligible: true,
+      nextClaimAt: null
     });
   });
 });
 
-describe("awardMessageXp", () => {
-  it("creates a profile and awards 5 xp on the first eligible message", async () => {
+describe("claimDaily", () => {
+  it("awards coins on the first claim of the day", async () => {
+    const claimedAt = new Date("2026-05-14T18:00:00.000Z");
     const store = buildStore(null);
-    const awardedAt = new Date("2026-05-13T12:00:00.000Z");
 
-    const result = await awardMessageXp(store, {
+    const result = await claimDaily(store, {
       guildId: "guild_123",
       userId: "user_123",
       displayName: "Cardin",
-      awardedAt
+      claimedAt
     });
 
-    expect(result.awarded).toBe(true);
-    expect(result.profile.xp).toBe(MESSAGE_XP_AMOUNT);
-    expect(result.profile.level).toBe(1);
-    expect(result.profile.lastMessageXpAt).toEqual(awardedAt);
+    expect(result.claimed).toBe(true);
+    expect(result.coinsAwarded).toBe(DAILY_COIN_REWARD);
+    expect(result.profile.coins).toBe(DAILY_COIN_REWARD);
+    expect(result.profile.lastDailyClaimAt).toEqual(claimedAt);
   });
 
-  it("does not award xp again before the cooldown expires", async () => {
-    const lastAwardedAt = new Date("2026-05-13T12:00:00.000Z");
+  it("blocks a second claim on the same Central Time day", async () => {
+    const claimedAt = new Date("2026-05-14T18:00:00.000Z");
     const store = buildStore(
       buildProfile({
-        xp: MESSAGE_XP_AMOUNT,
-        lastMessageXpAt: lastAwardedAt
+        coins: DAILY_COIN_REWARD,
+        lastDailyClaimAt: claimedAt
       })
     );
 
-    const result = await awardMessageXp(store, {
+    const result = await claimDaily(store, {
       guildId: "guild_123",
       userId: "user_123",
       displayName: "Cardin",
-      awardedAt: new Date(lastAwardedAt.getTime() + 60_000)
+      claimedAt: new Date("2026-05-14T23:00:00.000Z")
     });
 
-    expect(result.awarded).toBe(false);
-    expect(result.profile.xp).toBe(MESSAGE_XP_AMOUNT);
-    expect(result.cooldownEndsAt).toEqual(
-      new Date(lastAwardedAt.getTime() + MESSAGE_XP_COOLDOWN_MS)
-    );
+    expect(result.claimed).toBe(false);
+    expect(result.coinsAwarded).toBe(0);
+    expect(result.profile.coins).toBe(DAILY_COIN_REWARD);
   });
 
-  it("awards another 5 xp after the cooldown expires", async () => {
-    const lastAwardedAt = new Date("2026-05-13T12:00:00.000Z");
+  it("allows a claim on the next Central Time day", async () => {
+    const previousClaimAt = new Date("2026-05-14T23:00:00.000Z");
     const store = buildStore(
       buildProfile({
-        xp: 95,
-        lastMessageXpAt: lastAwardedAt
+        coins: 40,
+        lastDailyClaimAt: previousClaimAt
       })
     );
 
-    const result = await awardMessageXp(store, {
+    const result = await claimDaily(store, {
       guildId: "guild_123",
       userId: "user_123",
       displayName: "Cardin",
-      awardedAt: new Date(lastAwardedAt.getTime() + MESSAGE_XP_COOLDOWN_MS)
+      claimedAt: new Date("2026-05-15T05:00:00.000Z")
     });
 
-    expect(result.awarded).toBe(true);
-    expect(result.profile.xp).toBe(100);
-    expect(result.profile.level).toBe(2);
+    expect(result.claimed).toBe(true);
+    expect(result.profile.coins).toBe(40 + DAILY_COIN_REWARD);
   });
 });
