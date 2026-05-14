@@ -165,13 +165,11 @@ export const createDiscordClient = (): Client => {
 
       return;
     }
-
     recordChannelActivity({
       guildId: message.guildId,
       channelId: message.channelId,
       occurredAt: message.createdAt
     });
-
     try {
       await awardMessageXp(prisma, {
         guildId: message.guildId,
