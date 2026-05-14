@@ -1,5 +1,6 @@
 import { Collection } from "discord.js";
 
+import { dailyCommand } from "./daily.js";
 import { leaderboardCommand } from "./leaderboard.js";
 import { practiceCommand } from "./practice.js";
 import { profileCommand } from "./profile.js";
@@ -9,6 +10,7 @@ import { xpCommand } from "./xp.js";
 export const commands = [
   pingCommand,
   profileCommand,
+  dailyCommand,
   leaderboardCommand,
   xpCommand,
   practiceCommand

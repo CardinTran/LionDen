@@ -67,6 +67,13 @@ Current economy foundation rule:
 - coin balances clamp at 0 rather than going negative
 - the coin balance foundation is in place for `/daily` and future red envelope features
 
+Current daily reward rule:
+
+- `/daily` awards 25 coins
+- each member can claim once per calendar day in America/Chicago
+- `/daily` does not grant XP
+- streaks and random rewards are intentionally out of scope for the MVP
+
 Current practice attendance rule:
 
 - only one active practice session may exist per guild

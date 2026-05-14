@@ -29,6 +29,7 @@ Phase 0 foundation is in progress. This repo currently includes:
 - practice sessions with separate RSVP and attendance posts plus weekly scheduling
 - practice-end XP rewards for members marked `I'm Here`
 - coin balance foundation stored on user profiles
+- `/daily` fixed coin reward with once-per-day claims
 - starter docs and CI
 
 ## Quick Start

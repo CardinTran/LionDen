@@ -25,6 +25,10 @@ Current progression note:
 
 Shows the top 10 server members ranked by total XP, with each member's current level beside their XP total.
 
+### `/daily`
+
+Claims a fixed daily coin reward once per calendar day using LionDen's Central Time reset.
+
 ### `/xp add`
 
 Officer/admin command that adds XP to a member and returns their updated total XP and level.
@@ -70,7 +74,9 @@ RSVP is for planning. Attendance is the authoritative record for rewards.
 ### Economy Foundation
 
 - coin balances now exist on user profiles
-- `/daily` is still pending and will build on this stored balance
+- `/daily` now awards 25 coins once per calendar day
+- `/daily` does not award XP
+- no streaks or randomness are included yet
 
 ## Planned MVP Commands
 

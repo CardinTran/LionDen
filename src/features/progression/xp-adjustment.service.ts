@@ -43,6 +43,7 @@ interface XpAdjustmentStore {
         level?: number;
         coins?: number;
         lastMessageXpAt?: Date | null;
+        lastDailyClaimAt?: Date | null;
       };
     }): Promise<UserProfileRecord>;
   };
