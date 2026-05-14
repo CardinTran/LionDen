@@ -11,11 +11,13 @@ import {
 } from "discord.js";
 
 import {
-  attachPracticeAnnouncementMessage,
+  attachPracticeAttendanceMessage,
+  attachPracticeRsvpMessage,
   endPracticeSession,
   recordPracticeAttendance,
   recordPracticeRsvp,
-  startPracticeSession
+  startPracticeSession,
+  upsertPracticeSchedule
 } from "../../features/practice/practice.service.js";
 import { prisma } from "../../lib/prisma.js";
 import type { SlashCommand } from "./ping.js";
@@ -26,68 +28,89 @@ const PRACTICE_ATTENDANCE_PREFIX = "practice:attendance:";
 export const buildPracticeRsvpCustomId = (
   sessionId: string,
   rsvpStatus: "GOING" | "LATE" | "LEAVING_EARLY" | "NOT_GOING"
-): string => {
-  return `${PRACTICE_RSVP_PREFIX}${rsvpStatus}:${sessionId}`;
-};
+): string => `${PRACTICE_RSVP_PREFIX}${rsvpStatus}:${sessionId}`;
 
 export const buildPracticeAttendanceCustomId = (
   sessionId: string,
   attendanceStatus: "HERE" | "NOT_HERE"
-): string => {
-  return `${PRACTICE_ATTENDANCE_PREFIX}${attendanceStatus}:${sessionId}`;
-};
+): string => `${PRACTICE_ATTENDANCE_PREFIX}${attendanceStatus}:${sessionId}`;
+
+export const buildPracticeRsvpComponents = (
+  sessionId: string,
+  disabled = false
+): ActionRowBuilder<ButtonBuilder>[] => [
+  new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setCustomId(buildPracticeRsvpCustomId(sessionId, "GOING"))
+      .setLabel("Going")
+      .setStyle(ButtonStyle.Primary)
+      .setDisabled(disabled),
+    new ButtonBuilder()
+      .setCustomId(buildPracticeRsvpCustomId(sessionId, "NOT_GOING"))
+      .setLabel("Not Going")
+      .setStyle(ButtonStyle.Danger)
+      .setDisabled(disabled),
+    new ButtonBuilder()
+      .setCustomId(buildPracticeRsvpCustomId(sessionId, "LATE"))
+      .setLabel("Late")
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(disabled),
+    new ButtonBuilder()
+      .setCustomId(buildPracticeRsvpCustomId(sessionId, "LEAVING_EARLY"))
+      .setLabel("Leaving Early")
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(disabled)
+  )
+];
 
 export const buildPracticeAttendanceComponents = (
   sessionId: string,
   disabled = false
-): ActionRowBuilder<ButtonBuilder>[] => {
-  return [
-    new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder()
-        .setCustomId(buildPracticeRsvpCustomId(sessionId, "GOING"))
-        .setLabel("Going")
-        .setStyle(ButtonStyle.Primary)
-        .setDisabled(disabled),
-      new ButtonBuilder()
-        .setCustomId(buildPracticeRsvpCustomId(sessionId, "LATE"))
-        .setLabel("Late")
-        .setStyle(ButtonStyle.Secondary)
-        .setDisabled(disabled),
-      new ButtonBuilder()
-        .setCustomId(buildPracticeRsvpCustomId(sessionId, "LEAVING_EARLY"))
-        .setLabel("Leaving Early")
-        .setStyle(ButtonStyle.Secondary)
-        .setDisabled(disabled),
-      new ButtonBuilder()
-        .setCustomId(buildPracticeRsvpCustomId(sessionId, "NOT_GOING"))
-        .setLabel("Not Going")
-        .setStyle(ButtonStyle.Danger)
-        .setDisabled(disabled)
-    ),
-    new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder()
-        .setCustomId(buildPracticeAttendanceCustomId(sessionId, "HERE"))
-        .setLabel(disabled ? "Attendance Closed" : "I'm Here")
-        .setStyle(ButtonStyle.Success)
-        .setDisabled(disabled),
-      new ButtonBuilder()
-        .setCustomId(buildPracticeAttendanceCustomId(sessionId, "NOT_HERE"))
-        .setLabel(disabled ? "Attendance Closed" : "Not Here")
-        .setStyle(ButtonStyle.Secondary)
-        .setDisabled(disabled)
-    )
-  ];
-};
+): ActionRowBuilder<ButtonBuilder>[] => [
+  new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setCustomId(buildPracticeAttendanceCustomId(sessionId, "HERE"))
+      .setLabel(disabled ? "Attendance Closed" : "I'm Here")
+      .setStyle(ButtonStyle.Success)
+      .setDisabled(disabled),
+    new ButtonBuilder()
+      .setCustomId(buildPracticeAttendanceCustomId(sessionId, "NOT_HERE"))
+      .setLabel(disabled ? "Attendance Closed" : "Not Here")
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(disabled)
+  )
+];
 
-export const formatPracticeAnnouncementMessage = (input: {
+export const formatPracticeRsvpMessage = (input: {
   startedByDisplayName: string;
-}): string => {
-  return [
-    "LionDen practice attendance is live.",
+}): string =>
+  [
+    "LionDen practice RSVP is open.",
     `Started by ${input.startedByDisplayName}.`,
-    "Use the RSVP buttons for planning.",
-    "Use `I'm Here` or `Not Here` as the actual attendance record."
+    "Use these buttons for planning only."
   ].join("\n");
+
+export const formatPracticeAttendanceMessage = (input: {
+  startedByDisplayName: string;
+}): string =>
+  [
+    "LionDen practice attendance is open.",
+    `Started by ${input.startedByDisplayName}.`,
+    "Use `I'm Here` or `Not Here` as the official attendance record."
+  ].join("\n");
+
+const requireManageGuild = async (
+  interaction: ChatInputCommandInteraction
+): Promise<boolean> => {
+  if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
+    await interaction.reply({
+      content: "You do not have permission to manage practice sessions.",
+      ephemeral: true
+    });
+    return false;
+  }
+
+  return true;
 };
 
 export const practiceCommand: SlashCommand = {
@@ -97,8 +120,15 @@ export const practiceCommand: SlashCommand = {
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addSubcommand((subcommand) =>
       subcommand
+        .setName("configure")
+        .setDescription("Set the current channel as the scheduled practice channel.")
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
         .setName("start")
-        .setDescription("Start a practice attendance session in this channel.")
+        .setDescription(
+          "Start a manual practice session and post RSVP plus attendance messages in this channel."
+        )
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -116,38 +146,49 @@ export const practiceCommand: SlashCommand = {
       return;
     }
 
-    if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
+    if (!(await requireManageGuild(interaction))) {
+      return;
+    }
+
+    const channel = interaction.channel;
+    const subcommand = interaction.options.getSubcommand(true);
+
+    if (
+      !channel ||
+      !channel.isTextBased() ||
+      channel.type === ChannelType.DM ||
+      !("send" in channel)
+    ) {
       await interaction.reply({
-        content: "You do not have permission to manage practice sessions.",
+        content:
+          "Practice commands must be run from a server text channel where LionDen can post messages.",
         ephemeral: true
       });
       return;
     }
 
-    const subcommand = interaction.options.getSubcommand(true);
+    if (subcommand === "configure") {
+      await upsertPracticeSchedule(prisma, {
+        guildId,
+        channelId: channel.id,
+        timezone: "America/Chicago",
+        enabled: true
+      });
+
+      await interaction.reply({
+        content:
+          "Scheduled practice posts are configured for this channel. LionDen will use the fixed weekly schedule in Central Time.",
+        ephemeral: true
+      });
+      return;
+    }
 
     if (subcommand === "start") {
-      const channel = interaction.channel;
-
-      if (
-        !channel ||
-        !channel.isTextBased() ||
-        channel.type === ChannelType.DM ||
-        !("send" in channel)
-      ) {
-        await interaction.reply({
-        content:
-            "Practice sessions must be started from a server text channel where LionDen can post the attendance message.",
-          ephemeral: true
-        });
-        return;
-      }
-
       const result = await startPracticeSession(prisma, {
         guildId,
         startedByUserId: interaction.user.id,
         startedByDisplayName: interaction.user.username,
-        announcementChannelId: channel.id
+        channelId: channel.id
       });
 
       if (result.outcome === "already_active") {
@@ -158,20 +199,39 @@ export const practiceCommand: SlashCommand = {
         return;
       }
 
-      const announcementMessage = await channel.send({
-        content: formatPracticeAnnouncementMessage({
+      const rsvpMessage = await channel.send({
+        content: formatPracticeRsvpMessage({
+          startedByDisplayName: interaction.user.username
+        }),
+        components: buildPracticeRsvpComponents(result.session.id)
+      });
+
+      const attendanceMessage = await channel.send({
+        content: formatPracticeAttendanceMessage({
           startedByDisplayName: interaction.user.username
         }),
         components: buildPracticeAttendanceComponents(result.session.id)
       });
 
-      await attachPracticeAnnouncementMessage(prisma, {
+      await attachPracticeRsvpMessage(prisma, {
         sessionId: result.session.id,
-        announcementMessageId: announcementMessage.id
+        rsvpMessageId: rsvpMessage.id
+      });
+      await attachPracticeAttendanceMessage(prisma, {
+        sessionId: result.session.id,
+        attendanceMessageId: attendanceMessage.id,
+        activate: false
+      });
+
+      await upsertPracticeSchedule(prisma, {
+        guildId,
+        channelId: channel.id,
+        timezone: "America/Chicago",
+        enabled: true
       });
 
       await interaction.reply({
-        content: `Practice session started in <#${channel.id}>.`,
+        content: `Manual practice session started in <#${channel.id}> with separate RSVP and attendance posts.`,
         ephemeral: true
       });
       return;
@@ -191,28 +251,35 @@ export const practiceCommand: SlashCommand = {
       return;
     }
 
-    if (
-      result.session.announcementMessageId &&
-      interaction.client.channels &&
-      result.session.announcementChannelId
-    ) {
-      try {
-        const channel = await interaction.client.channels.fetch(
-          result.session.announcementChannelId
-        );
+    try {
+      const fetchedChannel = await interaction.client.channels.fetch(
+        result.session.announcementChannelId
+      );
 
-        if (
-          channel &&
-          channel.isTextBased() &&
-          "messages" in channel
-        ) {
-          const announcement = await channel.messages.fetch(
-            result.session.announcementMessageId
+      if (fetchedChannel && fetchedChannel.isTextBased() && "messages" in fetchedChannel) {
+        if (result.session.rsvpMessageId) {
+          const rsvpMessage = await fetchedChannel.messages.fetch(result.session.rsvpMessageId);
+
+          await rsvpMessage.edit({
+            content: [
+              formatPracticeRsvpMessage({
+                startedByDisplayName: result.session.startedByDisplayName
+              }),
+              "",
+              "Practice RSVP is now closed."
+            ].join("\n"),
+            components: buildPracticeRsvpComponents(result.session.id, true)
+          });
+        }
+
+        if (result.session.attendanceMessageId) {
+          const attendanceMessage = await fetchedChannel.messages.fetch(
+            result.session.attendanceMessageId
           );
 
-          await announcement.edit({
+          await attendanceMessage.edit({
             content: [
-              formatPracticeAnnouncementMessage({
+              formatPracticeAttendanceMessage({
                 startedByDisplayName: result.session.startedByDisplayName
               }),
               "",
@@ -221,19 +288,19 @@ export const practiceCommand: SlashCommand = {
             components: buildPracticeAttendanceComponents(result.session.id, true)
           });
         }
-      } catch {
-        // Best-effort UX update only; the session is already closed in the database.
       }
+    } catch {
+      // Best-effort update only; the session is already closed in the database.
     }
 
     await interaction.reply({
-      content: `Practice session ended with ${result.checkInCount} check-in${result.checkInCount === 1 ? "" : "s"}.`,
+      content: `Practice session ended with ${result.checkInCount} member${result.checkInCount === 1 ? "" : "s"} marked here.`,
       ephemeral: true
     });
   }
 };
 
-export const handlePracticeCheckInButton = async (
+export const handlePracticeButton = async (
   interaction: ButtonInteraction
 ): Promise<void> => {
   const guildId = interaction.guildId;
@@ -269,13 +336,13 @@ export const handlePracticeCheckInButton = async (
 
     const labelMap = {
       GOING: "Going",
+      NOT_GOING: "Not Going",
       LATE: "Late",
-      LEAVING_EARLY: "Leaving Early",
-      NOT_GOING: "Not Going"
+      LEAVING_EARLY: "Leaving Early"
     } as const;
 
     await interaction.reply({
-      content: `Your RSVP is set to ${labelMap[state as keyof typeof labelMap]}. Current attendance count: ${result.checkInCount}.`,
+      content: `Your RSVP is set to ${labelMap[state as keyof typeof labelMap]}. Members currently marked here: ${result.checkInCount}.`,
       ephemeral: true
     });
     return;
@@ -297,23 +364,18 @@ export const handlePracticeCheckInButton = async (
     return;
   }
 
-  const message =
-    state === "HERE"
-      ? `You're marked as here. Current attendance: ${result.checkInCount}.`
-      : `You're marked as not here. Current attendance: ${result.checkInCount}.`;
-
   await interaction.reply({
-    content: message,
+    content:
+      state === "HERE"
+        ? `You're marked as here. Current attendance: ${result.checkInCount}.`
+        : `You're marked as not here. Current attendance: ${result.checkInCount}.`,
     ephemeral: true
   });
 };
 
-export const isPracticeCheckInCustomId = (customId: string): boolean => {
-  return (
-    customId.startsWith(PRACTICE_RSVP_PREFIX) ||
-    customId.startsWith(PRACTICE_ATTENDANCE_PREFIX)
-  );
-};
+export const isPracticeButtonCustomId = (customId: string): boolean =>
+  customId.startsWith(PRACTICE_RSVP_PREFIX) ||
+  customId.startsWith(PRACTICE_ATTENDANCE_PREFIX);
 
 export const practiceCommandJson =
   practiceCommand.data.toJSON() satisfies RESTPostAPIChatInputApplicationCommandsJSONBody;

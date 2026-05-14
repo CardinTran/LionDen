@@ -22,19 +22,28 @@ model UserProfile {
 }
 
 model PracticeSession {
-  id                    String                 @id @default(cuid())
-  guildId               String
-  startedByUserId       String
-  startedByDisplayName  String
+  id                   String                @id @default(cuid())
+  guildId              String
+  startedByUserId      String
+  startedByDisplayName String
   announcementChannelId String
+  source               PracticeSessionSource @default(MANUAL)
+  scheduledDateKey     String?
+  scheduledStartAt     DateTime?
+  scheduledEndAt       DateTime?
   announcementMessageId String?
-  status                PracticeSessionStatus  @default(ACTIVE)
-  startedAt             DateTime               @default(now())
-  endedAt               DateTime?
-  endedByUserId         String?
-  checkIns              PracticeCheckIn[]
+  rsvpMessageId        String?
+  rsvpPostedAt         DateTime?
+  attendanceMessageId  String?
+  attendancePostedAt   DateTime?
+  status               PracticeSessionStatus @default(ACTIVE)
+  startedAt            DateTime              @default(now())
+  endedAt              DateTime?
+  endedByUserId        String?
+  checkIns             PracticeCheckIn[]
 
   @@index([guildId, status])
+  @@unique([guildId, source, scheduledDateKey])
 }
 
 model PracticeCheckIn {
@@ -54,8 +63,24 @@ model PracticeCheckIn {
 }
 
 enum PracticeSessionStatus {
+  SCHEDULED
   ACTIVE
   ENDED
+}
+
+model PracticeSchedule {
+  id        String   @id @default(cuid())
+  guildId   String   @unique
+  channelId String?
+  timezone  String   @default("America/Chicago")
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum PracticeSessionSource {
+  MANUAL
+  SCHEDULED
 }
 
 enum PracticeRsvpStatus {

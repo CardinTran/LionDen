@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   buildPracticeAttendanceCustomId,
   buildPracticeRsvpCustomId,
-  formatPracticeAnnouncementMessage,
+  formatPracticeAttendanceMessage,
+  formatPracticeRsvpMessage,
   practiceCommandJson
 } from "../src/bot/commands/practice.js";
 
@@ -14,6 +15,7 @@ describe("practice command", () => {
       "Manage LionDen practice attendance sessions."
     );
     expect(practiceCommandJson.options?.map((option) => option.name)).toEqual([
+      "configure",
       "start",
       "end"
     ]);
@@ -28,17 +30,30 @@ describe("practice command", () => {
     );
   });
 
-  it("formats the attendance announcement message", () => {
+  it("formats the RSVP announcement message", () => {
     expect(
-      formatPracticeAnnouncementMessage({
+      formatPracticeRsvpMessage({
         startedByDisplayName: "CoachA"
       })
     ).toBe(
       [
-        "LionDen practice attendance is live.",
+        "LionDen practice RSVP is open.",
         "Started by CoachA.",
-        "Use the RSVP buttons for planning.",
-        "Use `I'm Here` or `Not Here` as the actual attendance record."
+        "Use these buttons for planning only."
+      ].join("\n")
+    );
+  });
+
+  it("formats the attendance announcement message", () => {
+    expect(
+      formatPracticeAttendanceMessage({
+        startedByDisplayName: "CoachA"
+      })
+    ).toBe(
+      [
+        "LionDen practice attendance is open.",
+        "Started by CoachA.",
+        "Use `I'm Here` or `Not Here` as the official attendance record."
       ].join("\n")
     );
   });

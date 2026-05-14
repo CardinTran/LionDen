@@ -9,13 +9,14 @@ import {
 } from "discord.js";
 
 import { awardMessageXp } from "../features/progression/message-xp.service.js";
+import { startPracticeScheduler } from "../features/practice/practice-scheduler.js";
 import { env } from "../config/env.js";
 import { logger } from "../lib/logger.js";
 import { prisma } from "../lib/prisma.js";
 import { commandRegistry, commands } from "./commands/index.js";
 import {
-  handlePracticeCheckInButton,
-  isPracticeCheckInCustomId
+  handlePracticeButton,
+  isPracticeButtonCustomId
 } from "./commands/practice.js";
 
 export const createDiscordClient = (): Client => {
@@ -27,14 +28,15 @@ export const createDiscordClient = (): Client => {
     logger.info("Discord client ready", {
       tag: readyClient.user.tag
     });
+    startPracticeScheduler(client);
   });
 
   client.on(Events.InteractionCreate, async (interaction: Interaction) => {
-    if (interaction.isButton() && isPracticeCheckInCustomId(interaction.customId)) {
+    if (interaction.isButton() && isPracticeButtonCustomId(interaction.customId)) {
       try {
-        await handlePracticeCheckInButton(interaction);
+        await handlePracticeButton(interaction);
       } catch (error) {
-        logger.error("Practice check-in failed", {
+        logger.error("Practice interaction failed", {
           customId: interaction.customId,
           error
         });
