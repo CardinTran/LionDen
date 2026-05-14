@@ -30,6 +30,8 @@ Phase 0 foundation is in progress. This repo currently includes:
 - red envelope foundation with manual create-and-claim flow
 - random red envelope drops with activity-based channel targeting
 - public `~grab` red envelope claims
+- admin controls to pause random red envelope drops or force one immediately
+- admin recovery control to clear stale open red envelopes
 - practice sessions with separate RSVP and attendance posts plus weekly scheduling
 - practice-end XP rewards for members marked `I'm Here`
 - coin balance foundation stored on user profiles
