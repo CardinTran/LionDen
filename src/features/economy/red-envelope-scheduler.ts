@@ -11,7 +11,6 @@ import {
   updateRedEnvelopeDropSchedule
 } from "./red-envelope.service.js";
 import {
-  buildRedEnvelopeComponents,
   formatRedEnvelopeMessage
 } from "../../bot/commands/redenvelope.js";
 
@@ -81,8 +80,7 @@ export const runRedEnvelopeSchedulerTick = async (
       content: formatRedEnvelopeMessage({
         createdByDisplayName: SCHEDULER_DISPLAY_NAME,
         amount: generation.amount
-      }),
-      components: buildRedEnvelopeComponents(envelope.id)
+      })
     });
 
     await attachRedEnvelopeMessage(prisma, {

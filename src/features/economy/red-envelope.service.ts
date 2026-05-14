@@ -73,6 +73,7 @@ interface RedEnvelopeStore {
     findFirst(args: {
       where: {
         guildId: string;
+        channelId?: string;
         status: RedEnvelopeStatus;
       };
     }): Promise<RedEnvelopeRecord | null>;
@@ -407,6 +408,22 @@ export const getOpenRedEnvelopeForGuild = async (
   return store.redEnvelope.findFirst({
     where: {
       guildId,
+      status: "OPEN"
+    }
+  });
+};
+
+export const getOpenRedEnvelopeForChannel = async (
+  store: Pick<RedEnvelopeStore, "redEnvelope">,
+  input: {
+    guildId: string;
+    channelId: string;
+  }
+): Promise<RedEnvelopeRecord | null> => {
+  return store.redEnvelope.findFirst({
+    where: {
+      guildId: input.guildId,
+      channelId: input.channelId,
       status: "OPEN"
     }
   });

@@ -83,7 +83,7 @@ Current admin coin control rule:
 Current red envelope foundation rule:
 
 - `/redenvelope create` creates a manual red envelope in the current channel
-- the first successful claimant receives the full configured coin amount
+- the first successful member to type `~grab` in that channel receives the full configured coin amount
 - each red envelope can only be claimed once
 
 Current random red envelope rule:
@@ -91,7 +91,7 @@ Current random red envelope rule:
 - `/redenvelope configure` enables random drops in a chosen channel
 - each guild stores a min/max coin amount and a min/max interval in minutes
 - LionDen posts random drops using those ranges when no other open red envelope exists in the guild
-- current claim flow still uses the first successful button claimant
+- current claim flow uses the first successful `~grab` message in the drop channel
 
 Current practice attendance rule:
 
