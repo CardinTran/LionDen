@@ -41,6 +41,21 @@ model RedEnvelope {
   @@index([guildId, status])
 }
 
+model RedEnvelopeDropConfig {
+  id                 String   @id @default(cuid())
+  guildId            String   @unique
+  channelId          String
+  enabled            Boolean  @default(true)
+  minAmount          Int      @default(10)
+  maxAmount          Int      @default(50)
+  minIntervalMinutes Int      @default(60)
+  maxIntervalMinutes Int      @default(180)
+  nextDropAt         DateTime?
+  lastDroppedAt      DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
 model PracticeSession {
   id                   String                @id @default(cuid())
   guildId              String

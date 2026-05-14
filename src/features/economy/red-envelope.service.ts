@@ -19,6 +19,21 @@ export interface RedEnvelopeRecord {
   updatedAt: Date;
 }
 
+export interface RedEnvelopeDropConfigRecord {
+  id: string;
+  guildId: string;
+  channelId: string;
+  enabled: boolean;
+  minAmount: number;
+  maxAmount: number;
+  minIntervalMinutes: number;
+  maxIntervalMinutes: number;
+  nextDropAt: Date | null;
+  lastDroppedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 interface RedEnvelopeStore {
   redEnvelope: {
     create(args: {
@@ -55,6 +70,54 @@ interface RedEnvelopeStore {
         claimedAt: Date;
       };
     }): Promise<{ count: number }>;
+    findFirst(args: {
+      where: {
+        guildId: string;
+        status: RedEnvelopeStatus;
+      };
+    }): Promise<RedEnvelopeRecord | null>;
+  };
+  redEnvelopeDropConfig: {
+    findMany(args: {
+      where: {
+        enabled: boolean;
+      };
+    }): Promise<RedEnvelopeDropConfigRecord[]>;
+    upsert(args: {
+      where: {
+        guildId: string;
+      };
+      create: {
+        guildId: string;
+        channelId: string;
+        enabled?: boolean;
+        minAmount?: number;
+        maxAmount?: number;
+        minIntervalMinutes?: number;
+        maxIntervalMinutes?: number;
+        nextDropAt?: Date | null;
+        lastDroppedAt?: Date | null;
+      };
+      update: {
+        channelId?: string;
+        enabled?: boolean;
+        minAmount?: number;
+        maxAmount?: number;
+        minIntervalMinutes?: number;
+        maxIntervalMinutes?: number;
+        nextDropAt?: Date | null;
+        lastDroppedAt?: Date | null;
+      };
+    }): Promise<RedEnvelopeDropConfigRecord>;
+    update(args: {
+      where: {
+        guildId: string;
+      };
+      data: {
+        lastDroppedAt?: Date | null;
+        nextDropAt?: Date | null;
+      };
+    }): Promise<RedEnvelopeDropConfigRecord>;
   };
   userProfile: {
     upsert(args: {
@@ -111,6 +174,31 @@ export interface ClaimRedEnvelopeResult {
   outcome: "claimed" | "already_claimed" | "not_found";
   envelope: RedEnvelopeRecord | null;
   profile: UserProfileRecord | null;
+}
+
+export interface ConfigureRedEnvelopeDropsInput {
+  guildId: string;
+  channelId: string;
+  enabled: boolean;
+  minAmount: number;
+  maxAmount: number;
+  minIntervalMinutes: number;
+  maxIntervalMinutes: number;
+  nextDropAt: Date | null;
+}
+
+export interface RandomDropGenerationInput {
+  config: Pick<
+    RedEnvelopeDropConfigRecord,
+    "minAmount" | "maxAmount" | "minIntervalMinutes" | "maxIntervalMinutes"
+  >;
+  now: Date;
+  random: () => number;
+}
+
+export interface RandomDropGenerationResult {
+  amount: number;
+  nextDropAt: Date;
 }
 
 export const createRedEnvelope = async (
@@ -221,4 +309,105 @@ export const claimRedEnvelope = async (
     envelope: claimedEnvelope,
     profile
   };
+};
+
+export const getRandomIntInclusive = (
+  min: number,
+  max: number,
+  random: () => number
+): number => {
+  const safeMin = Math.ceil(Math.min(min, max));
+  const safeMax = Math.floor(Math.max(min, max));
+  return Math.floor(random() * (safeMax - safeMin + 1)) + safeMin;
+};
+
+export const generateRandomDrop = (
+  input: RandomDropGenerationInput
+): RandomDropGenerationResult => {
+  const amount = getRandomIntInclusive(
+    input.config.minAmount,
+    input.config.maxAmount,
+    input.random
+  );
+  const intervalMinutes = getRandomIntInclusive(
+    input.config.minIntervalMinutes,
+    input.config.maxIntervalMinutes,
+    input.random
+  );
+
+  return {
+    amount,
+    nextDropAt: new Date(input.now.getTime() + intervalMinutes * 60_000)
+  };
+};
+
+export const configureRedEnvelopeDrops = async (
+  store: Pick<RedEnvelopeStore, "redEnvelopeDropConfig">,
+  input: ConfigureRedEnvelopeDropsInput
+): Promise<RedEnvelopeDropConfigRecord> => {
+  return store.redEnvelopeDropConfig.upsert({
+    where: {
+      guildId: input.guildId
+    },
+    create: {
+      guildId: input.guildId,
+      channelId: input.channelId,
+      enabled: input.enabled,
+      minAmount: input.minAmount,
+      maxAmount: input.maxAmount,
+      minIntervalMinutes: input.minIntervalMinutes,
+      maxIntervalMinutes: input.maxIntervalMinutes,
+      nextDropAt: input.nextDropAt
+    },
+    update: {
+      channelId: input.channelId,
+      enabled: input.enabled,
+      minAmount: input.minAmount,
+      maxAmount: input.maxAmount,
+      minIntervalMinutes: input.minIntervalMinutes,
+      maxIntervalMinutes: input.maxIntervalMinutes,
+      nextDropAt: input.nextDropAt
+    }
+  });
+};
+
+export const listEnabledRedEnvelopeDropConfigs = async (
+  store: Pick<RedEnvelopeStore, "redEnvelopeDropConfig">
+): Promise<RedEnvelopeDropConfigRecord[]> => {
+  return store.redEnvelopeDropConfig.findMany({
+    where: {
+      enabled: true
+    }
+  });
+};
+
+export const updateRedEnvelopeDropSchedule = async (
+  store: Pick<RedEnvelopeStore, "redEnvelopeDropConfig">,
+  input: {
+    guildId: string;
+    lastDroppedAt: Date;
+    nextDropAt: Date;
+  }
+): Promise<RedEnvelopeDropConfigRecord> => {
+  return store.redEnvelopeDropConfig.update({
+    where: {
+      guildId: input.guildId
+    },
+    data: {
+      lastDroppedAt: input.lastDroppedAt,
+      nextDropAt: input.nextDropAt
+    }
+  });
+};
+
+export const getOpenRedEnvelopeForGuild = async (
+  store: Pick<RedEnvelopeStore, "redEnvelope">,
+  guildId: string
+): Promise<RedEnvelopeRecord | null> => {
+  return store.redEnvelope.findFirst({
+    where: {
+      guildId,
+      status: "OPEN"
+    }
+  });
 };

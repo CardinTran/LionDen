@@ -85,7 +85,13 @@ Current red envelope foundation rule:
 - `/redenvelope create` creates a manual red envelope in the current channel
 - the first successful claimant receives the full configured coin amount
 - each red envelope can only be claimed once
-- random timed drops are intentionally a later follow-up
+
+Current random red envelope rule:
+
+- `/redenvelope configure` enables random drops in a chosen channel
+- each guild stores a min/max coin amount and a min/max interval in minutes
+- LionDen posts random drops using those ranges when no other open red envelope exists in the guild
+- current claim flow still uses the first successful button claimant
 
 Current practice attendance rule:
 

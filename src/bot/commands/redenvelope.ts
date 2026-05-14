@@ -13,7 +13,9 @@ import {
 import {
   attachRedEnvelopeMessage,
   claimRedEnvelope,
+  configureRedEnvelopeDrops,
   createRedEnvelope,
+  generateRandomDrop,
   type RedEnvelopeRecord
 } from "../../features/economy/red-envelope.service.js";
 import { prisma } from "../../lib/prisma.js";
@@ -77,6 +79,35 @@ export const redEnvelopeCommand: SlashCommand = {
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addSubcommand((subcommand) =>
       subcommand
+        .setName("configure")
+        .setDescription("Configure random red envelope drops for this channel.")
+        .addIntegerOption((option) =>
+          option
+            .setName("min_amount")
+            .setDescription("Minimum random drop amount.")
+            .setMinValue(1)
+        )
+        .addIntegerOption((option) =>
+          option
+            .setName("max_amount")
+            .setDescription("Maximum random drop amount.")
+            .setMinValue(1)
+        )
+        .addIntegerOption((option) =>
+          option
+            .setName("min_interval_minutes")
+            .setDescription("Minimum minutes until the next random drop.")
+            .setMinValue(1)
+        )
+        .addIntegerOption((option) =>
+          option
+            .setName("max_interval_minutes")
+            .setDescription("Maximum minutes until the next random drop.")
+            .setMinValue(1)
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
         .setName("create")
         .setDescription("Create a red envelope in this channel.")
         .addIntegerOption((option) =>
@@ -113,6 +144,44 @@ export const redEnvelopeCommand: SlashCommand = {
       await interaction.reply({
         content:
           "Red envelopes must be created from a server text channel where LionDen can post messages.",
+        ephemeral: true
+      });
+      return;
+    }
+
+    const subcommand = interaction.options.getSubcommand(true);
+
+    if (subcommand === "configure") {
+      const minAmount = interaction.options.getInteger("min_amount") ?? 10;
+      const maxAmount = interaction.options.getInteger("max_amount") ?? 50;
+      const minIntervalMinutes =
+        interaction.options.getInteger("min_interval_minutes") ?? 60;
+      const maxIntervalMinutes =
+        interaction.options.getInteger("max_interval_minutes") ?? 180;
+      const nextDropAt = generateRandomDrop({
+        config: {
+          minAmount,
+          maxAmount,
+          minIntervalMinutes,
+          maxIntervalMinutes
+        },
+        now: new Date(),
+        random: Math.random
+      }).nextDropAt;
+
+      await configureRedEnvelopeDrops(prisma, {
+        guildId,
+        channelId: channel.id,
+        enabled: true,
+        minAmount,
+        maxAmount,
+        minIntervalMinutes,
+        maxIntervalMinutes,
+        nextDropAt
+      });
+
+      await interaction.reply({
+        content: `Random red envelope drops are configured for <#${channel.id}>. Range: ${Math.min(minAmount, maxAmount)}-${Math.max(minAmount, maxAmount)} coins, every ${Math.min(minIntervalMinutes, maxIntervalMinutes)}-${Math.max(minIntervalMinutes, maxIntervalMinutes)} minutes.`,
         ephemeral: true
       });
       return;
