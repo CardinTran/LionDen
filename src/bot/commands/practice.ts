@@ -13,28 +13,67 @@ import {
 import {
   attachPracticeAnnouncementMessage,
   endPracticeSession,
-  recordPracticeCheckIn,
+  recordPracticeAttendance,
+  recordPracticeRsvp,
   startPracticeSession
 } from "../../features/practice/practice.service.js";
 import { prisma } from "../../lib/prisma.js";
 import type { SlashCommand } from "./ping.js";
 
-const PRACTICE_CHECK_IN_PREFIX = "practice:checkin:";
+const PRACTICE_RSVP_PREFIX = "practice:rsvp:";
+const PRACTICE_ATTENDANCE_PREFIX = "practice:attendance:";
 
-export const buildPracticeCheckInCustomId = (sessionId: string): string => {
-  return `${PRACTICE_CHECK_IN_PREFIX}${sessionId}`;
+export const buildPracticeRsvpCustomId = (
+  sessionId: string,
+  rsvpStatus: "GOING" | "LATE" | "LEAVING_EARLY" | "NOT_GOING"
+): string => {
+  return `${PRACTICE_RSVP_PREFIX}${rsvpStatus}:${sessionId}`;
 };
 
-export const buildPracticeCheckInComponents = (
+export const buildPracticeAttendanceCustomId = (
+  sessionId: string,
+  attendanceStatus: "HERE" | "NOT_HERE"
+): string => {
+  return `${PRACTICE_ATTENDANCE_PREFIX}${attendanceStatus}:${sessionId}`;
+};
+
+export const buildPracticeAttendanceComponents = (
   sessionId: string,
   disabled = false
 ): ActionRowBuilder<ButtonBuilder>[] => {
   return [
     new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder()
-        .setCustomId(buildPracticeCheckInCustomId(sessionId))
-        .setLabel(disabled ? "Check-In Closed" : "I'm Here")
+        .setCustomId(buildPracticeRsvpCustomId(sessionId, "GOING"))
+        .setLabel("Going")
+        .setStyle(ButtonStyle.Primary)
+        .setDisabled(disabled),
+      new ButtonBuilder()
+        .setCustomId(buildPracticeRsvpCustomId(sessionId, "LATE"))
+        .setLabel("Late")
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(disabled),
+      new ButtonBuilder()
+        .setCustomId(buildPracticeRsvpCustomId(sessionId, "LEAVING_EARLY"))
+        .setLabel("Leaving Early")
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(disabled),
+      new ButtonBuilder()
+        .setCustomId(buildPracticeRsvpCustomId(sessionId, "NOT_GOING"))
+        .setLabel("Not Going")
+        .setStyle(ButtonStyle.Danger)
+        .setDisabled(disabled)
+    ),
+    new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setCustomId(buildPracticeAttendanceCustomId(sessionId, "HERE"))
+        .setLabel(disabled ? "Attendance Closed" : "I'm Here")
         .setStyle(ButtonStyle.Success)
+        .setDisabled(disabled),
+      new ButtonBuilder()
+        .setCustomId(buildPracticeAttendanceCustomId(sessionId, "NOT_HERE"))
+        .setLabel(disabled ? "Attendance Closed" : "Not Here")
+        .setStyle(ButtonStyle.Secondary)
         .setDisabled(disabled)
     )
   ];
@@ -44,9 +83,10 @@ export const formatPracticeAnnouncementMessage = (input: {
   startedByDisplayName: string;
 }): string => {
   return [
-    "LionDen practice check-in is live.",
+    "LionDen practice attendance is live.",
     `Started by ${input.startedByDisplayName}.`,
-    "Click the button below if you're at practice tonight."
+    "Use the RSVP buttons for planning.",
+    "Use `I'm Here` or `Not Here` as the actual attendance record."
   ].join("\n");
 };
 
@@ -96,7 +136,7 @@ export const practiceCommand: SlashCommand = {
         !("send" in channel)
       ) {
         await interaction.reply({
-          content:
+        content:
             "Practice sessions must be started from a server text channel where LionDen can post the attendance message.",
           ephemeral: true
         });
@@ -122,7 +162,7 @@ export const practiceCommand: SlashCommand = {
         content: formatPracticeAnnouncementMessage({
           startedByDisplayName: interaction.user.username
         }),
-        components: buildPracticeCheckInComponents(result.session.id)
+        components: buildPracticeAttendanceComponents(result.session.id)
       });
 
       await attachPracticeAnnouncementMessage(prisma, {
@@ -176,9 +216,9 @@ export const practiceCommand: SlashCommand = {
                 startedByDisplayName: result.session.startedByDisplayName
               }),
               "",
-              "Practice check-in is now closed."
+              "Practice attendance is now closed."
             ].join("\n"),
-            components: buildPracticeCheckInComponents(result.session.id, true)
+            components: buildPracticeAttendanceComponents(result.session.id, true)
           });
         }
       } catch {
@@ -197,21 +237,56 @@ export const handlePracticeCheckInButton = async (
   interaction: ButtonInteraction
 ): Promise<void> => {
   const guildId = interaction.guildId;
-  const sessionId = interaction.customId.replace(PRACTICE_CHECK_IN_PREFIX, "");
+  const parts = interaction.customId.split(":");
 
-  if (!guildId || !sessionId) {
+  if (!guildId || parts.length !== 4) {
     await interaction.reply({
-      content: "This check-in button is no longer valid.",
+      content: "This practice button is no longer valid.",
       ephemeral: true
     });
     return;
   }
 
-  const result = await recordPracticeCheckIn(prisma, {
+  const [, kind, state, sessionId] = parts;
+  const displayName = interaction.user.username;
+
+  if (kind === "rsvp") {
+    const result = await recordPracticeRsvp(prisma, {
+      sessionId,
+      guildId,
+      userId: interaction.user.id,
+      displayName,
+      rsvpStatus: state as "GOING" | "LATE" | "LEAVING_EARLY" | "NOT_GOING"
+    });
+
+    if (result.outcome === "session_closed") {
+      await interaction.reply({
+        content: "This practice session is closed.",
+        ephemeral: true
+      });
+      return;
+    }
+
+    const labelMap = {
+      GOING: "Going",
+      LATE: "Late",
+      LEAVING_EARLY: "Leaving Early",
+      NOT_GOING: "Not Going"
+    } as const;
+
+    await interaction.reply({
+      content: `Your RSVP is set to ${labelMap[state as keyof typeof labelMap]}. Current attendance count: ${result.checkInCount}.`,
+      ephemeral: true
+    });
+    return;
+  }
+
+  const result = await recordPracticeAttendance(prisma, {
     sessionId,
     guildId,
     userId: interaction.user.id,
-    displayName: interaction.user.username
+    displayName,
+    attendanceStatus: state as "HERE" | "NOT_HERE"
   });
 
   if (result.outcome === "session_closed") {
@@ -222,22 +297,22 @@ export const handlePracticeCheckInButton = async (
     return;
   }
 
-  if (result.outcome === "already_checked_in") {
-    await interaction.reply({
-      content: `You're already checked in. Current attendance: ${result.checkInCount}.`,
-      ephemeral: true
-    });
-    return;
-  }
+  const message =
+    state === "HERE"
+      ? `You're marked as here. Current attendance: ${result.checkInCount}.`
+      : `You're marked as not here. Current attendance: ${result.checkInCount}.`;
 
   await interaction.reply({
-    content: `You're checked in for practice. Current attendance: ${result.checkInCount}.`,
+    content: message,
     ephemeral: true
   });
 };
 
 export const isPracticeCheckInCustomId = (customId: string): boolean => {
-  return customId.startsWith(PRACTICE_CHECK_IN_PREFIX);
+  return (
+    customId.startsWith(PRACTICE_RSVP_PREFIX) ||
+    customId.startsWith(PRACTICE_ATTENDANCE_PREFIX)
+  );
 };
 
 export const practiceCommandJson =

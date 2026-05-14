@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  buildPracticeCheckInCustomId,
+  buildPracticeAttendanceCustomId,
+  buildPracticeRsvpCustomId,
   formatPracticeAnnouncementMessage,
   practiceCommandJson
 } from "../src/bot/commands/practice.js";
@@ -18,9 +19,12 @@ describe("practice command", () => {
     ]);
   });
 
-  it("builds a stable button custom id", () => {
-    expect(buildPracticeCheckInCustomId("session_123")).toBe(
-      "practice:checkin:session_123"
+  it("builds stable RSVP and attendance button custom ids", () => {
+    expect(buildPracticeRsvpCustomId("session_123", "GOING")).toBe(
+      "practice:rsvp:GOING:session_123"
+    );
+    expect(buildPracticeAttendanceCustomId("session_123", "HERE")).toBe(
+      "practice:attendance:HERE:session_123"
     );
   });
 
@@ -31,9 +35,10 @@ describe("practice command", () => {
       })
     ).toBe(
       [
-        "LionDen practice check-in is live.",
+        "LionDen practice attendance is live.",
         "Started by CoachA.",
-        "Click the button below if you're at practice tonight."
+        "Use the RSVP buttons for planning.",
+        "Use `I'm Here` or `Not Here` as the actual attendance record."
       ].join("\n")
     );
   });

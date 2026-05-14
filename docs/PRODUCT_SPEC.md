@@ -65,7 +65,8 @@ Current practice attendance rule:
 
 - only one active practice session may exist per guild
 - `/practice start` posts the official attendance message
-- members check in through the bot-managed button response
+- members can record RSVP separately from attendance
+- `I'm Here` and `Not Here` are the authoritative attendance states
 - `/practice end` closes the session and stops further check-ins
 
 ## Roadmap
