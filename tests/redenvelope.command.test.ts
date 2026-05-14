@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  buildRedEnvelopeCustomId,
+  RED_ENVELOPE_GRAB_COMMAND,
+  formatRedEnvelopeAlreadyClaimedMessage,
+  formatRedEnvelopeClaimSuccessMessage,
   formatRedEnvelopeClaimedMessage,
   formatRedEnvelopeMessage,
   redEnvelopeCommandJson
@@ -19,12 +21,6 @@ describe("redenvelope command", () => {
     ]);
   });
 
-  it("builds a stable claim custom id", () => {
-    expect(buildRedEnvelopeCustomId("envelope_123")).toBe(
-      "redenvelope:claim:envelope_123"
-    );
-  });
-
   it("formats an open red envelope message", () => {
     expect(
       formatRedEnvelopeMessage({
@@ -35,7 +31,8 @@ describe("redenvelope command", () => {
       [
         "A LionDen red envelope has appeared.",
         "Created by OfficerA.",
-        "First claim gets 40 coins."
+        "First claim gets 40 coins.",
+        `Type ${RED_ENVELOPE_GRAB_COMMAND} in this channel to claim it.`
       ].join("\n")
     );
   });
@@ -66,5 +63,53 @@ describe("redenvelope command", () => {
         "MemberA claimed 40 coins."
       ].join("\n")
     );
+  });
+
+  it("formats a successful text-grab claim message", () => {
+    expect(
+      formatRedEnvelopeClaimSuccessMessage({
+        result: {
+          outcome: "claimed",
+          envelope: {
+            id: "envelope_123",
+            guildId: "guild_123",
+            channelId: "channel_123",
+            createdByUserId: "officer_123",
+            createdByDisplayName: "OfficerA",
+            amount: 40,
+            status: "CLAIMED",
+            messageId: "message_123",
+            claimedByUserId: "member_123",
+            claimedByDisplayName: "MemberA",
+            claimedAt: new Date("2026-05-14T12:30:00.000Z"),
+            createdAt: new Date("2026-05-14T12:00:00.000Z"),
+            updatedAt: new Date("2026-05-14T12:30:00.000Z")
+          },
+          profile: null
+        }
+      })
+    ).toBe("MemberA grabbed the red envelope and won 40 coins.");
+  });
+
+  it("formats a late grab message", () => {
+    expect(
+      formatRedEnvelopeAlreadyClaimedMessage({
+        envelope: {
+          id: "envelope_123",
+          guildId: "guild_123",
+          channelId: "channel_123",
+          createdByUserId: "officer_123",
+          createdByDisplayName: "OfficerA",
+          amount: 40,
+          status: "CLAIMED",
+          messageId: "message_123",
+          claimedByUserId: "member_123",
+          claimedByDisplayName: "MemberA",
+          claimedAt: new Date("2026-05-14T12:30:00.000Z"),
+          createdAt: new Date("2026-05-14T12:00:00.000Z"),
+          updatedAt: new Date("2026-05-14T12:30:00.000Z")
+        }
+      })
+    ).toBe("MemberA already grabbed this red envelope.");
   });
 });
