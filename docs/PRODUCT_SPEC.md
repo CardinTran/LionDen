@@ -74,6 +74,12 @@ Current daily reward rule:
 - `/daily` does not grant XP
 - streaks and random rewards are intentionally out of scope for the MVP
 
+Current admin coin control rule:
+
+- `/coins add` and `/coins remove` are restricted to members with Manage Server permissions
+- coin removals clamp at 0 rather than going negative
+- admin adjustments update the stored balance immediately
+
 Current practice attendance rule:
 
 - only one active practice session may exist per guild
