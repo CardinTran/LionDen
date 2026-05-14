@@ -13,6 +13,10 @@ import { env } from "../config/env.js";
 import { logger } from "../lib/logger.js";
 import { prisma } from "../lib/prisma.js";
 import { commandRegistry, commands } from "./commands/index.js";
+import {
+  handlePracticeCheckInButton,
+  isPracticeCheckInCustomId
+} from "./commands/practice.js";
 
 export const createDiscordClient = (): Client => {
   const client = new Client({
@@ -26,6 +30,31 @@ export const createDiscordClient = (): Client => {
   });
 
   client.on(Events.InteractionCreate, async (interaction: Interaction) => {
+    if (interaction.isButton() && isPracticeCheckInCustomId(interaction.customId)) {
+      try {
+        await handlePracticeCheckInButton(interaction);
+      } catch (error) {
+        logger.error("Practice check-in failed", {
+          customId: interaction.customId,
+          error
+        });
+
+        if (interaction.replied || interaction.deferred) {
+          await interaction.followUp({
+            content: "Something went wrong while recording that practice check-in.",
+            ephemeral: true
+          });
+          return;
+        }
+
+        await interaction.reply({
+          content: "Something went wrong while recording that practice check-in.",
+          ephemeral: true
+        });
+      }
+      return;
+    }
+
     if (!interaction.isChatInputCommand()) {
       return;
     }

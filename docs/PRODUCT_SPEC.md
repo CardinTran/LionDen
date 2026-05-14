@@ -61,6 +61,13 @@ Current admin XP control rule:
 - XP removals clamp at 0 rather than going negative
 - admin adjustments immediately recalculate the member's derived level
 
+Current practice attendance rule:
+
+- only one active practice session may exist per guild
+- `/practice start` posts the official attendance message
+- members check in through the bot-managed button response
+- `/practice end` closes the session and stops further check-ins
+
 ## Roadmap
 
 1. Phase 0: repo foundation, toolchain, CI, `/ping`
