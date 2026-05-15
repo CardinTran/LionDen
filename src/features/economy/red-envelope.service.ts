@@ -2,6 +2,7 @@ import { adjustCoins } from "./coin-balance.service.js";
 import type { UserProfileRecord } from "../profiles/profile.service.js";
 
 export type RedEnvelopeStatus = "OPEN" | "CLAIMED";
+export const RED_ENVELOPE_EXPIRY_MINUTES = 15;
 
 export interface RedEnvelopeRecord {
   id: string;
@@ -76,10 +77,15 @@ interface RedEnvelopeStore {
         channelId?: string;
         status: RedEnvelopeStatus;
       };
+      orderBy?: {
+        createdAt: "asc" | "desc";
+      };
     }): Promise<RedEnvelopeRecord | null>;
     deleteMany(args: {
       where: {
-        guildId: string;
+        id?: string;
+        guildId?: string;
+        channelId?: string;
         status: RedEnvelopeStatus;
       };
     }): Promise<{ count: number }>;
@@ -272,6 +278,21 @@ export const claimRedEnvelope = async (
     };
   }
 
+  if (isRedEnvelopeExpired(envelope, input.claimedAt)) {
+    await store.redEnvelope.deleteMany({
+      where: {
+        id: envelope.id,
+        status: "OPEN"
+      }
+    });
+
+    return {
+      outcome: "not_found",
+      envelope: null,
+      profile: null
+    };
+  }
+
   const updateResult = await store.redEnvelope.updateMany({
     where: {
       id: envelope.id,
@@ -441,15 +462,65 @@ export const updateRedEnvelopeDropSchedule = async (
   });
 };
 
+export const isRedEnvelopeExpired = (
+  envelope: Pick<RedEnvelopeRecord, "createdAt" | "status">,
+  now: Date,
+  expiryMinutes = RED_ENVELOPE_EXPIRY_MINUTES
+): boolean => {
+  if (envelope.status !== "OPEN") {
+    return false;
+  }
+
+  return now.getTime() - envelope.createdAt.getTime() >= expiryMinutes * 60_000;
+};
+
+const getOpenRedEnvelope = async (
+  store: Pick<RedEnvelopeStore, "redEnvelope">,
+  input: {
+    guildId: string;
+    channelId?: string;
+    now?: Date;
+  }
+): Promise<RedEnvelopeRecord | null> => {
+  const now = input.now ?? new Date();
+
+  while (true) {
+    const envelope = await store.redEnvelope.findFirst({
+      where: {
+        guildId: input.guildId,
+        channelId: input.channelId,
+        status: "OPEN"
+      },
+      orderBy: {
+        createdAt: "asc"
+      }
+    });
+
+    if (!envelope) {
+      return null;
+    }
+
+    if (!isRedEnvelopeExpired(envelope, now)) {
+      return envelope;
+    }
+
+    await store.redEnvelope.deleteMany({
+      where: {
+        id: envelope.id,
+        status: "OPEN"
+      }
+    });
+  }
+};
+
 export const getOpenRedEnvelopeForGuild = async (
   store: Pick<RedEnvelopeStore, "redEnvelope">,
-  guildId: string
+  guildId: string,
+  now?: Date
 ): Promise<RedEnvelopeRecord | null> => {
-  return store.redEnvelope.findFirst({
-    where: {
-      guildId,
-      status: "OPEN"
-    }
+  return getOpenRedEnvelope(store, {
+    guildId,
+    now
   });
 };
 
@@ -458,14 +529,13 @@ export const getOpenRedEnvelopeForChannel = async (
   input: {
     guildId: string;
     channelId: string;
+    now?: Date;
   }
 ): Promise<RedEnvelopeRecord | null> => {
-  return store.redEnvelope.findFirst({
-    where: {
-      guildId: input.guildId,
-      channelId: input.channelId,
-      status: "OPEN"
-    }
+  return getOpenRedEnvelope(store, {
+    guildId: input.guildId,
+    channelId: input.channelId,
+    now: input.now
   });
 };
 
