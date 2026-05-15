@@ -292,6 +292,10 @@ export const redEnvelopeCommand: SlashCommand = {
         return;
       }
 
+      await interaction.deferReply({
+        ephemeral: true
+      });
+
       const postedDrop = await postConfiguredRedEnvelopeDrop(interaction.client, {
         config,
         now: new Date(),
@@ -300,17 +304,15 @@ export const redEnvelopeCommand: SlashCommand = {
       });
 
       if (!postedDrop) {
-        await interaction.reply({
+        await interaction.editReply({
           content:
             "LionDen could not find an eligible channel for the drop. Make sure the fallback channel still exists and LionDen can post there.",
-          ephemeral: true
         });
         return;
       }
 
-      await interaction.reply({
-        content: `Random red envelope dropped in <#${postedDrop.channelId}> for ${postedDrop.amount} coins.`,
-        ephemeral: true
+      await interaction.editReply({
+        content: `Random red envelope dropped in <#${postedDrop.channelId}> for ${postedDrop.amount} coins.`
       });
       return;
     }
@@ -362,6 +364,11 @@ export const redEnvelopeCommand: SlashCommand = {
     }
 
     const amount = interaction.options.getInteger("amount", true);
+
+    await interaction.deferReply({
+      ephemeral: true
+    });
+
     const envelope = await createRedEnvelope(prisma, {
       guildId,
       channelId: channel.id,
@@ -382,9 +389,8 @@ export const redEnvelopeCommand: SlashCommand = {
       messageId: message.id
     });
 
-    await interaction.reply({
-      content: `Red envelope created in <#${channel.id}> for ${amount} coins.`,
-      ephemeral: true
+    await interaction.editReply({
+      content: `Red envelope created in <#${channel.id}> for ${amount} coins.`
     });
   }
 };
