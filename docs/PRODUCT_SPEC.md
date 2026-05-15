@@ -92,6 +92,7 @@ Current random red envelope rule:
 - `/redenvelope pause` disables automated random drops without clearing the stored configuration
 - `/redenvelope dropnow` lets an officer force one immediate configured drop
 - `/redenvelope clearopen` lets an officer clear stale open envelopes if the server state gets stuck
+- `/redenvelope status` lets an officer inspect the current red envelope automation and open-envelope state
 - each guild stores a min/max coin amount and a min/max interval in minutes
 - LionDen posts random drops using those ranges when no other open red envelope exists in the guild
 - automatic drops target the most active eligible channel from the last 60 minutes of human message activity
@@ -99,6 +100,7 @@ Current random red envelope rule:
 - if no channel meets that threshold, LionDen falls back to the configured channel
 - current claim flow uses the first successful `~grab` message in the drop channel
 - manual `/redenvelope create` also refuses to post if another open envelope already exists in the guild
+- open red envelopes automatically expire after 15 minutes if they are not claimed
 
 Current practice attendance rule:
 

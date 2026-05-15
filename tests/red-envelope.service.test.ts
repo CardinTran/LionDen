@@ -8,7 +8,9 @@ import {
   createRedEnvelope,
   generateRandomDrop,
   getRedEnvelopeDropConfig,
+  getOpenRedEnvelopeForGuild,
   getOpenRedEnvelopeForChannel,
+  isRedEnvelopeExpired,
   setRedEnvelopeDropConfigEnabled,
   type RedEnvelopeRecord
 } from "../src/features/economy/red-envelope.service.js";
@@ -68,6 +70,17 @@ describe("red envelope service", () => {
     expect(result.nextDropAt.getTime()).toBeGreaterThan(
       new Date("2026-05-14T12:00:00.000Z").getTime()
     );
+  });
+
+  it("marks old open red envelopes as expired", () => {
+    expect(
+      isRedEnvelopeExpired(
+        buildEnvelope({
+          createdAt: new Date("2026-05-14T12:00:00.000Z")
+        }),
+        new Date("2026-05-14T12:16:00.000Z")
+      )
+    ).toBe(true);
   });
 
   it("creates and attaches a red envelope message id", async () => {
@@ -237,6 +250,47 @@ describe("red envelope service", () => {
     expect(result.outcome).toBe("already_claimed");
     expect(result.profile).toBeNull();
     expect(result.envelope?.claimedByDisplayName).toBe("MemberA");
+  });
+
+  it("treats an expired envelope claim as unavailable and clears the stale row", async () => {
+    const deleteMany = vi.fn().mockResolvedValue({
+      count: 1
+    });
+
+    const result = await claimRedEnvelope(
+      {
+        redEnvelope: {
+          create: vi.fn(),
+          deleteMany,
+          findFirst: vi.fn(),
+          findUnique: vi.fn().mockResolvedValue(
+            buildEnvelope({
+              createdAt: new Date("2026-05-14T12:00:00.000Z")
+            })
+          ),
+          update: vi.fn(),
+          updateMany: vi.fn()
+        },
+        userProfile: {
+          upsert: vi.fn(),
+          update: vi.fn()
+        }
+      },
+      {
+        envelopeId: "envelope_123",
+        userId: "member_456",
+        displayName: "MemberB",
+        claimedAt: new Date("2026-05-14T12:16:00.000Z")
+      }
+    );
+
+    expect(result.outcome).toBe("not_found");
+    expect(deleteMany).toHaveBeenCalledWith({
+      where: {
+        id: "envelope_123",
+        status: "OPEN"
+      }
+    });
   });
 
   it("stores random drop configuration per guild", async () => {
@@ -409,6 +463,47 @@ describe("red envelope service", () => {
       }
     });
     expect(envelope?.id).toBe("envelope_123");
+  });
+
+  it("auto-clears expired open envelopes before reporting the current guild envelope", async () => {
+    const expiredEnvelope = buildEnvelope({
+      id: "expired_123",
+      createdAt: new Date("2026-05-14T12:00:00.000Z")
+    });
+    const activeEnvelope = buildEnvelope({
+      id: "active_123",
+      createdAt: new Date("2026-05-14T12:10:00.000Z")
+    });
+    const findFirst = vi
+      .fn()
+      .mockResolvedValueOnce(expiredEnvelope)
+      .mockResolvedValueOnce(activeEnvelope);
+    const deleteMany = vi.fn().mockResolvedValue({
+      count: 1
+    });
+
+    const envelope = await getOpenRedEnvelopeForGuild(
+      {
+        redEnvelope: {
+          create: vi.fn(),
+          deleteMany,
+          findFirst,
+          findUnique: vi.fn(),
+          update: vi.fn(),
+          updateMany: vi.fn()
+        }
+      },
+      "guild_123",
+      new Date("2026-05-14T12:16:00.000Z")
+    );
+
+    expect(deleteMany).toHaveBeenCalledWith({
+      where: {
+        id: "expired_123",
+        status: "OPEN"
+      }
+    });
+    expect(envelope?.id).toBe("active_123");
   });
 
   it("clears all open red envelopes for a guild", async () => {

@@ -14,6 +14,8 @@ import {
   generateRandomDrop,
   getRedEnvelopeDropConfig,
   getOpenRedEnvelopeForGuild,
+  isRedEnvelopeExpired,
+  RED_ENVELOPE_EXPIRY_MINUTES,
   setRedEnvelopeDropConfigEnabled,
   type ClaimRedEnvelopeResult,
   type RedEnvelopeRecord
@@ -53,6 +55,46 @@ export const formatRedEnvelopeAlreadyClaimedMessage = (input: {
   envelope: RedEnvelopeRecord;
 }): string =>
   `${input.envelope.claimedByDisplayName ?? "Another member"} already grabbed this red envelope.`;
+
+const formatRedEnvelopeStatusMessage = (input: {
+  now: Date;
+  config: Awaited<ReturnType<typeof getRedEnvelopeDropConfig>>;
+  openEnvelope: RedEnvelopeRecord | null;
+}): string => {
+  const lines = ["LionDen red envelope status"];
+
+  if (!input.config) {
+    lines.push("Automation: not configured");
+  } else {
+    lines.push(`Automation: ${input.config.enabled ? "enabled" : "paused"}`);
+    lines.push(`Fallback channel: <#${input.config.channelId}>`);
+    lines.push(
+      `Amount range: ${Math.min(input.config.minAmount, input.config.maxAmount)}-${Math.max(input.config.minAmount, input.config.maxAmount)} coins`
+    );
+    lines.push(
+      `Interval range: ${Math.min(input.config.minIntervalMinutes, input.config.maxIntervalMinutes)}-${Math.max(input.config.minIntervalMinutes, input.config.maxIntervalMinutes)} minutes`
+    );
+    lines.push(
+      `Next drop: ${input.config.nextDropAt ? input.config.nextDropAt.toISOString() : "not scheduled"}`
+    );
+  }
+
+  if (!input.openEnvelope) {
+    lines.push("Open envelope: none");
+  } else {
+    const ageMinutes = Math.floor(
+      (input.now.getTime() - input.openEnvelope.createdAt.getTime()) / 60_000
+    );
+    lines.push(`Open envelope: <#${input.openEnvelope.channelId}>`);
+    lines.push(`Open amount: ${input.openEnvelope.amount} coins`);
+    lines.push(`Open age: ${ageMinutes} minutes`);
+    lines.push(
+      `Expiry window: ${RED_ENVELOPE_EXPIRY_MINUTES} minutes (${isRedEnvelopeExpired(input.openEnvelope, input.now) ? "expired" : "active"})`
+    );
+  }
+
+  return lines.join("\n");
+};
 
 const requireManageGuild = async (
   interaction: ChatInputCommandInteraction
@@ -128,6 +170,11 @@ export const redEnvelopeCommand: SlashCommand = {
       subcommand
         .setName("clearopen")
         .setDescription("Clear stale open red envelopes for this server.")
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("status")
+        .setDescription("Show the current red envelope automation and open-envelope state.")
     ) as SlashCommandBuilder,
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     const guildId = interaction.guildId;
@@ -281,7 +328,29 @@ export const redEnvelopeCommand: SlashCommand = {
       return;
     }
 
-    const existingOpenEnvelope = await getOpenRedEnvelopeForGuild(prisma, guildId);
+    if (subcommand === "status") {
+      const now = new Date();
+      const [config, openEnvelope] = await Promise.all([
+        getRedEnvelopeDropConfig(prisma, guildId),
+        getOpenRedEnvelopeForGuild(prisma, guildId, now)
+      ]);
+
+      await interaction.reply({
+        content: formatRedEnvelopeStatusMessage({
+          now,
+          config,
+          openEnvelope
+        }),
+        ephemeral: true
+      });
+      return;
+    }
+
+    const existingOpenEnvelope = await getOpenRedEnvelopeForGuild(
+      prisma,
+      guildId,
+      new Date()
+    );
 
     if (existingOpenEnvelope) {
       await interaction.reply({

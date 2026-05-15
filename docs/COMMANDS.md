@@ -49,6 +49,10 @@ Officer/admin command that forces one immediate configured random red envelope d
 
 Officer/admin command that clears stale open red envelopes when the server state got stuck and no visible envelope remains to claim.
 
+### `/redenvelope status`
+
+Officer/admin command that shows the current red envelope automation state, fallback channel, ranges, next scheduled drop, and whether an open envelope is currently active.
+
 ### `/coins add`
 
 Officer/admin command that adds coins to a member and returns their updated coin balance.
@@ -115,6 +119,8 @@ RSVP is for planning. Attendance is the authoritative record for rewards.
 - `/redenvelope pause` stops automated drops until an officer configures them again
 - `/redenvelope dropnow` gives officers a manual override without removing the competitive `~grab` race
 - `/redenvelope clearopen` gives officers a recovery path if stale open envelopes block new drops
+- open red envelopes automatically expire after 15 minutes if nobody claims them
+- `/redenvelope status` gives officers a quick view of whether the red envelope system is healthy
 
 ## Planned MVP Commands
 

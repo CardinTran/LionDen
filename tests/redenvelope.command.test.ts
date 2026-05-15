@@ -20,7 +20,8 @@ describe("redenvelope command", () => {
       "create",
       "pause",
       "dropnow",
-      "clearopen"
+      "clearopen",
+      "status"
     ]);
   });
 
