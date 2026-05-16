@@ -90,6 +90,7 @@ model UserLion {
   id                String             @id @default(cuid())
   guildId           String
   userId            String
+  ownerDisplayName  String             @default("")
   lionSpeciesId     String
   nickname          String?
   level             Int                @default(1)
@@ -129,6 +130,7 @@ model ActiveLionSpawn {
   guildId             String
   channelId           String
   lionSpeciesId       String
+  level               Int             @default(1)
   messageId           String?
   status              LionSpawnStatus @default(ACTIVE)
   spawnedAt           DateTime        @default(now())
@@ -142,6 +144,16 @@ model ActiveLionSpawn {
 
   @@index([guildId, status])
   @@index([guildId, channelId, status])
+}
+
+model BotGuildConfig {
+  id                 String   @id @default(cuid())
+  guildId            String   @unique
+  maintenanceMode    Boolean  @default(false)
+  maintenanceMessage String   @default("LionDen is in maintenance mode. Please try again later.")
+  updatedByUserId    String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
 model LionShopItemDefinition {

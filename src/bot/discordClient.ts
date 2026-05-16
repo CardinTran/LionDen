@@ -4,6 +4,7 @@ import {
   GatewayIntentBits,
   Interaction,
   Message,
+  PermissionFlagsBits,
   REST,
   Routes
 } from "discord.js";
@@ -17,11 +18,17 @@ import { awardMessageXp } from "../features/progression/message-xp.service.js";
 import { startRedEnvelopeScheduler } from "../features/economy/red-envelope-scheduler.js";
 import { startLionSpawnScheduler } from "../features/lions/lion-spawn-scheduler.js";
 import { startPracticeScheduler } from "../features/practice/practice-scheduler.js";
+import {
+  ensureBotGuildConfig,
+  formatMaintenanceNotice,
+  getBotGuildConfig
+} from "../features/admin/bot-config.service.js";
 import { env } from "../config/env.js";
 import { logger } from "../lib/logger.js";
 import { prisma } from "../lib/prisma.js";
 import { commandRegistry, commands } from "./commands/index.js";
 import { handleLionCreatureMessage } from "./messages/lion-creatures.js";
+import { applyBotPresence } from "./presence.js";
 import {
   handlePracticeButton,
   isPracticeButtonCustomId
@@ -46,13 +53,44 @@ export const createDiscordClient = (): Client => {
     logger.info("Discord client ready", {
       tag: readyClient.user.tag
     });
-    startPracticeScheduler(client);
-    startRedEnvelopeScheduler(client);
-    startLionSpawnScheduler(client);
+    void (async () => {
+      const config = await ensureBotGuildConfig(prisma, {
+        guildId: env.DISCORD_GUILD_ID
+      });
+
+      applyBotPresence(client, config);
+      startPracticeScheduler(client);
+      startRedEnvelopeScheduler(client);
+      startLionSpawnScheduler(client);
+    })().catch((error) => {
+      logger.error("Failed to initialize bot runtime controls", { error });
+    });
   });
 
   client.on(Events.InteractionCreate, async (interaction: Interaction) => {
-    if (interaction.isButton() && isPracticeButtonCustomId(interaction.customId)) {
+    if (interaction.guildId) {
+      const config = await getBotGuildConfig(prisma, interaction.guildId);
+
+      if (
+        config?.maintenanceMode &&
+        !interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)
+      ) {
+        const content = formatMaintenanceNotice(config);
+
+        if (interaction.isRepliable()) {
+          await interaction.reply({
+            content,
+            ephemeral: true
+          });
+        }
+        return;
+      }
+    }
+
+    if (
+      interaction.isButton() &&
+      isPracticeButtonCustomId(interaction.customId)
+    ) {
       try {
         await handlePracticeButton(interaction);
       } catch (error) {
@@ -63,14 +101,16 @@ export const createDiscordClient = (): Client => {
 
         if (interaction.replied || interaction.deferred) {
           await interaction.followUp({
-            content: "Something went wrong while recording that practice check-in.",
+            content:
+              "Something went wrong while recording that practice check-in.",
             ephemeral: true
           });
           return;
         }
 
         await interaction.reply({
-          content: "Something went wrong while recording that practice check-in.",
+          content:
+            "Something went wrong while recording that practice check-in.",
           ephemeral: true
         });
       }
@@ -115,6 +155,18 @@ export const createDiscordClient = (): Client => {
 
   client.on(Events.MessageCreate, async (message: Message) => {
     if (message.author.bot || !message.guildId) {
+      return;
+    }
+
+    const maintenanceConfig = await getBotGuildConfig(prisma, message.guildId);
+
+    if (
+      maintenanceConfig?.maintenanceMode &&
+      !message.member?.permissions.has(PermissionFlagsBits.ManageGuild)
+    ) {
+      if (message.content.trim().startsWith("~")) {
+        await message.reply(formatMaintenanceNotice(maintenanceConfig));
+      }
       return;
     }
 
@@ -217,7 +269,10 @@ export const registerGuildCommands = async (): Promise<void> => {
   const rest = new REST({ version: "10" }).setToken(env.DISCORD_TOKEN);
 
   await rest.put(
-    Routes.applicationGuildCommands(env.DISCORD_CLIENT_ID, env.DISCORD_GUILD_ID),
+    Routes.applicationGuildCommands(
+      env.DISCORD_CLIENT_ID,
+      env.DISCORD_GUILD_ID
+    ),
     {
       body: commands.map((command) => command.data.toJSON())
     }

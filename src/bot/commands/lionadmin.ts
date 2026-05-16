@@ -67,7 +67,7 @@ const formatLionAdminStatusMessage = (input: {
       `Active wild lions: ${input.activeSpawns
         .map(
           (spawn) =>
-            `${spawn.species.name} \`${spawn.species.publicId}\` in <#${spawn.channelId}>`
+            `Lv. ${spawn.level} ${spawn.species.name} \`${spawn.species.publicId}\` in <#${spawn.channelId}>`
         )
         .join(", ")}`
     );
@@ -257,7 +257,7 @@ export const lionAdminCommand: SlashCommand = {
       }
 
       await interaction.editReply({
-        content: `Forced a wild ${spawn.species.name} \`${spawn.species.publicId}\` spawn in <#${channel.id}>.`
+        content: `Forced a wild Lv. ${spawn.level} ${spawn.species.name} \`${spawn.species.publicId}\` spawn in <#${channel.id}>.`
       });
       return;
     }

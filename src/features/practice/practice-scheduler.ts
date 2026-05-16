@@ -2,6 +2,7 @@ import type { Client } from "discord.js";
 
 import { logger } from "../../lib/logger.js";
 import { prisma } from "../../lib/prisma.js";
+import { isMaintenanceModeEnabled } from "../admin/bot-config.service.js";
 import {
   attachPracticeAttendanceMessage,
   attachPracticeRsvpMessage,
@@ -48,7 +49,9 @@ const getLocalTimeParts = (date: Date, timeZone: string): LocalTimeParts => {
   });
 
   const parts = formatter.formatToParts(date);
-  const lookup = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  const lookup = Object.fromEntries(
+    parts.map((part) => [part.type, part.value])
+  );
   const weekdayMap: Record<string, number> = {
     Sun: 0,
     Mon: 1,
@@ -69,10 +72,14 @@ const getLocalTimeParts = (date: Date, timeZone: string): LocalTimeParts => {
   };
 };
 
-const getDateKey = (parts: Pick<LocalTimeParts, "year" | "month" | "day">): string =>
+const getDateKey = (
+  parts: Pick<LocalTimeParts, "year" | "month" | "day">
+): string =>
   `${parts.year}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
 
-const getNextPracticeDateKeyFromRsvpDay = (parts: LocalTimeParts): string | null => {
+const getNextPracticeDateKeyFromRsvpDay = (
+  parts: LocalTimeParts
+): string | null => {
   const offsetByDay: Record<number, number> = {
     0: 1,
     2: 1,
@@ -84,7 +91,9 @@ const getNextPracticeDateKeyFromRsvpDay = (parts: LocalTimeParts): string | null
     return null;
   }
 
-  const utcDate = new Date(Date.UTC(parts.year, parts.month - 1, parts.day + offsetDays));
+  const utcDate = new Date(
+    Date.UTC(parts.year, parts.month - 1, parts.day + offsetDays)
+  );
   return getDateKey({
     year: utcDate.getUTCFullYear(),
     month: utcDate.getUTCMonth() + 1,
@@ -118,7 +127,10 @@ const fetchConfiguredChannel = async (
   };
 };
 
-const maybePostScheduledRsvp = async (client: Client, now: Date): Promise<void> => {
+const maybePostScheduledRsvp = async (
+  client: Client,
+  now: Date
+): Promise<void> => {
   const localNow = getLocalTimeParts(now, PRACTICE_TIMEZONE);
 
   if (
@@ -138,11 +150,18 @@ const maybePostScheduledRsvp = async (client: Client, now: Date): Promise<void> 
   const schedules = await listEnabledPracticeSchedules(prisma);
 
   for (const schedule of schedules) {
+    if (await isMaintenanceModeEnabled(prisma, schedule.guildId)) {
+      continue;
+    }
+
     if (!schedule.channelId) {
       continue;
     }
 
-    const activeSession = await getActivePracticeSession(prisma, schedule.guildId);
+    const activeSession = await getActivePracticeSession(
+      prisma,
+      schedule.guildId
+    );
 
     if (activeSession) {
       continue;
@@ -198,11 +217,18 @@ const maybePostScheduledAttendance = async (
   const schedules = await listEnabledPracticeSchedules(prisma);
 
   for (const schedule of schedules) {
+    if (await isMaintenanceModeEnabled(prisma, schedule.guildId)) {
+      continue;
+    }
+
     if (!schedule.channelId) {
       continue;
     }
 
-    const activeSession = await getActivePracticeSession(prisma, schedule.guildId);
+    const activeSession = await getActivePracticeSession(
+      prisma,
+      schedule.guildId
+    );
 
     if (activeSession) {
       continue;
@@ -241,7 +267,9 @@ const maybePostScheduledAttendance = async (
   }
 };
 
-export const runPracticeSchedulerTick = async (client: Client): Promise<void> => {
+export const runPracticeSchedulerTick = async (
+  client: Client
+): Promise<void> => {
   const now = new Date();
 
   await maybePostScheduledRsvp(client, now);

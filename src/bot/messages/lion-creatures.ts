@@ -11,6 +11,7 @@ import {
   LION_BATTLE_LOSS_XP,
   LION_BATTLE_WIN_XP,
   listLionShopItems,
+  listTopOwnedLions,
   listUserItemInventory,
   listUserLionTeam,
   listUserLions,
@@ -29,6 +30,7 @@ import {
   formatOwnedLionMessage,
   formatSetUserLionTeamMessage,
   formatTeamBattleLionMessage,
+  formatTopLionsMessage,
   formatTrainLionMessage,
   formatUserLionTeamMessage,
   formatUserLionsMessage,
@@ -93,6 +95,8 @@ export const handleLionCreatureMessage = async (
       "~train",
       "~team",
       "~battle",
+      "~toplions",
+      "~lionboard",
       "~lions",
       "~lion",
       "~wild"
@@ -285,7 +289,7 @@ export const handleLionCreatureMessage = async (
     }
 
     await message.reply(
-      `${getDisplayName(message)} caught ${result.ownedLion?.species.name ?? "a wild lion"} ${result.ownedLion?.species.publicId ? `\`${result.ownedLion.species.publicId}\`` : ""} with ${result.item?.name ?? "a ball"}.`
+      `${getDisplayName(message)} caught Lv. ${result.ownedLion?.level ?? result.spawn?.level ?? 1} ${result.ownedLion?.species.name ?? "a wild lion"} ${result.ownedLion?.species.publicId ? `\`${result.ownedLion.species.publicId}\`` : ""} with ${result.item?.name ?? "a ball"}.`
     );
     return true;
   }
@@ -461,6 +465,16 @@ export const handleLionCreatureMessage = async (
     return true;
   }
 
+  if (normalizedCommand === "~toplions" || normalizedCommand === "~lionboard") {
+    const entries = await listTopOwnedLions(prisma, {
+      guildId: message.guildId,
+      limit: 10
+    });
+
+    await message.reply(formatTopLionsMessage({ entries }));
+    return true;
+  }
+
   if (normalizedCommand === "~lion") {
     if (args.length === 0) {
       await message.reply(
@@ -481,7 +495,7 @@ export const handleLionCreatureMessage = async (
       return true;
     }
 
-    await message.reply(formatOwnedLionMessage(lion));
+    await message.reply(formatOwnedLionMessage(lion, getDisplayName(message)));
     return true;
   }
 

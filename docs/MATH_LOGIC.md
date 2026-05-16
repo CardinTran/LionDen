@@ -293,18 +293,45 @@ This means:
 - negative weights are treated as `0`
 - species must be enabled to participate
 
+### Wild Spawn Level Selection
+
+Wild spawns now generate an encounter level. The level is stored on the active
+spawn and copied onto the owned lion if a user catches it.
+
+Current tier distribution:
+
+- `75%` chance: level `1-10`
+- `20%` chance: level `11-25`
+- `5%` chance: level `26-50`
+
+```text
+tierRoll = random()
+
+if tierRoll < 0.75:
+  level = random integer in [1, 10]
+else if tierRoll < 0.95:
+  level = random integer in [11, 25]
+else:
+  level = random integer in [26, 50]
+```
+
+This keeps most encounters approachable while still giving the server occasional
+high-level spawns worth reacting to.
+
 ### Species Catch Chance
 
 Catch chance is based on:
 
 ```text
-catchChance = clamp(baseCatchRate + ballCatchModifier, 5, 95)
+levelPenalty = min(8, floor(max(0, spawnLevel - 1) / 10))
+catchChance = clamp(baseCatchRate + ballCatchModifier - levelPenalty, 5, 95)
 ```
 
 Where:
 
 - `baseCatchRate` comes from the species
 - `ballCatchModifier` comes from the item used
+- `levelPenalty` is intentionally small so high-level spawns are exciting without becoming impossible
 - the final chance is bounded between `5%` and `95%`
 
 ### Catch Success Roll
@@ -615,7 +642,27 @@ If the same owned lion is still on battle XP cooldown, the battle can still reso
 battleXpAvailableAt = lastBattledAt + 10 minutes
 ```
 
-## 12. Future Math Not Yet Finalized
+## 12. Lion Board Ranking Math
+
+The `~toplions` board ranks owned lions inside the current guild only.
+
+Current score:
+
+```text
+score =
+  level * 1000
+  + floor(experience / 10)
+  + hp
+  + attack * 3
+  + defense * 2
+  + speed * 2
+```
+
+This makes level the primary signal while still letting strong species stats
+matter. Public output shows owner display names, but ownership and validation
+continue to use stable Discord user IDs internally.
+
+## 13. Future Math Not Yet Finalized
 
 These systems are planned but not yet fully designed:
 
@@ -627,7 +674,7 @@ These systems are planned but not yet fully designed:
 
 When those systems are implemented, this document should be extended rather than replaced.
 
-## 13. Quick Reference
+## 14. Quick Reference
 
 - Message XP: `5 XP` every `10 minutes`
 - Daily reward: `25 coins` once per calendar day in `America/Chicago`
@@ -637,13 +684,14 @@ When those systems are implemented, this document should be extended rather than
 - Red envelope random interval: between configured min and max minutes
 - Lion spawn duration: `10 minutes`
 - Lion spawn interval: `120-240 minutes`
-- Catch chance: `clamp(baseCatchRate + itemBonus, 5, 95)`
+- Wild lion level tiers: `75%` level `1-10`, `20%` level `11-25`, `5%` level `26-50`
+- Catch chance: `clamp(baseCatchRate + itemBonus - levelPenalty, 5, 95)`
 - Lion level 2 threshold: `70 XP`
 - Lion default move foundation: `Pounce`, neutral type, `40` power, `100` accuracy
 - Lion training reward: `35 XP` every `30 minutes` per owned lion
 - Lion battle reward: `45 XP` winner, `18 XP` loser, every `10 minutes` per owned lion
 
-## 14. Notes
+## 15. Notes
 
 This document reflects the current codebase, not a theoretical future design.
 
