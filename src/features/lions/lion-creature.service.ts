@@ -9,6 +9,10 @@ import {
   type LionShopItemSeed,
   type LionSpeciesSeed
 } from "./lion-seed-data.js";
+import {
+  addLionExperience,
+  getLionExperienceProgress
+} from "./lion-progression.service.js";
 
 export type LionSpawnStatusValue = "ACTIVE" | "CAUGHT" | "EXPIRED";
 
@@ -46,6 +50,8 @@ export interface UserLionRecord {
   experience: number;
   sourceType: string;
   sourceReferenceId: string | null;
+  lastTrainedAt: Date | null;
+  lastBattledAt: Date | null;
   acquiredAt: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -92,7 +98,11 @@ export interface LionChannelEffectRecord {
   guildId: string;
   channelId: string;
   itemKey: string;
-  effectType: "CATCH_MODIFIER" | "SPAWN_BOOST" | "RARITY_BOOST" | "TYPE_ATTRACTOR";
+  effectType:
+    | "CATCH_MODIFIER"
+    | "SPAWN_BOOST"
+    | "RARITY_BOOST"
+    | "TYPE_ATTRACTOR";
   effectValue: number;
   activatedByUserId: string;
   activatedAt: Date;
@@ -175,15 +185,64 @@ export interface AttemptCatchLionResult {
   catchChance: number | null;
 }
 
+export interface LionExperienceAwardResult {
+  lion: UserLionWithSpeciesRecord;
+  gainedExperience: number;
+  previousLevel: number;
+  nextLevel: number;
+  leveledUp: boolean;
+}
+
+export interface TrainUserLionResult {
+  outcome: "trained" | "lion_not_found" | "on_cooldown";
+  result: LionExperienceAwardResult | null;
+  cooldownEndsAt: Date | null;
+}
+
+export interface AwardBattleLionExperienceResult {
+  outcome: "awarded" | "on_cooldown";
+  result: LionExperienceAwardResult | null;
+  cooldownEndsAt: Date | null;
+}
+
 export const LION_SPAWN_DURATION_MS = 10 * 60 * 1000;
 export const DEFAULT_LION_SPAWN_MIN_INTERVAL_MINUTES = 120;
 export const DEFAULT_LION_SPAWN_MAX_INTERVAL_MINUTES = 240;
+export const LION_TRAINING_XP = 35;
+export const LION_TRAINING_COOLDOWN_MS = 30 * 60 * 1000;
+export const LION_BATTLE_WIN_XP = 45;
+export const LION_BATTLE_LOSS_XP = 18;
+export const LION_BATTLE_COOLDOWN_MS = 10 * 60 * 1000;
 
 export const normalizeLionItemKey = (rawItemKey: string): string =>
   rawItemKey
     .trim()
     .toLowerCase()
     .replace(/[\s_]+/g, "-");
+
+export const normalizeLionSearchQuery = (rawQuery: string): string =>
+  normalizeLionItemKey(rawQuery).replace(/^#/, "");
+
+export const findUserLionFromList = (
+  lions: UserLionWithSpeciesRecord[],
+  rawQuery: string
+): UserLionWithSpeciesRecord | null => {
+  const query = rawQuery.trim().toLowerCase();
+  const normalizedQuery = normalizeLionSearchQuery(rawQuery);
+
+  if (!query) {
+    return null;
+  }
+
+  return (
+    lions.find((lion) => lion.id.toLowerCase().startsWith(query)) ??
+    lions.find((lion) => lion.species.publicId.toLowerCase() === query) ??
+    lions.find((lion) => lion.species.slug === normalizedQuery) ??
+    lions.find((lion) => lion.species.name.toLowerCase() === query) ??
+    lions.find((lion) => lion.nickname?.toLowerCase() === query) ??
+    null
+  );
+};
 
 export const calculateCatchChance = (input: {
   baseCatchRate: number;
@@ -453,7 +512,11 @@ export const activateLionChannelEffect = async (
     channelId: string;
     userId: string;
     itemKey: string;
-    effectType: "CATCH_MODIFIER" | "SPAWN_BOOST" | "RARITY_BOOST" | "TYPE_ATTRACTOR";
+    effectType:
+      | "CATCH_MODIFIER"
+      | "SPAWN_BOOST"
+      | "RARITY_BOOST"
+      | "TYPE_ATTRACTOR";
     effectValue: number;
     durationMinutes: number;
     now: Date;
@@ -494,7 +557,9 @@ export const activateLionChannelEffect = async (
     return null;
   }
 
-  const expiresAt = new Date(input.now.getTime() + input.durationMinutes * 60_000);
+  const expiresAt = new Date(
+    input.now.getTime() + input.durationMinutes * 60_000
+  );
 
   return store.lionChannelEffect.create({
     data: {
@@ -731,7 +796,10 @@ export const createWildLionSpawn = async (
         }))
       : species;
 
-  const selectedSpecies = chooseWeightedLionSpecies(weightedSpecies, input.random);
+  const selectedSpecies = chooseWeightedLionSpecies(
+    weightedSpecies,
+    input.random
+  );
 
   if (!selectedSpecies) {
     return {
@@ -1015,4 +1083,158 @@ export const listUserLions = async (
     orderBy: [{ acquiredAt: "asc" }],
     take: input.limit
   });
+};
+
+export const getUserLionByQuery = async (
+  store: Pick<LionCreatureStore, "userLion">,
+  input: {
+    guildId: string;
+    userId: string;
+    query: string;
+    limit?: number;
+  }
+): Promise<UserLionWithSpeciesRecord | null> => {
+  const lions = await listUserLions(store, {
+    guildId: input.guildId,
+    userId: input.userId,
+    limit: input.limit ?? 100
+  });
+
+  return findUserLionFromList(lions, input.query);
+};
+
+export const awardLionExperience = async (
+  store: Pick<LionCreatureStore, "userLion">,
+  input: {
+    lion: UserLionWithSpeciesRecord;
+    gainedExperience: number;
+    lastTrainedAt?: Date | null;
+    lastBattledAt?: Date | null;
+  }
+): Promise<LionExperienceAwardResult> => {
+  const previousLevel = input.lion.level;
+  const progress = addLionExperience({
+    currentExperience: input.lion.experience,
+    gainedExperience: input.gainedExperience
+  });
+  const updateData: {
+    experience: number;
+    level: number;
+    lastTrainedAt?: Date | null;
+    lastBattledAt?: Date | null;
+  } = {
+    experience: progress.experience,
+    level: progress.level
+  };
+
+  if (input.lastTrainedAt !== undefined) {
+    updateData.lastTrainedAt = input.lastTrainedAt;
+  }
+
+  if (input.lastBattledAt !== undefined) {
+    updateData.lastBattledAt = input.lastBattledAt;
+  }
+
+  const lion = await store.userLion.update({
+    where: {
+      id: input.lion.id
+    },
+    data: updateData,
+    include: {
+      species: true
+    }
+  });
+
+  return {
+    lion,
+    gainedExperience: Math.max(0, Math.floor(input.gainedExperience)),
+    previousLevel,
+    nextLevel: progress.level,
+    leveledUp: progress.level > previousLevel
+  };
+};
+
+export const trainUserLion = async (
+  store: Pick<LionCreatureStore, "userLion">,
+  input: {
+    guildId: string;
+    userId: string;
+    query: string;
+    now: Date;
+  }
+): Promise<TrainUserLionResult> => {
+  const lion = await getUserLionByQuery(store, input);
+
+  if (!lion) {
+    return {
+      outcome: "lion_not_found",
+      result: null,
+      cooldownEndsAt: null
+    };
+  }
+
+  const cooldownEndsAt = lion.lastTrainedAt
+    ? new Date(lion.lastTrainedAt.getTime() + LION_TRAINING_COOLDOWN_MS)
+    : null;
+
+  if (cooldownEndsAt && cooldownEndsAt.getTime() > input.now.getTime()) {
+    return {
+      outcome: "on_cooldown",
+      result: null,
+      cooldownEndsAt
+    };
+  }
+
+  const result = await awardLionExperience(store, {
+    lion,
+    gainedExperience: LION_TRAINING_XP,
+    lastTrainedAt: input.now
+  });
+
+  return {
+    outcome: "trained",
+    result,
+    cooldownEndsAt: new Date(input.now.getTime() + LION_TRAINING_COOLDOWN_MS)
+  };
+};
+
+export const awardBattleLionExperience = async (
+  store: Pick<LionCreatureStore, "userLion">,
+  input: {
+    lion: UserLionWithSpeciesRecord;
+    gainedExperience: number;
+    now: Date;
+  }
+): Promise<AwardBattleLionExperienceResult> => {
+  const cooldownEndsAt = input.lion.lastBattledAt
+    ? new Date(input.lion.lastBattledAt.getTime() + LION_BATTLE_COOLDOWN_MS)
+    : null;
+
+  if (cooldownEndsAt && cooldownEndsAt.getTime() > input.now.getTime()) {
+    return {
+      outcome: "on_cooldown",
+      result: null,
+      cooldownEndsAt
+    };
+  }
+
+  const result = await awardLionExperience(store, {
+    lion: input.lion,
+    gainedExperience: input.gainedExperience,
+    lastBattledAt: input.now
+  });
+
+  return {
+    outcome: "awarded",
+    result,
+    cooldownEndsAt: new Date(input.now.getTime() + LION_BATTLE_COOLDOWN_MS)
+  };
+};
+
+export const getLionLevelSummary = (
+  lion: UserLionWithSpeciesRecord
+): string => {
+  const progress = getLionExperienceProgress(lion.experience);
+
+  return `Lv. ${lion.level} | ${progress.xpNeededForNextLevel} XP to next`;
 };

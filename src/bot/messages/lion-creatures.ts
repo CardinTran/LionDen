@@ -1,22 +1,31 @@
 import type { Message } from "discord.js";
 
 import { prisma } from "../../lib/prisma.js";
+import { resolveAutoLionBattle } from "../../features/lions/lion-battle.service.js";
 import {
   activateLionChannelEffect,
+  awardBattleLionExperience,
   attemptCatchWildLion,
+  findUserLionFromList,
+  getUserLionByQuery,
+  LION_BATTLE_LOSS_XP,
+  LION_BATTLE_WIN_XP,
   listLionShopItems,
   listUserItemInventory,
   listUserLions,
   listActiveWildLionSpawns,
   normalizeLionItemKey,
   purchaseLionShopItem,
-  syncDefaultLionData
+  syncDefaultLionData,
+  trainUserLion
 } from "../../features/lions/lion-creature.service.js";
 import {
+  formatBattleLionMessage,
   formatLionHelpMessage,
   formatLionInventoryMessage,
   formatLionShopMessage,
   formatOwnedLionMessage,
+  formatTrainLionMessage,
   formatUserLionsMessage,
   formatWildLionStatusMessage
 } from "../../features/lions/lion-formatting.js";
@@ -56,21 +65,6 @@ const parseItemAndQuantity = (
   };
 };
 
-const findOwnedLion = (
-  lions: Awaited<ReturnType<typeof listUserLions>>,
-  rawQuery: string
-) => {
-  const query = rawQuery.trim().toLowerCase();
-
-  return (
-    lions.find((lion) => lion.id.toLowerCase().startsWith(query)) ??
-    lions.find((lion) => lion.species.publicId.toLowerCase() === query) ??
-    lions.find((lion) => lion.species.slug === normalizeLionItemKey(query)) ??
-    lions.find((lion) => lion.species.name.toLowerCase() === query) ??
-    null
-  );
-};
-
 export const handleLionCreatureMessage = async (
   message: Message
 ): Promise<boolean> => {
@@ -91,6 +85,8 @@ export const handleLionCreatureMessage = async (
       "~bag",
       "~use",
       "~catch",
+      "~train",
+      "~battle",
       "~lions",
       "~lion",
       "~wild"
@@ -164,7 +160,9 @@ export const handleLionCreatureMessage = async (
 
   if (normalizedCommand === "~use") {
     if (args.length === 0) {
-      await message.reply("Use `~use <item>` to activate a lion item in this channel.");
+      await message.reply(
+        "Use `~use <item>` to activate a lion item in this channel."
+      );
       return true;
     }
 
@@ -173,7 +171,9 @@ export const handleLionCreatureMessage = async (
     const item = items.find((entry) => entry.itemKey === itemKey) ?? null;
 
     if (!item) {
-      await message.reply("That item does not exist. Use `~shop` to see items.");
+      await message.reply(
+        "That item does not exist. Use `~shop` to see items."
+      );
       return true;
     }
 
@@ -185,12 +185,19 @@ export const handleLionCreatureMessage = async (
     }
 
     if (!message.channel.isTextBased() || !("send" in message.channel)) {
-      await message.reply("That item can only be used in a server text channel.");
+      await message.reply(
+        "That item can only be used in a server text channel."
+      );
       return true;
     }
 
-    if (item.effectType !== "SPAWN_BOOST" && item.effectType !== "RARITY_BOOST") {
-      await message.reply(`${item.name} does not have an active-use effect yet.`);
+    if (
+      item.effectType !== "SPAWN_BOOST" &&
+      item.effectType !== "RARITY_BOOST"
+    ) {
+      await message.reply(
+        `${item.name} does not have an active-use effect yet.`
+      );
       return true;
     }
 
@@ -277,6 +284,107 @@ export const handleLionCreatureMessage = async (
     return true;
   }
 
+  if (normalizedCommand === "~train") {
+    if (args.length === 0) {
+      await message.reply(
+        "Use `~train <lion id or code>`, for example `~train L001`."
+      );
+      return true;
+    }
+
+    const result = await trainUserLion(prisma, {
+      guildId: message.guildId,
+      userId: message.author.id,
+      query: args.join(" "),
+      now: message.createdAt
+    });
+
+    await message.reply(formatTrainLionMessage({ result }));
+    return true;
+  }
+
+  if (normalizedCommand === "~battle") {
+    const opponent = message.mentions.users.first();
+
+    if (!opponent || opponent.bot || opponent.id === message.author.id) {
+      await message.reply(
+        "Use `~battle @user <your lion> vs <their lion>`, for example `~battle @Cardin L001 vs L002`."
+      );
+      return true;
+    }
+
+    const queryText = args
+      .filter((arg) => !arg.includes(opponent.id))
+      .join(" ")
+      .trim();
+    const [challengerQuery, opponentQuery] = queryText
+      .split(/\s+vs\s+/i)
+      .map((entry) => entry.trim());
+
+    if (!challengerQuery) {
+      await message.reply(
+        "Pick one of your lions with `~battle @user <your lion> vs <their lion>`."
+      );
+      return true;
+    }
+
+    const challengerLion = await getUserLionByQuery(prisma, {
+      guildId: message.guildId,
+      userId: message.author.id,
+      query: challengerQuery
+    });
+
+    if (!challengerLion) {
+      await message.reply("I could not find that lion in your roster.");
+      return true;
+    }
+
+    const opponentLions = await listUserLions(prisma, {
+      guildId: message.guildId,
+      userId: opponent.id,
+      limit: 100
+    });
+    const opponentLion = opponentQuery
+      ? findUserLionFromList(opponentLions, opponentQuery)
+      : (opponentLions[0] ?? null);
+
+    if (!opponentLion) {
+      await message.reply(
+        opponentQuery
+          ? "I could not find that lion in your opponent's roster."
+          : "That opponent does not have any lions to battle yet."
+      );
+      return true;
+    }
+
+    const battle = resolveAutoLionBattle({
+      firstLion: challengerLion,
+      secondLion: opponentLion,
+      random: Math.random
+    });
+    const [winnerXp, loserXp] = await Promise.all([
+      awardBattleLionExperience(prisma, {
+        lion: battle.winner,
+        gainedExperience: LION_BATTLE_WIN_XP,
+        now: message.createdAt
+      }),
+      awardBattleLionExperience(prisma, {
+        lion: battle.loser,
+        gainedExperience: LION_BATTLE_LOSS_XP,
+        now: message.createdAt
+      })
+    ]);
+
+    await message.reply(
+      formatBattleLionMessage({
+        battle,
+        winnerXp,
+        loserXp
+      })
+    );
+    return true;
+  }
+
   if (normalizedCommand === "~lions") {
     const lions = await listUserLions(prisma, {
       guildId: message.guildId,
@@ -306,7 +414,7 @@ export const handleLionCreatureMessage = async (
       userId: message.author.id,
       limit: 100
     });
-    const lion = findOwnedLion(lions, args.join(" "));
+    const lion = findUserLionFromList(lions, args.join(" "));
 
     if (!lion) {
       await message.reply("I could not find that lion in your roster.");

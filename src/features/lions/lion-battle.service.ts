@@ -1,5 +1,9 @@
 import type { LionElementValue } from "./lion-seed-data.js";
-import type { LionDerivedStats } from "./lion-progression.service.js";
+import type { UserLionWithSpeciesRecord } from "./lion-creature.service.js";
+import {
+  deriveLionStats,
+  type LionDerivedStats
+} from "./lion-progression.service.js";
 
 export interface LionBattleMove {
   key: string;
@@ -24,12 +28,93 @@ export interface LionDamageInput {
   randomModifier?: number;
 }
 
+export interface LionBattleRound {
+  round: number;
+  attackerLionId: string;
+  attackerName: string;
+  defenderLionId: string;
+  defenderName: string;
+  move: LionBattleMove;
+  damage: number;
+  effectiveness: number;
+  defenderHpAfter: number;
+}
+
+export interface LionAutoBattleResult {
+  firstLion: UserLionWithSpeciesRecord;
+  secondLion: UserLionWithSpeciesRecord;
+  winner: UserLionWithSpeciesRecord;
+  loser: UserLionWithSpeciesRecord;
+  rounds: LionBattleRound[];
+  finalHp: Record<string, number>;
+}
+
 export const DEFAULT_LION_MOVE: LionBattleMove = {
   key: "pounce",
   name: "Pounce",
   type: "NEUTRAL",
   power: 40,
   accuracy: 100
+};
+
+export const LION_TYPE_MOVES: Record<LionElementValue, LionBattleMove> = {
+  EARTH: {
+    key: "stone-crash",
+    name: "Stone Crash",
+    type: "EARTH",
+    power: 46,
+    accuracy: 95
+  },
+  FIRE: {
+    key: "ember-pounce",
+    name: "Ember Pounce",
+    type: "FIRE",
+    power: 48,
+    accuracy: 95
+  },
+  LIGHT: {
+    key: "sun-flare",
+    name: "Sun Flare",
+    type: "LIGHT",
+    power: 48,
+    accuracy: 95
+  },
+  METAL: {
+    key: "iron-claw",
+    name: "Iron Claw",
+    type: "METAL",
+    power: 46,
+    accuracy: 95
+  },
+  NATURE: {
+    key: "vine-lash",
+    name: "Vine Lash",
+    type: "NATURE",
+    power: 46,
+    accuracy: 95
+  },
+  NEUTRAL: DEFAULT_LION_MOVE,
+  SHADOW: {
+    key: "night-swipe",
+    name: "Night Swipe",
+    type: "SHADOW",
+    power: 48,
+    accuracy: 95
+  },
+  WATER: {
+    key: "tide-slam",
+    name: "Tide Slam",
+    type: "WATER",
+    power: 46,
+    accuracy: 95
+  },
+  WIND: {
+    key: "gale-strike",
+    name: "Gale Strike",
+    type: "WIND",
+    power: 46,
+    accuracy: 95
+  }
 };
 
 const TYPE_EFFECTIVENESS: Partial<
@@ -135,6 +220,31 @@ export const calculateLionMoveDamage = (input: LionDamageInput): number => {
   );
 };
 
+export const getLionMoveSet = (
+  lion: UserLionWithSpeciesRecord
+): LionBattleMove[] => {
+  const moves = [LION_TYPE_MOVES[lion.species.primaryType]];
+
+  if (lion.species.secondaryType) {
+    moves.push(LION_TYPE_MOVES[lion.species.secondaryType]);
+  }
+
+  if (!moves.some((move) => move.key === DEFAULT_LION_MOVE.key)) {
+    moves.push(DEFAULT_LION_MOVE);
+  }
+
+  return moves;
+};
+
+export const selectAutoBattleMove = (input: {
+  lion: UserLionWithSpeciesRecord;
+  round: number;
+}): LionBattleMove => {
+  const moves = getLionMoveSet(input.lion);
+
+  return moves[(input.round - 1) % moves.length] ?? DEFAULT_LION_MOVE;
+};
+
 export const determineLionTurnOrder = (
   first: LionBattleParticipant,
   second: LionBattleParticipant
@@ -148,4 +258,126 @@ export const determineLionTurnOrder = (
   return first.stats.speed > second.stats.speed
     ? [first, second]
     : [second, first];
+};
+
+const toBattleParticipant = (
+  lion: UserLionWithSpeciesRecord
+): LionBattleParticipant => ({
+  id: lion.id,
+  level: lion.level,
+  primaryType: lion.species.primaryType,
+  secondaryType: lion.species.secondaryType,
+  stats: deriveLionStats(lion.species, lion.level)
+});
+
+const getBattleName = (lion: UserLionWithSpeciesRecord): string =>
+  lion.nickname ?? lion.species.name;
+
+export const resolveAutoLionBattle = (input: {
+  firstLion: UserLionWithSpeciesRecord;
+  secondLion: UserLionWithSpeciesRecord;
+  random?: () => number;
+  maxRounds?: number;
+}): LionAutoBattleResult => {
+  const firstParticipant = toBattleParticipant(input.firstLion);
+  const secondParticipant = toBattleParticipant(input.secondLion);
+  const participantById = new Map<string, LionBattleParticipant>([
+    [firstParticipant.id, firstParticipant],
+    [secondParticipant.id, secondParticipant]
+  ]);
+  const lionById = new Map<string, UserLionWithSpeciesRecord>([
+    [input.firstLion.id, input.firstLion],
+    [input.secondLion.id, input.secondLion]
+  ]);
+  const finalHp: Record<string, number> = {
+    [input.firstLion.id]: firstParticipant.stats.hp,
+    [input.secondLion.id]: secondParticipant.stats.hp
+  };
+  const rounds: LionBattleRound[] = [];
+  const maxRounds = Math.max(1, input.maxRounds ?? 12);
+  const random = input.random ?? Math.random;
+
+  const baseTurnOrder = determineLionTurnOrder(
+    firstParticipant,
+    secondParticipant
+  );
+
+  for (let round = 1; round <= maxRounds; round += 1) {
+    for (const attacker of baseTurnOrder) {
+      const defender =
+        attacker.id === firstParticipant.id
+          ? secondParticipant
+          : firstParticipant;
+
+      if (finalHp[attacker.id] <= 0 || finalHp[defender.id] <= 0) {
+        continue;
+      }
+
+      const attackerLion = lionById.get(attacker.id);
+      const defenderLion = lionById.get(defender.id);
+
+      if (!attackerLion || !defenderLion) {
+        continue;
+      }
+
+      const move = selectAutoBattleMove({
+        lion: attackerLion,
+        round
+      });
+      const randomModifier = 0.85 + random() * 0.15;
+      const damage = calculateLionMoveDamage({
+        attacker,
+        defender,
+        move,
+        randomModifier
+      });
+      const effectiveness = getTypeEffectiveness({
+        attackType: move.type,
+        defenderPrimaryType: defender.primaryType,
+        defenderSecondaryType: defender.secondaryType
+      });
+
+      finalHp[defender.id] = Math.max(0, finalHp[defender.id] - damage);
+      rounds.push({
+        round,
+        attackerLionId: attacker.id,
+        attackerName: getBattleName(attackerLion),
+        defenderLionId: defender.id,
+        defenderName: getBattleName(defenderLion),
+        move,
+        damage,
+        effectiveness,
+        defenderHpAfter: finalHp[defender.id]
+      });
+    }
+
+    if (
+      finalHp[firstParticipant.id] <= 0 ||
+      finalHp[secondParticipant.id] <= 0
+    ) {
+      break;
+    }
+  }
+
+  const firstHp = finalHp[firstParticipant.id];
+  const secondHp = finalHp[secondParticipant.id];
+  const winnerParticipant =
+    firstHp === secondHp
+      ? (participantById.get(baseTurnOrder[0].id) ?? firstParticipant)
+      : firstHp > secondHp
+        ? firstParticipant
+        : secondParticipant;
+  const loserParticipant =
+    winnerParticipant.id === firstParticipant.id
+      ? secondParticipant
+      : firstParticipant;
+
+  return {
+    firstLion: input.firstLion,
+    secondLion: input.secondLion,
+    winner: lionById.get(winnerParticipant.id) ?? input.firstLion,
+    loser: lionById.get(loserParticipant.id) ?? input.secondLion,
+    rounds,
+    finalHp
+  };
 };

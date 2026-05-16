@@ -1,11 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  awardBattleLionExperience,
   attemptCatchWildLion,
   calculateCatchChance,
   chooseWeightedLionSpecies,
   createWildLionSpawn,
+  LION_BATTLE_WIN_XP,
+  LION_TRAINING_XP,
   purchaseLionShopItem,
+  trainUserLion,
   type ActiveLionSpawnWithSpeciesRecord,
   type LionShopItemRecord,
   type LionSpeciesRecord,
@@ -105,6 +109,27 @@ const buildSpawn = (
   caughtByUserId: null,
   caughtByDisplayName: null,
   caughtAt: null,
+  createdAt: now,
+  updatedAt: now,
+  species: buildSpecies(),
+  ...overrides
+});
+
+const buildOwnedLion = (
+  overrides: Partial<UserLionWithSpeciesRecord> = {}
+): UserLionWithSpeciesRecord => ({
+  id: "owned_123",
+  guildId: "guild_123",
+  userId: "user_123",
+  lionSpeciesId: "species_123",
+  nickname: null,
+  level: 1,
+  experience: 0,
+  sourceType: "WILD_CATCH",
+  sourceReferenceId: "spawn_123",
+  lastTrainedAt: null,
+  lastBattledAt: null,
+  acquiredAt: now,
   createdAt: now,
   updatedAt: now,
   species: buildSpecies(),
@@ -268,21 +293,9 @@ describe("lion creature service", () => {
     const spawn = buildSpawn();
     const item = buildItem();
     const inventory = buildInventory();
-    const ownedLion: UserLionWithSpeciesRecord = {
-      id: "owned_123",
-      guildId: "guild_123",
-      userId: "user_123",
-      lionSpeciesId: "species_123",
-      nickname: null,
-      level: 1,
-      experience: 0,
-      sourceType: "WILD_CATCH",
-      sourceReferenceId: "spawn_123",
-      acquiredAt: now,
-      createdAt: now,
-      updatedAt: now,
+    const ownedLion = buildOwnedLion({
       species: spawn.species
-    };
+    });
 
     const updateMany = vi.fn(async ({ where }) => {
       if (where.expiresAt) {
@@ -358,5 +371,96 @@ describe("lion creature service", () => {
 
     expect(result.outcome).toBe("missed");
     expect(inventoryUpdate).toHaveBeenCalled();
+  });
+
+  it("trains a lion, awards XP, and stores the training cooldown", async () => {
+    const ownedLion = buildOwnedLion();
+    const updatedLion = buildOwnedLion({
+      experience: LION_TRAINING_XP,
+      lastTrainedAt: now
+    });
+    const update = vi.fn().mockResolvedValue(updatedLion);
+
+    const result = await trainUserLion(
+      {
+        userLion: {
+          findMany: vi.fn().mockResolvedValue([ownedLion]),
+          update
+        }
+      } as never,
+      {
+        guildId: "guild_123",
+        userId: "user_123",
+        query: "L001",
+        now
+      }
+    );
+
+    expect(result.outcome).toBe("trained");
+    expect(result.result?.gainedExperience).toBe(LION_TRAINING_XP);
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          experience: LION_TRAINING_XP,
+          lastTrainedAt: now
+        })
+      })
+    );
+  });
+
+  it("blocks training while the owned lion is on cooldown", async () => {
+    const result = await trainUserLion(
+      {
+        userLion: {
+          findMany: vi.fn().mockResolvedValue([
+            buildOwnedLion({
+              lastTrainedAt: new Date(now.getTime() - 5 * 60_000)
+            })
+          ]),
+          update: vi.fn()
+        }
+      } as never,
+      {
+        guildId: "guild_123",
+        userId: "user_123",
+        query: "L001",
+        now
+      }
+    );
+
+    expect(result.outcome).toBe("on_cooldown");
+    expect(result.cooldownEndsAt?.getTime()).toBeGreaterThan(now.getTime());
+  });
+
+  it("awards battle XP and stores the battle cooldown", async () => {
+    const updatedLion = buildOwnedLion({
+      experience: LION_BATTLE_WIN_XP,
+      lastBattledAt: now
+    });
+    const update = vi.fn().mockResolvedValue(updatedLion);
+
+    const result = await awardBattleLionExperience(
+      {
+        userLion: {
+          update
+        }
+      } as never,
+      {
+        lion: buildOwnedLion(),
+        gainedExperience: LION_BATTLE_WIN_XP,
+        now
+      }
+    );
+
+    expect(result.outcome).toBe("awarded");
+    expect(result.result?.gainedExperience).toBe(LION_BATTLE_WIN_XP);
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          experience: LION_BATTLE_WIN_XP,
+          lastBattledAt: now
+        })
+      })
+    );
   });
 });
