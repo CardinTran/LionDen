@@ -165,12 +165,16 @@ export const DEFAULT_LION_SPAWN_MIN_INTERVAL_MINUTES = 120;
 export const DEFAULT_LION_SPAWN_MAX_INTERVAL_MINUTES = 240;
 
 export const normalizeLionItemKey = (rawItemKey: string): string =>
-  rawItemKey.trim().toLowerCase().replace(/[\s_]+/g, "-");
+  rawItemKey
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_]+/g, "-");
 
 export const calculateCatchChance = (input: {
   baseCatchRate: number;
   catchModifier: number;
-}): number => Math.min(95, Math.max(5, input.baseCatchRate + input.catchModifier));
+}): number =>
+  Math.min(95, Math.max(5, input.baseCatchRate + input.catchModifier));
 
 export const getRandomIntInclusive = (
   min: number,
@@ -210,7 +214,10 @@ export const chooseWeightedLionSpecies = (
 };
 
 export const generateNextLionSpawnAt = (input: {
-  config: Pick<LionSpawnConfigRecord, "minIntervalMinutes" | "maxIntervalMinutes">;
+  config: Pick<
+    LionSpawnConfigRecord,
+    "minIntervalMinutes" | "maxIntervalMinutes"
+  >;
   now: Date;
   random: () => number;
 }): Date => {
@@ -301,6 +308,64 @@ export const listEnabledLionSpawnConfigs = async (
   return store.lionSpawnConfig.findMany({
     where: {
       enabled: true
+    }
+  });
+};
+
+export const getLionSpawnConfig = async (
+  store: Pick<LionCreatureStore, "lionSpawnConfig">,
+  guildId: string
+): Promise<LionSpawnConfigRecord | null> => {
+  return store.lionSpawnConfig.findUnique({
+    where: {
+      guildId
+    }
+  });
+};
+
+export const configureLionSpawnConfig = async (
+  store: Pick<LionCreatureStore, "lionSpawnConfig">,
+  input: {
+    guildId: string;
+    enabled: boolean;
+    minIntervalMinutes: number;
+    maxIntervalMinutes: number;
+    nextSpawnAt: Date;
+  }
+): Promise<LionSpawnConfigRecord> => {
+  return store.lionSpawnConfig.upsert({
+    where: {
+      guildId: input.guildId
+    },
+    create: {
+      guildId: input.guildId,
+      enabled: input.enabled,
+      minIntervalMinutes: input.minIntervalMinutes,
+      maxIntervalMinutes: input.maxIntervalMinutes,
+      nextSpawnAt: input.nextSpawnAt
+    },
+    update: {
+      enabled: input.enabled,
+      minIntervalMinutes: input.minIntervalMinutes,
+      maxIntervalMinutes: input.maxIntervalMinutes,
+      nextSpawnAt: input.nextSpawnAt
+    }
+  });
+};
+
+export const setLionSpawnConfigEnabled = async (
+  store: Pick<LionCreatureStore, "lionSpawnConfig">,
+  input: {
+    guildId: string;
+    enabled: boolean;
+  }
+): Promise<LionSpawnConfigRecord> => {
+  return store.lionSpawnConfig.update({
+    where: {
+      guildId: input.guildId
+    },
+    data: {
+      enabled: input.enabled
     }
   });
 };

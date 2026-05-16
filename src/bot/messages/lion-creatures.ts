@@ -1,4 +1,4 @@
-import { PermissionFlagsBits, type Message } from "discord.js";
+import type { Message } from "discord.js";
 
 import { prisma } from "../../lib/prisma.js";
 import {
@@ -18,7 +18,6 @@ import {
   formatUserLionsMessage,
   formatWildLionStatusMessage
 } from "../../features/lions/lion-formatting.js";
-import { postWildLionSpawnToChannel } from "../../features/lions/lion-spawn-scheduler.js";
 
 let lionDataSynced = false;
 
@@ -63,6 +62,7 @@ const findOwnedLion = (
 
   return (
     lions.find((lion) => lion.id.toLowerCase().startsWith(query)) ??
+    lions.find((lion) => lion.species.publicId.toLowerCase() === query) ??
     lions.find((lion) => lion.species.slug === normalizeLionItemKey(query)) ??
     lions.find((lion) => lion.species.name.toLowerCase() === query) ??
     null
@@ -82,15 +82,9 @@ export const handleLionCreatureMessage = async (
   const normalizedCommand = command.toLowerCase();
 
   if (
-    ![
-      "~shop",
-      "~buy",
-      "~bag",
-      "~catch",
-      "~lions",
-      "~lion",
-      "~wild"
-    ].includes(normalizedCommand)
+    !["~shop", "~buy", "~bag", "~catch", "~lions", "~lion", "~wild"].includes(
+      normalizedCommand
+    )
   ) {
     return false;
   }
@@ -109,7 +103,9 @@ export const handleLionCreatureMessage = async (
 
   if (normalizedCommand === "~buy") {
     if (args.length === 0) {
-      await message.reply("Use `~buy <item> [quantity]`, for example `~buy basic-ball 3`.");
+      await message.reply(
+        "Use `~buy <item> [quantity]`, for example `~buy basic-ball 3`."
+      );
       return true;
     }
 
@@ -123,7 +119,9 @@ export const handleLionCreatureMessage = async (
     });
 
     if (result.outcome === "item_not_found" || !result.item) {
-      await message.reply("That lion shop item does not exist. Use `~shop` to see items.");
+      await message.reply(
+        "That lion shop item does not exist. Use `~shop` to see items."
+      );
       return true;
     }
 
@@ -172,17 +170,23 @@ export const handleLionCreatureMessage = async (
     }
 
     if (result.outcome === "item_not_found") {
-      await message.reply("That catching item does not exist. Use `~shop` to see items.");
+      await message.reply(
+        "That catching item does not exist. Use `~shop` to see items."
+      );
       return true;
     }
 
     if (result.outcome === "not_a_ball") {
-      await message.reply(`${result.item?.name ?? "That item"} cannot be used to catch lions yet.`);
+      await message.reply(
+        `${result.item?.name ?? "That item"} cannot be used to catch lions yet.`
+      );
       return true;
     }
 
     if (result.outcome === "no_item") {
-      await message.reply(`You do not have any \`${itemKey}\`. Use \`~shop\` and \`~buy\` first.`);
+      await message.reply(
+        `You do not have any \`${itemKey}\`. Use \`~shop\` and \`~buy\` first.`
+      );
       return true;
     }
 
@@ -199,7 +203,7 @@ export const handleLionCreatureMessage = async (
     }
 
     await message.reply(
-      `${getDisplayName(message)} caught ${result.ownedLion?.species.name ?? "a wild lion"} with ${result.item?.name ?? "a ball"}.`
+      `${getDisplayName(message)} caught ${result.ownedLion?.species.name ?? "a wild lion"} ${result.ownedLion?.species.publicId ? `\`${result.ownedLion.species.publicId}\`` : ""} with ${result.item?.name ?? "a ball"}.`
     );
     return true;
   }
@@ -222,7 +226,9 @@ export const handleLionCreatureMessage = async (
 
   if (normalizedCommand === "~lion") {
     if (args.length === 0) {
-      await message.reply("Use `~lion <id or name>` to inspect one of your lions.");
+      await message.reply(
+        "Use `~lion <id or name>` to inspect one of your lions."
+      );
       return true;
     }
 
@@ -243,30 +249,6 @@ export const handleLionCreatureMessage = async (
   }
 
   if (normalizedCommand === "~wild") {
-    if (args[0]?.toLowerCase() === "drop") {
-      if (!message.member?.permissions.has(PermissionFlagsBits.ManageGuild)) {
-        await message.reply("You do not have permission to force a wild lion drop.");
-        return true;
-      }
-
-      if (!message.channel.isTextBased() || !("send" in message.channel)) {
-        await message.reply("Wild lions can only drop in server text channels.");
-        return true;
-      }
-
-      const spawn = await postWildLionSpawnToChannel(message.channel, {
-        guildId: message.guildId,
-        now: message.createdAt,
-        random: Math.random
-      });
-
-      if (!spawn) {
-        await message.reply("I could not create a wild lion drop right now.");
-      }
-
-      return true;
-    }
-
     const spawns = await listActiveWildLionSpawns(prisma, {
       guildId: message.guildId,
       now: message.createdAt

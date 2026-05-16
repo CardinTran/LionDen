@@ -37,6 +37,7 @@ const buildSpecies = (
   overrides: Partial<LionSpeciesRecord> = {}
 ): LionSpeciesRecord => ({
   id: "species_123",
+  publicId: "L001",
   slug: "rdl-lion-001",
   name: "RDL Lion 001",
   imagePath: "assets/lions/cards/rdl-lion-001.jpg",
@@ -46,6 +47,13 @@ const buildSpecies = (
   spawnWeight: 100,
   primaryType: "NEUTRAL",
   secondaryType: null,
+  baseHp: 50,
+  baseAttack: 10,
+  baseDefense: 10,
+  baseSpeed: 10,
+  abilityKey: "steady-heart",
+  abilityName: "Steady Heart",
+  abilityDescription: "A dependable passive trait.",
   description: "A local test lion.",
   isEnabled: true,
   createdAt: now,
@@ -131,8 +139,12 @@ describe("lion creature service", () => {
       spawnWeight: 1
     });
 
-    expect(chooseWeightedLionSpecies([common, rare], () => 0)?.id).toBe("common");
-    expect(chooseWeightedLionSpecies([common, rare], () => 0.999)?.id).toBe("rare");
+    expect(chooseWeightedLionSpecies([common, rare], () => 0)?.id).toBe(
+      "common"
+    );
+    expect(chooseWeightedLionSpecies([common, rare], () => 0.999)?.id).toBe(
+      "rare"
+    );
   });
 
   it("purchases shop items with coins and adds inventory", async () => {
