@@ -87,6 +87,20 @@ export interface LionSpawnConfigRecord {
   updatedAt: Date;
 }
 
+export interface LionChannelEffectRecord {
+  id: string;
+  guildId: string;
+  channelId: string;
+  itemKey: string;
+  effectType: "CATCH_MODIFIER" | "SPAWN_BOOST" | "RARITY_BOOST" | "TYPE_ATTRACTOR";
+  effectValue: number;
+  activatedByUserId: string;
+  activatedAt: Date;
+  expiresAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 interface LionCreatureStore {
   lionSpecies: any;
@@ -95,6 +109,7 @@ interface LionCreatureStore {
   activeLionSpawn: any;
   userLion: any;
   lionSpawnConfig: any;
+  lionChannelEffect: any;
   userProfile: {
     upsert(args: {
       where: {
@@ -211,6 +226,26 @@ export const chooseWeightedLionSpecies = (
   }
 
   return enabledSpecies.at(-1) ?? null;
+};
+
+const getRarityWeightBonus = (
+  rarity: LionSpeciesRecord["rarity"],
+  effectValue: number
+): number => {
+  const value = Math.max(0, effectValue);
+
+  switch (rarity) {
+    case "LEGENDARY":
+      return 1 + value / 10;
+    case "EPIC":
+      return 1 + value / 20;
+    case "RARE":
+      return 1 + value / 30;
+    case "UNCOMMON":
+      return 1 + value / 60;
+    default:
+      return 1;
+  }
 };
 
 export const generateNextLionSpawnAt = (input: {
@@ -366,6 +401,111 @@ export const setLionSpawnConfigEnabled = async (
     },
     data: {
       enabled: input.enabled
+    }
+  });
+};
+
+export const expireActiveLionChannelEffects = async (
+  store: Pick<LionCreatureStore, "lionChannelEffect">,
+  input: {
+    guildId: string;
+    now: Date;
+  }
+): Promise<number> => {
+  const result = await store.lionChannelEffect.deleteMany({
+    where: {
+      guildId: input.guildId,
+      expiresAt: {
+        lte: input.now
+      }
+    }
+  });
+
+  return result.count;
+};
+
+export const getActiveLionChannelEffect = async (
+  store: Pick<LionCreatureStore, "lionChannelEffect">,
+  input: {
+    guildId: string;
+    channelId: string;
+    now: Date;
+  }
+): Promise<LionChannelEffectRecord | null> => {
+  await expireActiveLionChannelEffects(store, {
+    guildId: input.guildId,
+    now: input.now
+  });
+
+  return store.lionChannelEffect.findFirst({
+    where: {
+      guildId: input.guildId,
+      channelId: input.channelId
+    },
+    orderBy: [{ expiresAt: "desc" }]
+  });
+};
+
+export const activateLionChannelEffect = async (
+  store: Pick<LionCreatureStore, "lionChannelEffect" | "userItemInventory">,
+  input: {
+    guildId: string;
+    channelId: string;
+    userId: string;
+    itemKey: string;
+    effectType: "CATCH_MODIFIER" | "SPAWN_BOOST" | "RARITY_BOOST" | "TYPE_ATTRACTOR";
+    effectValue: number;
+    durationMinutes: number;
+    now: Date;
+  }
+): Promise<LionChannelEffectRecord | null> => {
+  const itemKey = normalizeLionItemKey(input.itemKey);
+  const inventory = await store.userItemInventory.findUnique({
+    where: {
+      guildId_userId_itemKey: {
+        guildId: input.guildId,
+        userId: input.userId,
+        itemKey
+      }
+    }
+  });
+
+  if (!inventory || inventory.quantity <= 0) {
+    return null;
+  }
+
+  const inventoryUpdate = await store.userItemInventory.updateMany({
+    where: {
+      guildId: input.guildId,
+      userId: input.userId,
+      itemKey,
+      quantity: {
+        gt: 0
+      }
+    },
+    data: {
+      quantity: {
+        decrement: 1
+      }
+    }
+  });
+
+  if (inventoryUpdate.count === 0) {
+    return null;
+  }
+
+  const expiresAt = new Date(input.now.getTime() + input.durationMinutes * 60_000);
+
+  return store.lionChannelEffect.create({
+    data: {
+      guildId: input.guildId,
+      channelId: input.channelId,
+      itemKey,
+      effectType: input.effectType,
+      effectValue: input.effectValue,
+      activatedByUserId: input.userId,
+      activatedAt: input.now,
+      expiresAt
     }
   });
 };
@@ -526,7 +666,10 @@ export const expireActiveLionSpawns = async (
 };
 
 export const createWildLionSpawn = async (
-  store: Pick<LionCreatureStore, "activeLionSpawn" | "lionSpecies">,
+  store: Pick<
+    LionCreatureStore,
+    "activeLionSpawn" | "lionSpecies" | "lionChannelEffect"
+  >,
   input: {
     guildId: string;
     channelId: string;
@@ -562,7 +705,33 @@ export const createWildLionSpawn = async (
       isEnabled: true
     }
   });
-  const selectedSpecies = chooseWeightedLionSpecies(species, input.random);
+
+  const activeEffect = await store.lionChannelEffect.findFirst({
+    where: {
+      guildId: input.guildId,
+      channelId: input.channelId,
+      expiresAt: {
+        gt: input.now
+      }
+    },
+    orderBy: [{ expiresAt: "desc" }]
+  });
+
+  const weightedSpecies =
+    activeEffect?.effectType === "RARITY_BOOST"
+      ? species.map((entry: LionSpeciesRecord) => ({
+          ...entry,
+          spawnWeight: Math.max(
+            1,
+            Math.floor(
+              entry.spawnWeight *
+                getRarityWeightBonus(entry.rarity, activeEffect.effectValue)
+            )
+          )
+        }))
+      : species;
+
+  const selectedSpecies = chooseWeightedLionSpecies(weightedSpecies, input.random);
 
   if (!selectedSpecies) {
     return {

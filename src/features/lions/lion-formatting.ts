@@ -36,7 +36,8 @@ export const formatLionShopMessage = (items: LionShopItemRecord[]): string => {
       (item) =>
         `- ${item.name} (\`${item.itemKey}\`) - ${item.priceCoins} coins - ${item.description}`
     ),
-    "Buy with `~buy <item> [quantity]`."
+    "Buy with `~buy <item> [quantity]`.",
+    "Use balls with `~catch <ball>` and lures with `~use <item>`."
   ].join("\n");
 };
 
@@ -54,6 +55,22 @@ export const formatLionInventoryMessage = (input: {
     ...visibleInventory.map((item) => `- \`${item.itemKey}\`: ${item.quantity}`)
   ].join("\n");
 };
+
+export const formatLionHelpMessage = (): string =>
+  [
+    "LionDen lion help",
+    "Public commands:",
+    "- `~shop` view lion items",
+    "- `~buy <item> [quantity]` buy items",
+    "- `~bag` view your items",
+    "- `~use <item>` activate a usable item in the current channel",
+    "- `~catch <ball>` catch a wild lion",
+    "- `~lions` view your roster",
+    "- `~lion <id or name>` inspect one lion",
+    "- `~wild` view active wild lions",
+    "Admin command:",
+    "- `/lionadmin` manage spawn timing and force drops"
+  ].join("\n");
 
 export const formatUserLionsMessage = (input: {
   lions: UserLionWithSpeciesRecord[];
