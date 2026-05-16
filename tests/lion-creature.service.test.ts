@@ -7,7 +7,9 @@ import {
   chooseWeightedLionSpecies,
   clearUserLionTeam,
   createWildLionSpawn,
+  generateWildLionSpawnLevel,
   listUserLionTeam,
+  listTopOwnedLions,
   LION_BATTLE_WIN_XP,
   LION_TRAINING_XP,
   purchaseLionShopItem,
@@ -106,6 +108,7 @@ const buildSpawn = (
   guildId: "guild_123",
   channelId: "channel_123",
   lionSpeciesId: "species_123",
+  level: 1,
   messageId: "message_123",
   status: "ACTIVE",
   spawnedAt: now,
@@ -125,6 +128,7 @@ const buildOwnedLion = (
   id: "owned_123",
   guildId: "guild_123",
   userId: "user_123",
+  ownerDisplayName: "Cardin",
   lionSpeciesId: "species_123",
   nickname: null,
   level: 1,
@@ -172,6 +176,13 @@ describe("lion creature service", () => {
         catchModifier: 20
       })
     ).toBe(95);
+    expect(
+      calculateCatchChance({
+        baseCatchRate: 70,
+        catchModifier: 15,
+        level: 21
+      })
+    ).toBe(83);
   });
 
   it("chooses species by spawn weight", () => {
@@ -192,6 +203,16 @@ describe("lion creature service", () => {
     expect(chooseWeightedLionSpecies([common, rare], () => 0.999)?.id).toBe(
       "rare"
     );
+  });
+
+  it("generates wild lion levels from conservative rarity tiers", () => {
+    const rolls = [0, 0, 0.75, 0, 0.95, 0.999];
+    let index = 0;
+    const random = (): number => rolls[index++] ?? 0;
+
+    expect(generateWildLionSpawnLevel({ random })).toBe(1);
+    expect(generateWildLionSpawnLevel({ random })).toBe(11);
+    expect(generateWildLionSpawnLevel({ random })).toBe(50);
   });
 
   it("purchases shop items with coins and adds inventory", async () => {
@@ -279,7 +300,13 @@ describe("lion creature service", () => {
     );
 
     expect(result.outcome).toBe("spawned");
-    expect(create).toHaveBeenCalled();
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          level: 1
+        })
+      })
+    );
   });
 
   it("does not create a second wild spawn in the same active channel", async () => {
@@ -312,12 +339,16 @@ describe("lion creature service", () => {
   });
 
   it("catches a wild lion and creates an owned lion", async () => {
-    const spawn = buildSpawn();
+    const spawn = buildSpawn({
+      level: 21
+    });
     const item = buildItem();
     const inventory = buildInventory();
     const ownedLion = buildOwnedLion({
+      level: spawn.level,
       species: spawn.species
     });
+    const create = vi.fn().mockResolvedValue(ownedLion);
 
     const updateMany = vi.fn(async ({ where }) => {
       if (where.expiresAt) {
@@ -341,7 +372,7 @@ describe("lion creature service", () => {
           updateMany: vi.fn().mockResolvedValue({ count: 1 })
         },
         userLion: {
-          create: vi.fn().mockResolvedValue(ownedLion)
+          create
         }
       } as never,
       {
@@ -356,8 +387,16 @@ describe("lion creature service", () => {
     );
 
     expect(result.outcome).toBe("caught");
-    expect(result.catchChance).toBe(85);
+    expect(result.catchChance).toBe(83);
     expect(result.ownedLion?.id).toBe("owned_123");
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          ownerDisplayName: "Cardin",
+          level: 21
+        })
+      })
+    );
   });
 
   it("consumes the ball and leaves the spawn active when catch misses", async () => {
@@ -393,6 +432,47 @@ describe("lion creature service", () => {
 
     expect(result.outcome).toBe("missed");
     expect(inventoryUpdate).toHaveBeenCalled();
+  });
+
+  it("prevents duplicate owned lions when a spawn was already caught", async () => {
+    const create = vi.fn();
+
+    const result = await attemptCatchWildLion(
+      {
+        activeLionSpawn: {
+          updateMany: vi.fn(async ({ where }) => {
+            if (where.expiresAt) {
+              return { count: 0 };
+            }
+
+            return { count: 0 };
+          }),
+          findFirst: vi.fn().mockResolvedValue(buildSpawn())
+        },
+        lionShopItemDefinition: {
+          findUnique: vi.fn().mockResolvedValue(buildItem())
+        },
+        userItemInventory: {
+          findUnique: vi.fn().mockResolvedValue(buildInventory()),
+          updateMany: vi.fn().mockResolvedValue({ count: 1 })
+        },
+        userLion: {
+          create
+        }
+      } as never,
+      {
+        guildId: "guild_123",
+        channelId: "channel_123",
+        userId: "user_123",
+        displayName: "Cardin",
+        itemKey: "great-ball",
+        now,
+        random: () => 0
+      }
+    );
+
+    expect(result.outcome).toBe("already_caught");
+    expect(create).not.toHaveBeenCalled();
   });
 
   it("trains a lion, awards XP, and stores the training cooldown", async () => {
@@ -612,6 +692,58 @@ describe("lion creature service", () => {
     );
 
     expect(result).toBe(2);
+  });
+
+  it("lists top owned lions with display names and guild-scoped candidates", async () => {
+    const firstLion = buildOwnedLion({
+      id: "owned_top",
+      ownerDisplayName: "Stored Name",
+      level: 15,
+      experience: 2_000,
+      species: buildSpecies({
+        id: "species_top",
+        publicId: "L010",
+        baseAttack: 30
+      })
+    });
+    const secondLion = buildOwnedLion({
+      id: "owned_second",
+      userId: "user_456",
+      ownerDisplayName: "",
+      level: 8,
+      experience: 500,
+      species: buildSpecies({
+        id: "species_second",
+        publicId: "L011"
+      })
+    });
+
+    const entries = await listTopOwnedLions(
+      {
+        userLion: {
+          findMany: vi.fn().mockResolvedValue([secondLion, firstLion])
+        },
+        userProfile: {
+          findMany: vi.fn().mockResolvedValue([
+            buildProfile({
+              userId: "user_456",
+              displayName: "Profile Name"
+            })
+          ])
+        }
+      } as never,
+      {
+        guildId: "guild_123",
+        limit: 2
+      }
+    );
+
+    expect(entries.map((entry) => entry.lion.id)).toEqual([
+      "owned_top",
+      "owned_second"
+    ]);
+    expect(entries[0].ownerDisplayName).toBe("Stored Name");
+    expect(entries[1].ownerDisplayName).toBe("Profile Name");
   });
 
   it("awards battle XP and stores the battle cooldown", async () => {

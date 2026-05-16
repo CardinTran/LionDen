@@ -2,6 +2,7 @@ import type { Client } from "discord.js";
 
 import { logger } from "../../lib/logger.js";
 import { prisma } from "../../lib/prisma.js";
+import { isMaintenanceModeEnabled } from "../admin/bot-config.service.js";
 import {
   attachRedEnvelopeMessage,
   createRedEnvelope,
@@ -12,9 +13,7 @@ import {
   updateRedEnvelopeDropSchedule
 } from "./red-envelope.service.js";
 import { listMostActiveChannels } from "./channel-activity.service.js";
-import {
-  formatRedEnvelopeMessage
-} from "../../bot/commands/redenvelope.js";
+import { formatRedEnvelopeMessage } from "../../bot/commands/redenvelope.js";
 
 let schedulerTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -48,23 +47,23 @@ export const resolveDropChannel = async (
     fallbackChannelId: string;
     now: Date;
   }
-): Promise<
-  | {
-      channel: {
-        id: string;
-        send: (...args: unknown[]) => Promise<{ id: string }>;
-      };
-      usedActiveTargeting: boolean;
-    }
-  | null
-> => {
+): Promise<{
+  channel: {
+    id: string;
+    send: (...args: unknown[]) => Promise<{ id: string }>;
+  };
+  usedActiveTargeting: boolean;
+} | null> => {
   const activeChannels = listMostActiveChannels({
     guildId: input.guildId,
     now: input.now
   });
 
   for (const activityEntry of activeChannels) {
-    const channel = await fetchConfiguredChannel(client, activityEntry.channelId);
+    const channel = await fetchConfiguredChannel(
+      client,
+      activityEntry.channelId
+    );
 
     if (channel) {
       return {
@@ -77,7 +76,10 @@ export const resolveDropChannel = async (
     }
   }
 
-  const fallbackChannel = await fetchConfiguredChannel(client, input.fallbackChannelId);
+  const fallbackChannel = await fetchConfiguredChannel(
+    client,
+    input.fallbackChannelId
+  );
 
   if (!fallbackChannel) {
     return null;
@@ -100,17 +102,17 @@ export const postConfiguredRedEnvelopeDrop = async (
     createdByUserId: string;
     createdByDisplayName: string;
   }
-): Promise<
-  | {
-      envelopeId: string;
-      channelId: string;
-      nextDropAt: Date;
-      usedActiveTargeting: boolean;
-      amount: number;
-    }
-  | null
-> => {
-  const openEnvelope = await getOpenRedEnvelopeForGuild(prisma, input.config.guildId);
+): Promise<{
+  envelopeId: string;
+  channelId: string;
+  nextDropAt: Date;
+  usedActiveTargeting: boolean;
+  amount: number;
+} | null> => {
+  const openEnvelope = await getOpenRedEnvelopeForGuild(
+    prisma,
+    input.config.guildId
+  );
 
   if (openEnvelope) {
     return null;
@@ -173,6 +175,10 @@ export const runRedEnvelopeSchedulerTick = async (
   const configs = await listEnabledRedEnvelopeDropConfigs(prisma);
 
   for (const config of configs) {
+    if (await isMaintenanceModeEnabled(prisma, config.guildId)) {
+      continue;
+    }
+
     if (!config.nextDropAt || config.nextDropAt.getTime() > now.getTime()) {
       continue;
     }

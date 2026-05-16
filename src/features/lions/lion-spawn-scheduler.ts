@@ -6,6 +6,7 @@ import type { Client } from "discord.js";
 import { logger } from "../../lib/logger.js";
 import { prisma } from "../../lib/prisma.js";
 import { env } from "../../config/env.js";
+import { isMaintenanceModeEnabled } from "../admin/bot-config.service.js";
 import { listMostActiveChannels } from "../economy/channel-activity.service.js";
 import {
   attachWildLionSpawnMessage,
@@ -136,6 +137,10 @@ export const runLionSpawnSchedulerTick = async (
   const configs = await listEnabledLionSpawnConfigs(prisma);
 
   for (const config of configs) {
+    if (await isMaintenanceModeEnabled(prisma, config.guildId)) {
+      continue;
+    }
+
     await expireActiveLionSpawns(prisma, {
       guildId: config.guildId,
       now

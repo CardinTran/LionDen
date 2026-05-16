@@ -66,6 +66,7 @@ const buildOwnedLion = (
   id: "owned-a",
   guildId: "guild_123",
   userId: "user-a",
+  ownerDisplayName: "User A",
   lionSpeciesId: "species-a",
   nickname: null,
   level: 5,

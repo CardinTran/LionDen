@@ -201,6 +201,7 @@ Possible version 1 commands:
 - `~team`
 - `~team set <lion1> <lion2> <lion3>`
 - `~battle @user`
+- `~toplions`
 
 Optional later:
 
@@ -591,6 +592,8 @@ Current implementation note:
 - `~team`, `~team set`, and `~team clear` manage persistent battle teams
 - quick public team battles exist as an auto-resolved first slice
 - participating lions receive battle XP, with winners receiving more than the other team
+- wild spawns now generate encounter levels, and catches preserve the spawned level
+- `~toplions` gives the server a public top-10 status board using display names
 - full interactive battle menus, status effects, and raids are still future phases
 
 ### Phase 9: Raids

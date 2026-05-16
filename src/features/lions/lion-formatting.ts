@@ -4,6 +4,7 @@ import type {
   LionExperienceAwardResult,
   LionShopItemRecord,
   SetUserLionTeamResult,
+  TopLionBoardEntry,
   TrainUserLionResult,
   UserItemInventoryRecord,
   UserLionTeamSlotWithLionRecord,
@@ -27,7 +28,7 @@ export const formatWildLionSpawnMessage = (input: {
   spawn: ActiveLionSpawnWithSpeciesRecord;
 }): string =>
   [
-    `A wild ${input.spawn.species.name} appeared in <#${input.spawn.channelId}>.`,
+    `A wild Lv. ${input.spawn.level} ${input.spawn.species.name} appeared in <#${input.spawn.channelId}>.`,
     `Code: \`${input.spawn.species.publicId}\` | Slug: \`${input.spawn.species.slug}\``,
     `Rarity: ${input.spawn.species.rarity} | Type: ${input.spawn.species.primaryType}`,
     `Catch it with \`~catch basic-ball\`, \`~catch great-ball\`, or \`~catch ultra-ball\`.`,
@@ -79,11 +80,11 @@ export const formatLionHelpMessage = (): string =>
     "- `~team set <lion1> <lion2> <lion3>` set up to 3 team slots",
     "- `~team clear` clear your battle team",
     "- `~battle @user` battle using both saved teams",
+    "- `~toplions` view the strongest lions in this server",
     "- `~lions` view your roster",
     "- `~lion <id or name>` inspect one lion",
     "- `~wild` view active wild lions",
-    "Admin command:",
-    "- `/lionadmin` manage spawn timing and force drops"
+    "Start here: buy balls with `~buy basic-ball 3`, wait for wild lions, catch them, train them, set a team, then battle."
   ].join("\n");
 
 const formatCompactLionLine = (
@@ -92,7 +93,7 @@ const formatCompactLionLine = (
 ): string => {
   const stats = deriveLionStats(lion.species, lion.level);
 
-  return `${prefix}${lion.species.name} \`${lion.species.publicId}\` - Lv. ${lion.level} - ${stats.hp} HP/${stats.attack} ATK - owned id: \`${lion.id.slice(0, 8)}\``;
+  return `${prefix}${lion.species.name} \`${lion.species.publicId}\` - Lv. ${lion.level} - ${stats.hp} HP/${stats.attack} ATK - Lion ID: \`${lion.id.slice(0, 8)}\``;
 };
 
 export const formatUserLionsMessage = (input: {
@@ -171,14 +172,16 @@ export const formatClearUserLionTeamMessage = (clearedCount: number): string =>
     : "Your battle team has been cleared.";
 
 export const formatOwnedLionMessage = (
-  lion: UserLionWithSpeciesRecord
+  lion: UserLionWithSpeciesRecord,
+  ownerDisplayName?: string
 ): string => {
   const stats = deriveLionStats(lion.species, lion.level);
   const progress = getLionExperienceProgress(lion.experience);
 
   return [
     `${lion.species.name} \`${lion.species.publicId}\``,
-    `Slug: \`${lion.species.slug}\` | Owned id: \`${lion.id.slice(0, 8)}\``,
+    ownerDisplayName ? `Owner: ${ownerDisplayName}` : null,
+    `Slug: \`${lion.species.slug}\` | Lion ID: \`${lion.id.slice(0, 8)}\``,
     `Rarity: ${lion.species.rarity}`,
     `Type: ${lion.species.primaryType}${lion.species.secondaryType ? ` / ${lion.species.secondaryType}` : ""}`,
     `Ability: ${lion.species.abilityName}`,
@@ -188,7 +191,9 @@ export const formatOwnedLionMessage = (
     `Stats: ${stats.hp} HP | ${stats.attack} ATK | ${stats.defense} DEF | ${stats.speed} SPD`,
     `Caught: ${formatDiscordTimestamp(lion.acquiredAt, "t")}`,
     lion.species.description
-  ].join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 };
 
 const formatExperienceAwardLine = (
@@ -353,7 +358,24 @@ export const formatWildLionStatusMessage = (
     "Active wild lions:",
     ...spawns.map(
       (spawn) =>
-        `- ${spawn.species.name} \`${spawn.species.publicId}\` in <#${spawn.channelId}> until ${formatDiscordTimestamp(spawn.expiresAt)}`
+        `- Lv. ${spawn.level} ${spawn.species.name} \`${spawn.species.publicId}\` in <#${spawn.channelId}> until ${formatDiscordTimestamp(spawn.expiresAt)}`
     )
+  ].join("\n");
+};
+
+export const formatTopLionsMessage = (input: {
+  entries: TopLionBoardEntry[];
+}): string => {
+  if (input.entries.length === 0) {
+    return "No lions have been caught in this server yet.";
+  }
+
+  return [
+    "Top lions in this server:",
+    ...input.entries.map((entry) => {
+      const stats = deriveLionStats(entry.lion.species, entry.lion.level);
+
+      return `${entry.rank}. ${entry.lion.species.name} \`${entry.lion.species.publicId}\` - Lv. ${entry.lion.level} - ${entry.lion.species.rarity} - ${stats.hp} HP/${stats.attack} ATK/${stats.defense} DEF/${stats.speed} SPD - owner: ${entry.ownerDisplayName}`;
+    })
   ].join("\n");
 };

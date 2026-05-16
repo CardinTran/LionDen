@@ -11,6 +11,7 @@ import {
 } from "./lion-seed-data.js";
 import {
   addLionExperience,
+  deriveLionStats,
   getLionExperienceProgress
 } from "./lion-progression.service.js";
 
@@ -44,6 +45,7 @@ export interface UserLionRecord {
   id: string;
   guildId: string;
   userId: string;
+  ownerDisplayName: string;
   lionSpeciesId: string;
   nickname: string | null;
   level: number;
@@ -80,6 +82,7 @@ export interface ActiveLionSpawnRecord {
   guildId: string;
   channelId: string;
   lionSpeciesId: string;
+  level: number;
   messageId: string | null;
   status: LionSpawnStatusValue;
   spawnedAt: Date;
@@ -168,6 +171,14 @@ interface LionCreatureStore {
         lastDailyClaimAt?: Date | null;
       };
     }): Promise<UserProfileRecord>;
+    findMany?(args: {
+      where: {
+        guildId: string;
+        userId?: {
+          in: string[];
+        };
+      };
+    }): Promise<UserProfileRecord[]>;
   };
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
@@ -231,6 +242,13 @@ export interface SetUserLionTeamResult {
   failedQuery: string | null;
 }
 
+export interface TopLionBoardEntry {
+  rank: number;
+  lion: UserLionWithSpeciesRecord;
+  ownerDisplayName: string;
+  score: number;
+}
+
 export const LION_SPAWN_DURATION_MS = 10 * 60 * 1000;
 export const DEFAULT_LION_SPAWN_MIN_INTERVAL_MINUTES = 120;
 export const DEFAULT_LION_SPAWN_MAX_INTERVAL_MINUTES = 240;
@@ -240,6 +258,23 @@ export const LION_BATTLE_WIN_XP = 45;
 export const LION_BATTLE_LOSS_XP = 18;
 export const LION_BATTLE_COOLDOWN_MS = 10 * 60 * 1000;
 export const MAX_LION_TEAM_SIZE = 3;
+export const WILD_LION_LEVEL_TIERS = [
+  {
+    maxRollExclusive: 0.75,
+    minLevel: 1,
+    maxLevel: 10
+  },
+  {
+    maxRollExclusive: 0.95,
+    minLevel: 11,
+    maxLevel: 25
+  },
+  {
+    maxRollExclusive: 1,
+    minLevel: 26,
+    maxLevel: 50
+  }
+] as const;
 
 export const normalizeLionItemKey = (rawItemKey: string): string =>
   rawItemKey
@@ -274,8 +309,20 @@ export const findUserLionFromList = (
 export const calculateCatchChance = (input: {
   baseCatchRate: number;
   catchModifier: number;
+  level?: number;
 }): number =>
-  Math.min(95, Math.max(5, input.baseCatchRate + input.catchModifier));
+  Math.min(
+    95,
+    Math.max(
+      5,
+      input.baseCatchRate +
+        input.catchModifier -
+        getLionSpawnLevelCatchPenalty(input.level ?? 1)
+    )
+  );
+
+export const getLionSpawnLevelCatchPenalty = (level: number): number =>
+  Math.min(8, Math.floor(Math.max(0, level - 1) / 10));
 
 export const getRandomIntInclusive = (
   min: number,
@@ -312,6 +359,17 @@ export const chooseWeightedLionSpecies = (
   }
 
   return enabledSpecies.at(-1) ?? null;
+};
+
+export const generateWildLionSpawnLevel = (input: {
+  random: () => number;
+}): number => {
+  const tierRoll = input.random();
+  const tier =
+    WILD_LION_LEVEL_TIERS.find((entry) => tierRoll < entry.maxRollExclusive) ??
+    WILD_LION_LEVEL_TIERS[0];
+
+  return getRandomIntInclusive(tier.minLevel, tier.maxLevel, input.random);
 };
 
 const getRarityWeightBonus = (
@@ -840,6 +898,9 @@ export const createWildLionSpawn = async (
       guildId: input.guildId,
       channelId: input.channelId,
       lionSpeciesId: selectedSpecies.id,
+      level: generateWildLionSpawnLevel({
+        random: input.random
+      }),
       expiresAt: new Date(input.now.getTime() + LION_SPAWN_DURATION_MS)
     },
     include: {
@@ -1032,7 +1093,8 @@ export const attemptCatchWildLion = async (
 
   const catchChance = calculateCatchChance({
     baseCatchRate: spawn.species.baseCatchRate,
-    catchModifier: item.effectValue
+    catchModifier: item.effectValue,
+    level: spawn.level
   });
 
   if (input.random() >= catchChance / 100) {
@@ -1072,7 +1134,9 @@ export const attemptCatchWildLion = async (
     data: {
       guildId: input.guildId,
       userId: input.userId,
+      ownerDisplayName: input.displayName,
       lionSpeciesId: spawn.lionSpeciesId,
+      level: spawn.level,
       sourceType: "WILD_CATCH",
       sourceReferenceId: spawn.id,
       acquiredAt: input.now
@@ -1110,6 +1174,104 @@ export const listUserLions = async (
     orderBy: [{ acquiredAt: "asc" }],
     take: input.limit
   });
+};
+
+export const calculateTopLionScore = (
+  lion: UserLionWithSpeciesRecord
+): number => {
+  const stats = deriveLionStats(lion.species, lion.level);
+
+  return (
+    lion.level * 1_000 +
+    Math.floor(lion.experience / 10) +
+    stats.hp +
+    stats.attack * 3 +
+    stats.defense * 2 +
+    stats.speed * 2
+  );
+};
+
+const getStoredOwnerDisplayName = (
+  lion: Pick<UserLionRecord, "ownerDisplayName" | "userId">,
+  profileByUserId: Map<string, UserProfileRecord>
+): string => {
+  const storedName = lion.ownerDisplayName.trim();
+
+  if (storedName) {
+    return storedName;
+  }
+
+  return profileByUserId.get(lion.userId)?.displayName ?? "Unknown member";
+};
+
+export const listTopOwnedLions = async (
+  store: Pick<LionCreatureStore, "userLion" | "userProfile">,
+  input: {
+    guildId: string;
+    limit?: number;
+  }
+): Promise<TopLionBoardEntry[]> => {
+  const limit = Math.min(25, Math.max(1, input.limit ?? 10));
+  const candidates: UserLionWithSpeciesRecord[] = await store.userLion.findMany(
+    {
+      where: {
+        guildId: input.guildId
+      },
+      include: {
+        species: true
+      },
+      orderBy: [
+        {
+          level: "desc"
+        },
+        {
+          experience: "desc"
+        },
+        {
+          acquiredAt: "asc"
+        }
+      ],
+      take: Math.max(100, limit * 10)
+    }
+  );
+  const userIds = [...new Set(candidates.map((lion) => lion.userId))];
+  const profiles =
+    userIds.length > 0
+      ? ((await store.userProfile.findMany?.({
+          where: {
+            guildId: input.guildId,
+            userId: {
+              in: userIds
+            }
+          }
+        })) ?? [])
+      : [];
+  const profileByUserId = new Map(
+    profiles.map((profile) => [profile.userId, profile])
+  );
+
+  return candidates
+    .map((lion) => ({
+      lion,
+      ownerDisplayName: getStoredOwnerDisplayName(lion, profileByUserId),
+      score: calculateTopLionScore(lion)
+    }))
+    .sort((first, second) => {
+      if (second.score !== first.score) {
+        return second.score - first.score;
+      }
+
+      if (second.lion.level !== first.lion.level) {
+        return second.lion.level - first.lion.level;
+      }
+
+      return first.lion.acquiredAt.getTime() - second.lion.acquiredAt.getTime();
+    })
+    .slice(0, limit)
+    .map((entry, index) => ({
+      ...entry,
+      rank: index + 1
+    }));
 };
 
 export const listUserLionTeam = async (

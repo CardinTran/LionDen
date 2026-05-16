@@ -73,6 +73,14 @@ Officer/admin command that resumes automated wild lion spawns.
 
 Officer/admin command that shows lion spawn automation state, interval ranges, next scheduled spawn, last spawn, and active wild lion locations.
 
+### `/botadmin status`
+
+Officer/admin command that shows whether LionDen maintenance mode is enabled. This command is hidden from normal members by Discord's Manage Server permission gate.
+
+### `/botadmin maintenance`
+
+Officer/admin command that enables or disables maintenance mode and optionally sets the public maintenance message. When maintenance mode is enabled, non-officers cannot use public bot interactions, automated public scheduler posts are skipped, and the bot presence changes to maintenance mode.
+
 ### `/coins add`
 
 Officer/admin command that adds coins to a member and returns their updated coin balance.
@@ -157,6 +165,7 @@ LionDen now has a first public lion-creature loop inspired by Poketwo-style wild
 - `~team set <lion1> <lion2> <lion3>` saves up to 3 owned lions as the caller's battle team.
 - `~team clear` clears the caller's battle team.
 - `~battle @user` runs a quick auto-resolved team battle using both users' saved teams.
+- `~toplions` or `~lionboard` shows the top 10 strongest owned lions in the server.
 - `~lions` shows the caller's caught lion roster.
 - `~lion <id, code, slug, or name>` inspects one caught lion owned by the caller.
 - `~wild` shows active wild lions and their channel locations.
@@ -167,11 +176,15 @@ Current lion creature rules:
 - users buy catch and spawn-related items with coins
 - public gameplay commands stay visible in guild text channels
 - admin lion controls live under `/lionadmin` and require Manage Server permission
+- global bot controls live under `/botadmin` and require Manage Server permission
+- public `~help` intentionally does not list officer-only slash commands
 - wild lions can spawn in active channels through the lion spawn scheduler
+- wild lions spawn with encounter levels, and caught lions preserve that level
 - only one active wild lion may exist in a channel at a time
 - catches consume the selected ball
-- catch success uses the lion species base catch rate plus the selected ball modifier
+- catch success uses the lion species base catch rate plus the selected ball modifier, with a small high-level catch penalty
 - caught lions become persistent user-owned creatures
+- owned lions keep stable internal Discord user IDs, while public output uses display names
 - training awards explicit lion XP and shows level-up progress
 - battle teams are persistent per guild/user and can contain 1 to 3 owned lions
 - team battles send out team slot 1 first, then the next slot when a lion faints
