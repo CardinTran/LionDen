@@ -100,6 +100,17 @@ Current random red envelope rule:
 - current claim flow uses the first successful `~grab` message in the drop channel
 - manual `/redenvelope create` also refuses to post if another open envelope already exists in the guild
 
+Current lion creature foundation rule:
+
+- LionDen stores a seeded local lion species catalog backed by the current repo assets
+- users can buy lion-related items with coins, but cannot buy lions directly
+- current shop items include ball tiers and future spawn modifiers
+- wild lions can spawn in active text channels using the active-channel targeting pattern
+- members catch active wild lions publicly with `~catch <ball>`
+- catch success uses species catch difficulty plus the selected ball modifier
+- caught lions are stored as persistent user-owned creatures with level and XP fields reserved for future growth
+- `~wild` shows active wild lions and channel locations
+
 Current practice attendance rule:
 
 - only one active practice session may exist per guild

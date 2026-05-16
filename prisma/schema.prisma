@@ -8,17 +8,17 @@ datasource db {
 }
 
 model UserProfile {
-  id              String    @id @default(cuid())
-  guildId         String
-  userId          String
-  displayName     String
-  xp              Int       @default(0)
-  level           Int       @default(1)
-  coins           Int       @default(0)
-  lastMessageXpAt DateTime?
+  id               String    @id @default(cuid())
+  guildId          String
+  userId           String
+  displayName      String
+  xp               Int       @default(0)
+  level            Int       @default(1)
+  coins            Int       @default(0)
+  lastMessageXpAt  DateTime?
   lastDailyClaimAt DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   @@unique([guildId, userId])
 }
@@ -42,47 +42,146 @@ model RedEnvelope {
 }
 
 model RedEnvelopeDropConfig {
-  id                 String   @id @default(cuid())
-  guildId            String   @unique
+  id                 String    @id @default(cuid())
+  guildId            String    @unique
   channelId          String
-  enabled            Boolean  @default(true)
-  minAmount          Int      @default(10)
-  maxAmount          Int      @default(50)
-  minIntervalMinutes Int      @default(60)
-  maxIntervalMinutes Int      @default(180)
+  enabled            Boolean   @default(true)
+  minAmount          Int       @default(10)
+  maxAmount          Int       @default(50)
+  minIntervalMinutes Int       @default(60)
+  maxIntervalMinutes Int       @default(180)
   nextDropAt         DateTime?
   lastDroppedAt      DateTime?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+model LionSpecies {
+  id            String            @id @default(cuid())
+  slug          String            @unique
+  name          String
+  imagePath     String
+  rarity        LionRarity        @default(COMMON)
+  baseCatchRate Int               @default(60)
+  baseValue     Int               @default(1)
+  spawnWeight   Int               @default(100)
+  primaryType   LionElement       @default(NEUTRAL)
+  secondaryType LionElement?
+  description   String            @default("")
+  isEnabled     Boolean           @default(true)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  ownedLions    UserLion[]
+  activeSpawns  ActiveLionSpawn[]
+
+  @@index([rarity, isEnabled])
+}
+
+model UserLion {
+  id                String      @id @default(cuid())
+  guildId           String
+  userId            String
+  lionSpeciesId     String
+  nickname          String?
+  level             Int         @default(1)
+  experience        Int         @default(0)
+  sourceType        String
+  sourceReferenceId String?
+  acquiredAt        DateTime    @default(now())
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  species           LionSpecies @relation(fields: [lionSpeciesId], references: [id])
+
+  @@index([guildId, userId])
+  @@index([lionSpeciesId])
+}
+
+model ActiveLionSpawn {
+  id                  String          @id @default(cuid())
+  guildId             String
+  channelId           String
+  lionSpeciesId       String
+  messageId           String?
+  status              LionSpawnStatus @default(ACTIVE)
+  spawnedAt           DateTime        @default(now())
+  expiresAt           DateTime
+  caughtByUserId      String?
+  caughtByDisplayName String?
+  caughtAt            DateTime?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  species             LionSpecies     @relation(fields: [lionSpeciesId], references: [id])
+
+  @@index([guildId, status])
+  @@index([guildId, channelId, status])
+}
+
+model LionShopItemDefinition {
+  id          String             @id @default(cuid())
+  itemKey     String             @unique
+  name        String
+  category    LionItemCategory
+  priceCoins  Int
+  effectType  LionItemEffectType
+  effectValue Int
+  description String             @default("")
+  isEnabled   Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+}
+
+model UserItemInventory {
+  id        String   @id @default(cuid())
+  guildId   String
+  userId    String
+  itemKey   String
+  quantity  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([guildId, userId, itemKey])
+  @@index([guildId, userId])
+}
+
+model LionSpawnConfig {
+  id                 String    @id @default(cuid())
+  guildId            String    @unique
+  enabled            Boolean   @default(true)
+  minIntervalMinutes Int       @default(120)
+  maxIntervalMinutes Int       @default(240)
+  nextSpawnAt        DateTime?
+  lastSpawnedAt      DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 }
 
 model PracticeSession {
-  id                   String                @id @default(cuid())
-  guildId              String
-  startedByUserId      String
-  startedByDisplayName String
+  id                    String                @id @default(cuid())
+  guildId               String
+  startedByUserId       String
+  startedByDisplayName  String
   announcementChannelId String
-  source               PracticeSessionSource @default(MANUAL)
-  scheduledDateKey     String?
-  scheduledStartAt     DateTime?
-  scheduledEndAt       DateTime?
+  source                PracticeSessionSource @default(MANUAL)
+  scheduledDateKey      String?
+  scheduledStartAt      DateTime?
+  scheduledEndAt        DateTime?
   announcementMessageId String?
-  rsvpMessageId        String?
-  rsvpPostedAt         DateTime?
-  attendanceMessageId  String?
-  attendancePostedAt   DateTime?
-  status               PracticeSessionStatus @default(ACTIVE)
-  startedAt            DateTime              @default(now())
-  endedAt              DateTime?
-  endedByUserId        String?
-  checkIns             PracticeCheckIn[]
+  rsvpMessageId         String?
+  rsvpPostedAt          DateTime?
+  attendanceMessageId   String?
+  attendancePostedAt    DateTime?
+  status                PracticeSessionStatus @default(ACTIVE)
+  startedAt             DateTime              @default(now())
+  endedAt               DateTime?
+  endedByUserId         String?
+  checkIns              PracticeCheckIn[]
 
-  @@index([guildId, status])
   @@unique([guildId, source, scheduledDateKey])
+  @@index([guildId, status])
 }
 
 model PracticeCheckIn {
-  id               String                  @id @default(cuid())
+  id               String                    @id @default(cuid())
   sessionId        String
   guildId          String
   userId           String
@@ -90,10 +189,10 @@ model PracticeCheckIn {
   rsvpStatus       PracticeRsvpStatus?
   attendanceStatus PracticeAttendanceStatus?
   rewardAppliedAt  DateTime?
-  rewardXp         Int                     @default(0)
-  checkedInAt      DateTime                @default(now())
-  updatedAt        DateTime                @default(now()) @updatedAt
-  session          PracticeSession         @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  rewardXp         Int                       @default(0)
+  checkedInAt      DateTime                  @default(now())
+  updatedAt        DateTime                  @default(now()) @updatedAt
+  session          PracticeSession           @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@unique([sessionId, userId])
   @@index([guildId, sessionId])
@@ -135,4 +234,43 @@ enum PracticeAttendanceStatus {
 enum RedEnvelopeStatus {
   OPEN
   CLAIMED
+}
+
+enum LionRarity {
+  COMMON
+  UNCOMMON
+  RARE
+  EPIC
+  LEGENDARY
+}
+
+enum LionElement {
+  NEUTRAL
+  FIRE
+  WATER
+  EARTH
+  WIND
+  LIGHT
+  SHADOW
+  METAL
+  NATURE
+}
+
+enum LionSpawnStatus {
+  ACTIVE
+  CAUGHT
+  EXPIRED
+}
+
+enum LionItemCategory {
+  BALL
+  SPAWN_MODIFIER
+  UTILITY
+}
+
+enum LionItemEffectType {
+  CATCH_MODIFIER
+  SPAWN_BOOST
+  RARITY_BOOST
+  TYPE_ATTRACTOR
 }
