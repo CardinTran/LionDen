@@ -53,6 +53,26 @@ Officer/admin command that clears stale open red envelopes when the server state
 
 Officer/admin command that shows the current red envelope automation state, fallback channel, ranges, next scheduled drop, and whether an open envelope is currently active.
 
+### `/lionadmin configure`
+
+Officer/admin command that configures automated wild lion spawn timing. This command is hidden from normal members by Discord's Manage Server permission gate.
+
+### `/lionadmin dropnow`
+
+Officer/admin command that forces one wild lion spawn in the current text channel for testing, events, or moderation-controlled gameplay moments.
+
+### `/lionadmin pause`
+
+Officer/admin command that pauses automated wild lion spawns without deleting the stored timing configuration.
+
+### `/lionadmin resume`
+
+Officer/admin command that resumes automated wild lion spawns.
+
+### `/lionadmin status`
+
+Officer/admin command that shows lion spawn automation state, interval ranges, next scheduled spawn, last spawn, and active wild lion locations.
+
 ### `/coins add`
 
 Officer/admin command that adds coins to a member and returns their updated coin balance.
@@ -131,19 +151,22 @@ LionDen now has a first public lion-creature loop inspired by Poketwo-style wild
 - `~bag` shows the caller's lion item inventory.
 - `~catch <ball>` attempts to catch the active wild lion in the current channel.
 - `~lions` shows the caller's caught lion roster.
-- `~lion <id or name>` inspects one caught lion owned by the caller.
+- `~lion <id, code, slug, or name>` inspects one caught lion owned by the caller.
 - `~wild` shows active wild lions and their channel locations.
-- `~wild drop` lets a member with Manage Server force a wild lion drop in the current channel for testing and officer events.
 
 Current lion creature rules:
 
 - users cannot buy lions directly from the shop
 - users buy catch and spawn-related items with coins
+- public gameplay commands stay visible in guild text channels
+- admin lion controls live under `/lionadmin` and require Manage Server permission
 - wild lions can spawn in active channels through the lion spawn scheduler
 - only one active wild lion may exist in a channel at a time
 - catches consume the selected ball
 - catch success uses the lion species base catch rate plus the selected ball modifier
 - caught lions become persistent user-owned creatures
+- species have readable public codes such as `L001`, plus internal database IDs for persistence
+- owned lion inspection now shows type, ability, level, XP, and derived battle stats
 
 ## Planned MVP Commands
 

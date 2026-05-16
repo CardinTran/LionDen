@@ -305,14 +305,23 @@ Represents a species that can spawn or be obtained.
 Suggested fields:
 
 - id
+- publicId
 - slug
 - name
 - imagePath
 - rarity
 - baseCatchRate
 - baseValue
+- spawnWeight
 - primaryType
 - secondaryType
+- baseHp
+- baseAttack
+- baseDefense
+- baseSpeed
+- abilityKey
+- abilityName
+- abilityDescription
 - description
 - isEnabled
 - createdAt
@@ -487,6 +496,23 @@ Output:
 
 - users can see and care about their roster
 
+### Phase 5.5: Admin Controls
+
+Goal:
+
+- keep moderation and balancing tools private while public gameplay stays visible
+
+Tasks:
+
+- keep public gameplay in message commands
+- move forced wild drops into slash commands
+- restrict lion admin slash commands with Manage Server permission
+- expose spawn configuration and status through `/lionadmin`
+
+Output:
+
+- officers can manage lion spawns without normal members seeing admin controls in chat
+
 ### Phase 6: Leveling and Growth
 
 Goal:
@@ -526,6 +552,13 @@ Tasks:
 Output:
 
 - a combat-ready species framework
+
+Current implementation note:
+
+- species now have readable codes like `L001`
+- species now store base HP, attack, defense, speed, type, and ability labels
+- owned lions derive battle-ready stats from species base stats plus level
+- battle math scaffolding exists for type effectiveness, damage, and turn order
 
 ### Phase 8: Battles
 
