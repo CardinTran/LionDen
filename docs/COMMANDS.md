@@ -153,7 +153,10 @@ LionDen now has a first public lion-creature loop inspired by Poketwo-style wild
 - `~use <item>` activates a usable lure or spawn modifier in the current channel.
 - `~catch <ball>` attempts to catch the active wild lion in the current channel.
 - `~train <lion>` trains one owned lion for XP, using that lion's training cooldown.
-- `~battle @user <your lion> vs <their lion>` runs a quick auto-resolved 1v1 battle.
+- `~team` shows the caller's saved battle team.
+- `~team set <lion1> <lion2> <lion3>` saves up to 3 owned lions as the caller's battle team.
+- `~team clear` clears the caller's battle team.
+- `~battle @user` runs a quick auto-resolved team battle using both users' saved teams.
 - `~lions` shows the caller's caught lion roster.
 - `~lion <id, code, slug, or name>` inspects one caught lion owned by the caller.
 - `~wild` shows active wild lions and their channel locations.
@@ -170,7 +173,10 @@ Current lion creature rules:
 - catch success uses the lion species base catch rate plus the selected ball modifier
 - caught lions become persistent user-owned creatures
 - training awards explicit lion XP and shows level-up progress
+- battle teams are persistent per guild/user and can contain 1 to 3 owned lions
+- team battles send out team slot 1 first, then the next slot when a lion faints
 - quick battles use speed, move power, type matchups, derived stats, and battle XP cooldowns
+- only lions that participate in a team battle receive battle XP
 - species have readable public codes such as `L001`, plus internal database IDs for persistence
 - owned lion inspection now shows type, ability, level, XP, and derived battle stats
 

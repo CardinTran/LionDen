@@ -87,24 +87,41 @@ model LionSpecies {
 }
 
 model UserLion {
-  id                String      @id @default(cuid())
+  id                String             @id @default(cuid())
   guildId           String
   userId            String
   lionSpeciesId     String
   nickname          String?
-  level             Int         @default(1)
-  experience        Int         @default(0)
+  level             Int                @default(1)
+  experience        Int                @default(0)
   sourceType        String
   sourceReferenceId String?
   lastTrainedAt     DateTime?
   lastBattledAt     DateTime?
-  acquiredAt        DateTime    @default(now())
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
-  species           LionSpecies @relation(fields: [lionSpeciesId], references: [id])
+  acquiredAt        DateTime           @default(now())
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  species           LionSpecies        @relation(fields: [lionSpeciesId], references: [id])
+  teamSlots         UserLionTeamSlot[]
 
   @@index([guildId, userId])
   @@index([lionSpeciesId])
+}
+
+model UserLionTeamSlot {
+  id         String   @id @default(cuid())
+  guildId    String
+  userId     String
+  slot       Int
+  userLionId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  lion       UserLion @relation(fields: [userLionId], references: [id], onDelete: Cascade)
+
+  @@unique([guildId, userId, slot])
+  @@unique([guildId, userId, userLionId])
+  @@index([guildId, userId])
+  @@index([userLionId])
 }
 
 model ActiveLionSpawn {

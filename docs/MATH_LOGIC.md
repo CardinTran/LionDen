@@ -466,7 +466,25 @@ trainingAvailableAt = lastTrainedAt + 30 minutes
 
 ## 11. Lion Battle Foundation Math
 
-The current battle implementation supports a quick auto-resolved 1v1 battle flow.
+The current battle implementation supports quick auto-resolved team battles.
+Users save a persistent team of up to 3 owned lions, and `~battle @user` uses
+both saved teams instead of requiring lion IDs every battle.
+
+### Battle Teams
+
+Teams are stored per guild/user.
+
+```text
+teamSize = 1 to 3 owned lions
+teamOrder = slot 1, slot 2, slot 3
+```
+
+Validation rules:
+
+- every team lion must belong to the same guild/user
+- duplicate owned lions are not allowed in the same team
+- team order matters for battle entry order
+- stale team slots are ignored if ownership no longer matches
 
 ### Battle Moves
 
@@ -548,18 +566,25 @@ This deterministic tie-breaker keeps tests stable until full battle state exists
 
 ### Auto Battle Resolution
 
-Quick battles run up to `12` rounds.
+Team battles run up to `60` rounds.
+
+Each side starts with team slot 1 active.
 
 Each round:
 
 ```text
+firstActiveLion = first living lion in first team order
+secondActiveLion = first living lion in second team order
 turnOrder = faster lion first
-each living lion uses the next move in its move set
+each active lion uses the next move in its move set
 damage is subtracted from the defender's current HP
-if either lion reaches 0 HP, battle ends
+if an active lion reaches 0 HP, the next team slot enters
+if one team has no remaining lions, battle ends
 ```
 
-If both lions are still standing after the round limit, the winner is the lion with more HP left. If HP is tied, the faster lion wins using the same deterministic turn-order tie-breaker.
+If both teams still have lions after the round limit, the winner is the team
+with more total remaining HP. If HP is tied, the first team wins for now so the
+result remains deterministic.
 
 ### Battle XP
 
@@ -569,9 +594,16 @@ Battle XP rewards are intentionally cooldown-limited per owned lion.
 - `LION_BATTLE_LOSS_XP = 18`
 - `LION_BATTLE_COOLDOWN_MS = 10 minutes = 600,000 ms`
 
+Only lions that actively entered the battle receive battle XP.
+
 On an eligible battle XP award:
 
 ```text
+if lion participated and lion team won:
+  battleXp = 45
+else if lion participated:
+  battleXp = 18
+
 nextLionXp = currentLionXp + battleXp
 nextLionLevel = level(nextLionXp)
 lastBattledAt = now
