@@ -198,6 +198,9 @@ Possible version 1 commands:
 - `~catch <ball>`
 - `~lions`
 - `~lion <id or name>`
+- `~team`
+- `~team set <lion1> <lion2> <lion3>`
+- `~battle @user`
 
 Optional later:
 
@@ -205,7 +208,6 @@ Optional later:
 - `~bait`
 - `~use <item>`
 - `~release`
-- `~team`
 
 ### Ball Tiers
 
@@ -574,8 +576,9 @@ Goal:
 
 Tasks:
 
-- support `~battle @user <your lion> vs <their lion>`
-- auto-resolve a first 1v1 battle format
+- support persistent teams with up to 3 owned lions
+- support `~battle @user` using both users' saved teams
+- auto-resolve a first team battle format
 - use speed, moves, type matchups, and derived stats
 - keep richer challenge acceptance and turn menus for later
 
@@ -585,7 +588,9 @@ Output:
 
 Current implementation note:
 
-- quick public 1v1 battles exist as an auto-resolved first slice
+- `~team`, `~team set`, and `~team clear` manage persistent battle teams
+- quick public team battles exist as an auto-resolved first slice
+- participating lions receive battle XP, with winners receiving more than the other team
 - full interactive battle menus, status effects, and raids are still future phases
 
 ### Phase 9: Raids

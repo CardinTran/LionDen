@@ -6,6 +6,7 @@ import {
   getLionMoveSet,
   getTypeEffectiveness,
   resolveAutoLionBattle,
+  resolveAutoLionTeamBattle,
   type LionBattleParticipant
 } from "../src/features/lions/lion-battle.service.js";
 import type {
@@ -203,5 +204,60 @@ describe("lion battle service", () => {
     expect(result.winner.id).toBe("owned-a");
     expect(result.rounds.length).toBeGreaterThan(0);
     expect(result.finalHp["owned-b"]).toBe(0);
+  });
+
+  it("resolves a team battle by sending in the next team lion after a faint", () => {
+    const result = resolveAutoLionTeamBattle({
+      firstTeam: [
+        buildOwnedLion({
+          id: "owned-a1",
+          species: buildSpecies({
+            id: "species-a1",
+            name: "First Scout",
+            primaryType: "NATURE",
+            baseHp: 20,
+            baseAttack: 8,
+            baseDefense: 6,
+            baseSpeed: 6
+          })
+        }),
+        buildOwnedLion({
+          id: "owned-a2",
+          species: buildSpecies({
+            id: "species-a2",
+            name: "First Anchor",
+            primaryType: "WATER",
+            baseHp: 90,
+            baseAttack: 26,
+            baseDefense: 18,
+            baseSpeed: 15
+          })
+        })
+      ],
+      secondTeam: [
+        buildOwnedLion({
+          id: "owned-b1",
+          userId: "user-b",
+          species: buildSpecies({
+            id: "species-b1",
+            name: "Second Bruiser",
+            primaryType: "FIRE",
+            baseHp: 65,
+            baseAttack: 26,
+            baseDefense: 10,
+            baseSpeed: 18
+          })
+        })
+      ],
+      random: () => 1,
+      maxRounds: 20
+    });
+
+    expect(result.winnerSide).toBe("first");
+    expect(result.participantLionIds.first).toEqual(["owned-a1", "owned-a2"]);
+    expect(result.participantLionIds.second).toEqual(["owned-b1"]);
+    expect(result.finalHp["owned-a1"]).toBe(0);
+    expect(result.finalHp["owned-a2"]).toBeGreaterThan(0);
+    expect(result.finalHp["owned-b1"]).toBe(0);
   });
 });

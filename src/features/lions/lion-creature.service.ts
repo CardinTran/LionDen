@@ -61,6 +61,20 @@ export interface UserLionWithSpeciesRecord extends UserLionRecord {
   species: LionSpeciesRecord;
 }
 
+export interface UserLionTeamSlotRecord {
+  id: string;
+  guildId: string;
+  userId: string;
+  slot: number;
+  userLionId: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface UserLionTeamSlotWithLionRecord extends UserLionTeamSlotRecord {
+  lion: UserLionWithSpeciesRecord;
+}
+
 export interface ActiveLionSpawnRecord {
   id: string;
   guildId: string;
@@ -118,6 +132,7 @@ interface LionCreatureStore {
   userItemInventory: any;
   activeLionSpawn: any;
   userLion: any;
+  userLionTeamSlot: any;
   lionSpawnConfig: any;
   lionChannelEffect: any;
   userProfile: {
@@ -205,6 +220,17 @@ export interface AwardBattleLionExperienceResult {
   cooldownEndsAt: Date | null;
 }
 
+export interface SetUserLionTeamResult {
+  outcome:
+    | "set"
+    | "empty_team"
+    | "too_many_lions"
+    | "lion_not_found"
+    | "duplicate_lion";
+  team: UserLionTeamSlotWithLionRecord[];
+  failedQuery: string | null;
+}
+
 export const LION_SPAWN_DURATION_MS = 10 * 60 * 1000;
 export const DEFAULT_LION_SPAWN_MIN_INTERVAL_MINUTES = 120;
 export const DEFAULT_LION_SPAWN_MAX_INTERVAL_MINUTES = 240;
@@ -213,6 +239,7 @@ export const LION_TRAINING_COOLDOWN_MS = 30 * 60 * 1000;
 export const LION_BATTLE_WIN_XP = 45;
 export const LION_BATTLE_LOSS_XP = 18;
 export const LION_BATTLE_COOLDOWN_MS = 10 * 60 * 1000;
+export const MAX_LION_TEAM_SIZE = 3;
 
 export const normalizeLionItemKey = (rawItemKey: string): string =>
   rawItemKey
@@ -1083,6 +1110,151 @@ export const listUserLions = async (
     orderBy: [{ acquiredAt: "asc" }],
     take: input.limit
   });
+};
+
+export const listUserLionTeam = async (
+  store: Pick<LionCreatureStore, "userLionTeamSlot">,
+  input: {
+    guildId: string;
+    userId: string;
+  }
+): Promise<UserLionTeamSlotWithLionRecord[]> => {
+  const slots = await store.userLionTeamSlot.findMany({
+    where: {
+      guildId: input.guildId,
+      userId: input.userId
+    },
+    include: {
+      lion: {
+        include: {
+          species: true
+        }
+      }
+    },
+    orderBy: [{ slot: "asc" }]
+  });
+
+  return slots.filter(
+    (slot: UserLionTeamSlotWithLionRecord) =>
+      slot.slot >= 1 &&
+      slot.slot <= MAX_LION_TEAM_SIZE &&
+      slot.lion.guildId === input.guildId &&
+      slot.lion.userId === input.userId
+  );
+};
+
+export const clearUserLionTeam = async (
+  store: Pick<LionCreatureStore, "userLionTeamSlot">,
+  input: {
+    guildId: string;
+    userId: string;
+  }
+): Promise<number> => {
+  const result = await store.userLionTeamSlot.deleteMany({
+    where: {
+      guildId: input.guildId,
+      userId: input.userId
+    }
+  });
+
+  return result.count;
+};
+
+export const setUserLionTeam = async (
+  store: Pick<LionCreatureStore, "userLion" | "userLionTeamSlot">,
+  input: {
+    guildId: string;
+    userId: string;
+    queries: string[];
+  }
+): Promise<SetUserLionTeamResult> => {
+  const queries = input.queries.map((query) => query.trim()).filter(Boolean);
+
+  if (queries.length === 0) {
+    return {
+      outcome: "empty_team",
+      team: [],
+      failedQuery: null
+    };
+  }
+
+  if (queries.length > MAX_LION_TEAM_SIZE) {
+    return {
+      outcome: "too_many_lions",
+      team: [],
+      failedQuery: null
+    };
+  }
+
+  const ownedLions = await listUserLions(store, {
+    guildId: input.guildId,
+    userId: input.userId,
+    limit: 200
+  });
+  const selectedLions: UserLionWithSpeciesRecord[] = [];
+  const selectedLionIds = new Set<string>();
+
+  for (const query of queries) {
+    const lion = findUserLionFromList(ownedLions, query);
+
+    if (!lion) {
+      return {
+        outcome: "lion_not_found",
+        team: [],
+        failedQuery: query
+      };
+    }
+
+    if (selectedLionIds.has(lion.id)) {
+      return {
+        outcome: "duplicate_lion",
+        team: [],
+        failedQuery: query
+      };
+    }
+
+    selectedLionIds.add(lion.id);
+    selectedLions.push(lion);
+  }
+
+  const writeTeam = async (
+    teamStore: Pick<LionCreatureStore, "userLionTeamSlot">
+  ): Promise<UserLionTeamSlotWithLionRecord[]> => {
+    await teamStore.userLionTeamSlot.deleteMany({
+      where: {
+        guildId: input.guildId,
+        userId: input.userId
+      }
+    });
+
+    for (const [index, lion] of selectedLions.entries()) {
+      await teamStore.userLionTeamSlot.create({
+        data: {
+          guildId: input.guildId,
+          userId: input.userId,
+          slot: index + 1,
+          userLionId: lion.id
+        }
+      });
+    }
+
+    return listUserLionTeam(teamStore, input);
+  };
+  const transactionalStore = store as unknown as {
+    $transaction?: <T>(
+      callback: (tx: LionCreatureStore) => Promise<T>
+    ) => Promise<T>;
+  };
+  const team =
+    typeof transactionalStore.$transaction === "function"
+      ? await transactionalStore.$transaction((tx) => writeTeam(tx))
+      : await writeTeam(store);
+
+  return {
+    outcome: "set",
+    team,
+    failedQuery: null
+  };
 };
 
 export const getUserLionByQuery = async (

@@ -3,11 +3,16 @@ import type {
   AwardBattleLionExperienceResult,
   LionExperienceAwardResult,
   LionShopItemRecord,
+  SetUserLionTeamResult,
   TrainUserLionResult,
   UserItemInventoryRecord,
+  UserLionTeamSlotWithLionRecord,
   UserLionWithSpeciesRecord
 } from "./lion-creature.service.js";
-import type { LionAutoBattleResult } from "./lion-battle.service.js";
+import type {
+  LionAutoBattleResult,
+  LionTeamAutoBattleResult
+} from "./lion-battle.service.js";
 import {
   deriveLionStats,
   getLionExperienceProgress
@@ -70,7 +75,10 @@ export const formatLionHelpMessage = (): string =>
     "- `~use <item>` activate a usable item in the current channel",
     "- `~catch <ball>` catch a wild lion",
     "- `~train <lion>` train one of your lions for XP",
-    "- `~battle @user <your lion> [their lion]` run a quick 1v1 battle",
+    "- `~team` view your battle team",
+    "- `~team set <lion1> <lion2> <lion3>` set up to 3 team slots",
+    "- `~team clear` clear your battle team",
+    "- `~battle @user` battle using both saved teams",
     "- `~lions` view your roster",
     "- `~lion <id or name>` inspect one lion",
     "- `~wild` view active wild lions",
@@ -78,23 +86,89 @@ export const formatLionHelpMessage = (): string =>
     "- `/lionadmin` manage spawn timing and force drops"
   ].join("\n");
 
+const formatCompactLionLine = (
+  lion: UserLionWithSpeciesRecord,
+  prefix: string
+): string => {
+  const stats = deriveLionStats(lion.species, lion.level);
+
+  return `${prefix}${lion.species.name} \`${lion.species.publicId}\` - Lv. ${lion.level} - ${stats.hp} HP/${stats.attack} ATK - owned id: \`${lion.id.slice(0, 8)}\``;
+};
+
 export const formatUserLionsMessage = (input: {
   lions: UserLionWithSpeciesRecord[];
   displayName: string;
+  team?: UserLionTeamSlotWithLionRecord[];
 }): string => {
   if (input.lions.length === 0) {
     return `${input.displayName} has not caught any lions yet.`;
   }
 
+  const teamSlotByLionId = new Map(
+    input.team?.map((slot) => [slot.userLionId, slot.slot]) ?? []
+  );
+
   return [
     `${input.displayName}'s lions:`,
     ...input.lions.map((lion, index) => {
-      const stats = deriveLionStats(lion.species, lion.level);
+      const teamSlot = teamSlotByLionId.get(lion.id);
+      const teamLabel = teamSlot ? ` - team slot ${teamSlot}` : "";
 
-      return `${index + 1}. ${lion.species.name} \`${lion.species.publicId}\` (${lion.species.rarity}) - Lv. ${lion.level} - ${stats.hp} HP/${stats.attack} ATK - owned id: \`${lion.id.slice(0, 8)}\``;
+      return `${formatCompactLionLine(lion, `${index + 1}. `)} (${lion.species.rarity})${teamLabel}`;
     })
   ].join("\n");
 };
+
+export const formatUserLionTeamMessage = (input: {
+  team: UserLionTeamSlotWithLionRecord[];
+  displayName: string;
+}): string => {
+  if (input.team.length === 0) {
+    return `${input.displayName} has no battle team set. Use \`~team set <lion1> <lion2> <lion3>\`.`;
+  }
+
+  return [
+    `${input.displayName}'s battle team:`,
+    ...input.team.map((slot) =>
+      formatCompactLionLine(slot.lion, `${slot.slot}. `)
+    ),
+    input.team.length < 3
+      ? "This team can battle now, but a full team can hold up to 3 lions."
+      : "Full team ready."
+  ].join("\n");
+};
+
+export const formatSetUserLionTeamMessage = (
+  result: SetUserLionTeamResult
+): string => {
+  if (result.outcome === "empty_team") {
+    return "Use `~team set <lion1> <lion2> <lion3>` with at least one owned lion.";
+  }
+
+  if (result.outcome === "too_many_lions") {
+    return "A battle team can have at most 3 lions.";
+  }
+
+  if (result.outcome === "lion_not_found") {
+    return `I could not find \`${result.failedQuery ?? "that lion"}\` in your roster. Use \`~lions\` to check your owned IDs.`;
+  }
+
+  if (result.outcome === "duplicate_lion") {
+    return `\`${result.failedQuery ?? "That lion"}\` is already on this team. Each team slot needs a different owned lion.`;
+  }
+
+  return [
+    "Battle team updated:",
+    ...result.team.map((slot) =>
+      formatCompactLionLine(slot.lion, `${slot.slot}. `)
+    )
+  ].join("\n");
+};
+
+export const formatClearUserLionTeamMessage = (clearedCount: number): string =>
+  clearedCount === 0
+    ? "Your battle team was already empty."
+    : "Your battle team has been cleared.";
 
 export const formatOwnedLionMessage = (
   lion: UserLionWithSpeciesRecord
@@ -186,6 +260,86 @@ export const formatBattleLionMessage = (input: {
     `Winner XP: ${winnerXpLine}`,
     `Participation XP: ${loserXpLine}`
   ].join("\n");
+};
+
+const formatBattleXpSummary = (
+  rewards: AwardBattleLionExperienceResult[]
+): string => {
+  if (rewards.length === 0) {
+    return "No participating lions.";
+  }
+
+  const awarded = rewards.filter((reward) => reward.outcome === "awarded");
+  const levelUps = awarded
+    .filter((reward) => reward.result?.leveledUp)
+    .map(
+      (reward) =>
+        `${reward.result?.lion.species.name ?? "A lion"} to Lv. ${reward.result?.nextLevel ?? "?"}`
+    );
+  const cooldownCount = rewards.length - awarded.length;
+
+  return [
+    `${awarded.length}/${rewards.length} awarded XP`,
+    cooldownCount > 0 ? `${cooldownCount} on cooldown` : null,
+    levelUps.length > 0 ? `Level ups: ${levelUps.join(", ")}` : null
+  ]
+    .filter(Boolean)
+    .join(" | ");
+};
+
+const getTeamRemainingHp = (
+  team: UserLionWithSpeciesRecord[],
+  finalHp: Record<string, number>
+): number =>
+  team.reduce((total, lion) => total + Math.max(0, finalHp[lion.id] ?? 0), 0);
+
+export const formatTeamBattleLionMessage = (input: {
+  battle: LionTeamAutoBattleResult;
+  firstDisplayName: string;
+  secondDisplayName: string;
+  winnerRewards: AwardBattleLionExperienceResult[];
+  loserRewards: AwardBattleLionExperienceResult[];
+}): string => {
+  const winnerName =
+    input.battle.winnerSide === "first"
+      ? input.firstDisplayName
+      : input.secondDisplayName;
+  const loserName =
+    input.battle.loserSide === "first"
+      ? input.firstDisplayName
+      : input.secondDisplayName;
+  const firstHp = getTeamRemainingHp(
+    input.battle.firstTeam,
+    input.battle.finalHp
+  );
+  const secondHp = getTeamRemainingHp(
+    input.battle.secondTeam,
+    input.battle.finalHp
+  );
+  const notableRounds = input.battle.rounds.slice(0, 8).map((round) => {
+    const effectiveness =
+      round.effectiveness > 1
+        ? "super effective"
+        : round.effectiveness < 1
+          ? "not very effective"
+          : "normal";
+
+    return `- R${round.round}: ${round.attackerName} used ${round.move.name} for ${round.damage} damage (${effectiveness}). ${round.defenderName}: ${round.defenderHpAfter} HP`;
+  });
+  const hiddenRounds = input.battle.rounds.length - notableRounds.length;
+
+  return [
+    `${winnerName}'s team defeated ${loserName}'s team.`,
+    `Team HP remaining: ${input.firstDisplayName} ${firstHp}, ${input.secondDisplayName} ${secondHp}.`,
+    ...notableRounds,
+    hiddenRounds > 0
+      ? `- ${hiddenRounds} more battle action${hiddenRounds === 1 ? "" : "s"} resolved.`
+      : null,
+    `Winner team XP: ${formatBattleXpSummary(input.winnerRewards)}`,
+    `Other team XP: ${formatBattleXpSummary(input.loserRewards)}`
+  ]
+    .filter(Boolean)
+    .join("\n");
 };
 
 export const formatWildLionStatusMessage = (

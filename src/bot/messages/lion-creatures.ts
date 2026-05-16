@@ -1,31 +1,36 @@
 import type { Message } from "discord.js";
 
 import { prisma } from "../../lib/prisma.js";
-import { resolveAutoLionBattle } from "../../features/lions/lion-battle.service.js";
+import { resolveAutoLionTeamBattle } from "../../features/lions/lion-battle.service.js";
 import {
   activateLionChannelEffect,
   awardBattleLionExperience,
   attemptCatchWildLion,
+  clearUserLionTeam,
   findUserLionFromList,
-  getUserLionByQuery,
   LION_BATTLE_LOSS_XP,
   LION_BATTLE_WIN_XP,
   listLionShopItems,
   listUserItemInventory,
+  listUserLionTeam,
   listUserLions,
   listActiveWildLionSpawns,
   normalizeLionItemKey,
   purchaseLionShopItem,
+  setUserLionTeam,
   syncDefaultLionData,
   trainUserLion
 } from "../../features/lions/lion-creature.service.js";
 import {
-  formatBattleLionMessage,
+  formatClearUserLionTeamMessage,
   formatLionHelpMessage,
   formatLionInventoryMessage,
   formatLionShopMessage,
   formatOwnedLionMessage,
+  formatSetUserLionTeamMessage,
+  formatTeamBattleLionMessage,
   formatTrainLionMessage,
+  formatUserLionTeamMessage,
   formatUserLionsMessage,
   formatWildLionStatusMessage
 } from "../../features/lions/lion-formatting.js";
@@ -86,6 +91,7 @@ export const handleLionCreatureMessage = async (
       "~use",
       "~catch",
       "~train",
+      "~team",
       "~battle",
       "~lions",
       "~lion",
@@ -303,99 +309,153 @@ export const handleLionCreatureMessage = async (
     return true;
   }
 
+  if (normalizedCommand === "~team") {
+    const subcommand = args[0]?.toLowerCase();
+
+    if (!subcommand) {
+      const team = await listUserLionTeam(prisma, {
+        guildId: message.guildId,
+        userId: message.author.id
+      });
+
+      await message.reply(
+        formatUserLionTeamMessage({
+          team,
+          displayName: getDisplayName(message)
+        })
+      );
+      return true;
+    }
+
+    if (subcommand === "clear") {
+      const clearedCount = await clearUserLionTeam(prisma, {
+        guildId: message.guildId,
+        userId: message.author.id
+      });
+
+      await message.reply(formatClearUserLionTeamMessage(clearedCount));
+      return true;
+    }
+
+    if (subcommand === "set") {
+      const result = await setUserLionTeam(prisma, {
+        guildId: message.guildId,
+        userId: message.author.id,
+        queries: args.slice(1)
+      });
+
+      await message.reply(formatSetUserLionTeamMessage(result));
+      return true;
+    }
+
+    await message.reply(
+      "Use `~team`, `~team set <lion1> <lion2> <lion3>`, or `~team clear`."
+    );
+    return true;
+  }
+
   if (normalizedCommand === "~battle") {
     const opponent = message.mentions.users.first();
 
     if (!opponent || opponent.bot || opponent.id === message.author.id) {
-      await message.reply(
-        "Use `~battle @user <your lion> vs <their lion>`, for example `~battle @Cardin L001 vs L002`."
-      );
+      await message.reply("Use `~battle @user` after both users set a team.");
       return true;
     }
 
-    const queryText = args
-      .filter((arg) => !arg.includes(opponent.id))
-      .join(" ")
-      .trim();
-    const [challengerQuery, opponentQuery] = queryText
-      .split(/\s+vs\s+/i)
-      .map((entry) => entry.trim());
-
-    if (!challengerQuery) {
-      await message.reply(
-        "Pick one of your lions with `~battle @user <your lion> vs <their lion>`."
-      );
-      return true;
-    }
-
-    const challengerLion = await getUserLionByQuery(prisma, {
-      guildId: message.guildId,
-      userId: message.author.id,
-      query: challengerQuery
-    });
-
-    if (!challengerLion) {
-      await message.reply("I could not find that lion in your roster.");
-      return true;
-    }
-
-    const opponentLions = await listUserLions(prisma, {
-      guildId: message.guildId,
-      userId: opponent.id,
-      limit: 100
-    });
-    const opponentLion = opponentQuery
-      ? findUserLionFromList(opponentLions, opponentQuery)
-      : (opponentLions[0] ?? null);
-
-    if (!opponentLion) {
-      await message.reply(
-        opponentQuery
-          ? "I could not find that lion in your opponent's roster."
-          : "That opponent does not have any lions to battle yet."
-      );
-      return true;
-    }
-
-    const battle = resolveAutoLionBattle({
-      firstLion: challengerLion,
-      secondLion: opponentLion,
-      random: Math.random
-    });
-    const [winnerXp, loserXp] = await Promise.all([
-      awardBattleLionExperience(prisma, {
-        lion: battle.winner,
-        gainedExperience: LION_BATTLE_WIN_XP,
-        now: message.createdAt
+    const [challengerTeam, opponentTeam] = await Promise.all([
+      listUserLionTeam(prisma, {
+        guildId: message.guildId,
+        userId: message.author.id
       }),
-      awardBattleLionExperience(prisma, {
-        lion: battle.loser,
-        gainedExperience: LION_BATTLE_LOSS_XP,
-        now: message.createdAt
+      listUserLionTeam(prisma, {
+        guildId: message.guildId,
+        userId: opponent.id
       })
     ]);
 
+    if (challengerTeam.length === 0) {
+      await message.reply(
+        "You need a battle team first. Use `~team set <lion1> <lion2> <lion3>`."
+      );
+      return true;
+    }
+
+    if (opponentTeam.length === 0) {
+      await message.reply(
+        "That user does not have a battle team set yet. They can use `~team set <lion1> <lion2> <lion3>`."
+      );
+      return true;
+    }
+
+    const battle = resolveAutoLionTeamBattle({
+      firstTeam: challengerTeam.map((slot) => slot.lion),
+      secondTeam: opponentTeam.map((slot) => slot.lion),
+      random: Math.random
+    });
+    const lionById = new Map(
+      [...challengerTeam, ...opponentTeam].map((slot) => [
+        slot.lion.id,
+        slot.lion
+      ])
+    );
+    const winnerLions = battle.participantLionIds[battle.winnerSide]
+      .map((lionId) => lionById.get(lionId))
+      .filter((lion): lion is NonNullable<typeof lion> => Boolean(lion));
+    const loserLions = battle.participantLionIds[battle.loserSide]
+      .map((lionId) => lionById.get(lionId))
+      .filter((lion): lion is NonNullable<typeof lion> => Boolean(lion));
+    const [winnerRewards, loserRewards] = await Promise.all([
+      Promise.all(
+        winnerLions.map((lion) =>
+          awardBattleLionExperience(prisma, {
+            lion,
+            gainedExperience: LION_BATTLE_WIN_XP,
+            now: message.createdAt
+          })
+        )
+      ),
+      Promise.all(
+        loserLions.map((lion) =>
+          awardBattleLionExperience(prisma, {
+            lion,
+            gainedExperience: LION_BATTLE_LOSS_XP,
+            now: message.createdAt
+          })
+        )
+      )
+    ]);
+
     await message.reply(
-      formatBattleLionMessage({
+      formatTeamBattleLionMessage({
         battle,
-        winnerXp,
-        loserXp
+        firstDisplayName: getDisplayName(message),
+        secondDisplayName:
+          message.mentions.members?.first()?.displayName ?? opponent.username,
+        winnerRewards,
+        loserRewards
       })
     );
     return true;
   }
 
   if (normalizedCommand === "~lions") {
-    const lions = await listUserLions(prisma, {
-      guildId: message.guildId,
-      userId: message.author.id,
-      limit: 20
-    });
+    const [lions, team] = await Promise.all([
+      listUserLions(prisma, {
+        guildId: message.guildId,
+        userId: message.author.id,
+        limit: 20
+      }),
+      listUserLionTeam(prisma, {
+        guildId: message.guildId,
+        userId: message.author.id
+      })
+    ]);
 
     await message.reply(
       formatUserLionsMessage({
         lions,
-        displayName: getDisplayName(message)
+        displayName: getDisplayName(message),
+        team
       })
     );
     return true;

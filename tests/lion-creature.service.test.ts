@@ -5,15 +5,19 @@ import {
   attemptCatchWildLion,
   calculateCatchChance,
   chooseWeightedLionSpecies,
+  clearUserLionTeam,
   createWildLionSpawn,
+  listUserLionTeam,
   LION_BATTLE_WIN_XP,
   LION_TRAINING_XP,
   purchaseLionShopItem,
+  setUserLionTeam,
   trainUserLion,
   type ActiveLionSpawnWithSpeciesRecord,
   type LionShopItemRecord,
   type LionSpeciesRecord,
   type UserItemInventoryRecord,
+  type UserLionTeamSlotWithLionRecord,
   type UserLionWithSpeciesRecord
 } from "../src/features/lions/lion-creature.service.js";
 import type { UserProfileRecord } from "../src/features/profiles/profile.service.js";
@@ -135,6 +139,24 @@ const buildOwnedLion = (
   species: buildSpecies(),
   ...overrides
 });
+
+const buildTeamSlot = (
+  overrides: Partial<UserLionTeamSlotWithLionRecord> = {}
+): UserLionTeamSlotWithLionRecord => {
+  const lion = overrides.lion ?? buildOwnedLion();
+
+  return {
+    id: "team_slot_123",
+    guildId: lion.guildId,
+    userId: lion.userId,
+    slot: 1,
+    userLionId: lion.id,
+    createdAt: now,
+    updatedAt: now,
+    lion,
+    ...overrides
+  };
+};
 
 describe("lion creature service", () => {
   it("clamps catch chance into a playable range", () => {
@@ -430,6 +452,166 @@ describe("lion creature service", () => {
 
     expect(result.outcome).toBe("on_cooldown");
     expect(result.cooldownEndsAt?.getTime()).toBeGreaterThan(now.getTime());
+  });
+
+  it("sets a user's battle team in requested order", async () => {
+    const firstLion = buildOwnedLion({
+      id: "owned_001",
+      species: buildSpecies({
+        id: "species_001",
+        publicId: "L001",
+        slug: "rdl-lion-001",
+        name: "RDL Lion 001"
+      })
+    });
+    const secondLion = buildOwnedLion({
+      id: "owned_002",
+      species: buildSpecies({
+        id: "species_002",
+        publicId: "L002",
+        slug: "rdl-lion-002",
+        name: "RDL Lion 002"
+      })
+    });
+    const thirdLion = buildOwnedLion({
+      id: "owned_003",
+      species: buildSpecies({
+        id: "species_003",
+        publicId: "L003",
+        slug: "rdl-lion-003",
+        name: "RDL Lion 003"
+      })
+    });
+    const create = vi.fn().mockResolvedValue(null);
+
+    const result = await setUserLionTeam(
+      {
+        userLion: {
+          findMany: vi
+            .fn()
+            .mockResolvedValue([firstLion, secondLion, thirdLion])
+        },
+        userLionTeamSlot: {
+          deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+          create,
+          findMany: vi.fn().mockResolvedValue([
+            buildTeamSlot({
+              id: "slot_001",
+              slot: 1,
+              userLionId: secondLion.id,
+              lion: secondLion
+            }),
+            buildTeamSlot({
+              id: "slot_002",
+              slot: 2,
+              userLionId: firstLion.id,
+              lion: firstLion
+            }),
+            buildTeamSlot({
+              id: "slot_003",
+              slot: 3,
+              userLionId: thirdLion.id,
+              lion: thirdLion
+            })
+          ])
+        }
+      } as never,
+      {
+        guildId: "guild_123",
+        userId: "user_123",
+        queries: ["L002", "L001", "L003"]
+      }
+    );
+
+    expect(result.outcome).toBe("set");
+    expect(result.team.map((slot) => slot.userLionId)).toEqual([
+      secondLion.id,
+      firstLion.id,
+      thirdLion.id
+    ]);
+    expect(create).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        data: expect.objectContaining({
+          slot: 1,
+          userLionId: secondLion.id
+        })
+      })
+    );
+    expect(create).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        data: expect.objectContaining({
+          slot: 2,
+          userLionId: firstLion.id
+        })
+      })
+    );
+  });
+
+  it("rejects duplicate lions in a battle team", async () => {
+    const result = await setUserLionTeam(
+      {
+        userLion: {
+          findMany: vi.fn().mockResolvedValue([buildOwnedLion()])
+        },
+        userLionTeamSlot: {
+          deleteMany: vi.fn(),
+          create: vi.fn(),
+          findMany: vi.fn()
+        }
+      } as never,
+      {
+        guildId: "guild_123",
+        userId: "user_123",
+        queries: ["L001", "owned_123"]
+      }
+    );
+
+    expect(result.outcome).toBe("duplicate_lion");
+    expect(result.failedQuery).toBe("owned_123");
+  });
+
+  it("filters stale team slots that no longer match the guild user owner", async () => {
+    const validSlot = buildTeamSlot();
+    const staleSlot = buildTeamSlot({
+      id: "stale_slot",
+      lion: buildOwnedLion({
+        id: "stale_owned",
+        userId: "other_user"
+      }),
+      userLionId: "stale_owned"
+    });
+
+    const team = await listUserLionTeam(
+      {
+        userLionTeamSlot: {
+          findMany: vi.fn().mockResolvedValue([validSlot, staleSlot])
+        }
+      } as never,
+      {
+        guildId: "guild_123",
+        userId: "user_123"
+      }
+    );
+
+    expect(team).toEqual([validSlot]);
+  });
+
+  it("clears a user's battle team", async () => {
+    const result = await clearUserLionTeam(
+      {
+        userLionTeamSlot: {
+          deleteMany: vi.fn().mockResolvedValue({ count: 2 })
+        }
+      } as never,
+      {
+        guildId: "guild_123",
+        userId: "user_123"
+      }
+    );
+
+    expect(result).toBe(2);
   });
 
   it("awards battle XP and stores the battle cooldown", async () => {

@@ -49,6 +49,19 @@ export interface LionAutoBattleResult {
   finalHp: Record<string, number>;
 }
 
+export interface LionTeamAutoBattleResult {
+  firstTeam: UserLionWithSpeciesRecord[];
+  secondTeam: UserLionWithSpeciesRecord[];
+  winnerSide: "first" | "second";
+  loserSide: "first" | "second";
+  rounds: LionBattleRound[];
+  finalHp: Record<string, number>;
+  participantLionIds: {
+    first: string[];
+    second: string[];
+  };
+}
+
 export const DEFAULT_LION_MOVE: LionBattleMove = {
   key: "pounce",
   name: "Pounce",
@@ -379,5 +392,139 @@ export const resolveAutoLionBattle = (input: {
     loser: lionById.get(loserParticipant.id) ?? input.secondLion,
     rounds,
     finalHp
+  };
+};
+
+const initializeTeamHp = (
+  team: UserLionWithSpeciesRecord[],
+  finalHp: Record<string, number>
+): void => {
+  for (const lion of team) {
+    finalHp[lion.id] = deriveLionStats(lion.species, lion.level).hp;
+  }
+};
+
+const getTeamTotalHp = (
+  team: UserLionWithSpeciesRecord[],
+  finalHp: Record<string, number>
+): number =>
+  team.reduce((total, lion) => total + Math.max(0, finalHp[lion.id] ?? 0), 0);
+
+export const resolveAutoLionTeamBattle = (input: {
+  firstTeam: UserLionWithSpeciesRecord[];
+  secondTeam: UserLionWithSpeciesRecord[];
+  random?: () => number;
+  maxRounds?: number;
+}): LionTeamAutoBattleResult => {
+  if (input.firstTeam.length === 0 || input.secondTeam.length === 0) {
+    throw new Error("Both teams need at least one lion to battle.");
+  }
+
+  const finalHp: Record<string, number> = {};
+  const rounds: LionBattleRound[] = [];
+  const firstParticipantIds = new Set<string>();
+  const secondParticipantIds = new Set<string>();
+  const maxRounds = Math.max(1, input.maxRounds ?? 60);
+  const random = input.random ?? Math.random;
+  let firstIndex = 0;
+  let secondIndex = 0;
+
+  initializeTeamHp(input.firstTeam, finalHp);
+  initializeTeamHp(input.secondTeam, finalHp);
+
+  for (let round = 1; round <= maxRounds; round += 1) {
+    const firstLion = input.firstTeam[firstIndex];
+    const secondLion = input.secondTeam[secondIndex];
+
+    if (!firstLion || !secondLion) {
+      break;
+    }
+
+    firstParticipantIds.add(firstLion.id);
+    secondParticipantIds.add(secondLion.id);
+
+    const firstParticipant = toBattleParticipant(firstLion);
+    const secondParticipant = toBattleParticipant(secondLion);
+    const baseTurnOrder = determineLionTurnOrder(
+      firstParticipant,
+      secondParticipant
+    );
+
+    for (const attacker of baseTurnOrder) {
+      const attackerLion =
+        attacker.id === firstLion.id ? firstLion : secondLion;
+      const defenderLion =
+        attacker.id === firstLion.id ? secondLion : firstLion;
+      const defender =
+        attacker.id === firstLion.id ? secondParticipant : firstParticipant;
+
+      if (finalHp[attackerLion.id] <= 0 || finalHp[defenderLion.id] <= 0) {
+        continue;
+      }
+
+      const move = selectAutoBattleMove({
+        lion: attackerLion,
+        round
+      });
+      const randomModifier = 0.85 + random() * 0.15;
+      const damage = calculateLionMoveDamage({
+        attacker,
+        defender,
+        move,
+        randomModifier
+      });
+      const effectiveness = getTypeEffectiveness({
+        attackType: move.type,
+        defenderPrimaryType: defender.primaryType,
+        defenderSecondaryType: defender.secondaryType
+      });
+
+      finalHp[defenderLion.id] = Math.max(0, finalHp[defenderLion.id] - damage);
+      rounds.push({
+        round,
+        attackerLionId: attackerLion.id,
+        attackerName: getBattleName(attackerLion),
+        defenderLionId: defenderLion.id,
+        defenderName: getBattleName(defenderLion),
+        move,
+        damage,
+        effectiveness,
+        defenderHpAfter: finalHp[defenderLion.id]
+      });
+
+      if (finalHp[defenderLion.id] <= 0) {
+        if (defenderLion.id === firstLion.id) {
+          firstIndex += 1;
+        } else {
+          secondIndex += 1;
+        }
+        break;
+      }
+    }
+
+    if (
+      firstIndex >= input.firstTeam.length ||
+      secondIndex >= input.secondTeam.length
+    ) {
+      break;
+    }
+  }
+
+  const firstTeamHp = getTeamTotalHp(input.firstTeam, finalHp);
+  const secondTeamHp = getTeamTotalHp(input.secondTeam, finalHp);
+  const winnerSide = firstTeamHp >= secondTeamHp ? "first" : "second";
+  const loserSide = winnerSide === "first" ? "second" : "first";
+
+  return {
+    firstTeam: input.firstTeam,
+    secondTeam: input.secondTeam,
+    winnerSide,
+    loserSide,
+    rounds,
+    finalHp,
+    participantLionIds: {
+      first: [...firstParticipantIds],
+      second: [...secondParticipantIds]
+    }
   };
 };
