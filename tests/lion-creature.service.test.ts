@@ -216,6 +216,9 @@ describe("lion creature service", () => {
           findFirst,
           create
         },
+        lionChannelEffect: {
+          findFirst: vi.fn().mockResolvedValue(null)
+        },
         lionSpecies: {
           findMany: vi.fn().mockResolvedValue([buildSpecies()])
         }
@@ -241,6 +244,9 @@ describe("lion creature service", () => {
           updateMany: vi.fn().mockResolvedValue({ count: 0 }),
           findFirst: vi.fn().mockResolvedValue(activeSpawn),
           create: vi.fn()
+        },
+        lionChannelEffect: {
+          findFirst: vi.fn().mockResolvedValue(null)
         },
         lionSpecies: {
           findMany: vi.fn()

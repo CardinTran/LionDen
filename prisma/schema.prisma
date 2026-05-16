@@ -164,6 +164,23 @@ model LionSpawnConfig {
   updatedAt          DateTime  @updatedAt
 }
 
+model LionChannelEffect {
+  id                String            @id @default(cuid())
+  guildId           String
+  channelId         String
+  itemKey           String
+  effectType        LionItemEffectType
+  effectValue       Int
+  activatedByUserId String
+  activatedAt       DateTime          @default(now())
+  expiresAt         DateTime
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([guildId, channelId])
+  @@index([guildId, expiresAt])
+}
+
 model PracticeSession {
   id                    String                @id @default(cuid())
   guildId               String
@@ -265,6 +282,13 @@ enum LionElement {
   NATURE
 }
 
+enum LionItemEffectType {
+  CATCH_MODIFIER
+  SPAWN_BOOST
+  RARITY_BOOST
+  TYPE_ATTRACTOR
+}
+
 enum LionSpawnStatus {
   ACTIVE
   CAUGHT
@@ -275,11 +299,4 @@ enum LionItemCategory {
   BALL
   SPAWN_MODIFIER
   UTILITY
-}
-
-enum LionItemEffectType {
-  CATCH_MODIFIER
-  SPAWN_BOOST
-  RARITY_BOOST
-  TYPE_ATTRACTOR
 }

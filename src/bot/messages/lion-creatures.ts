@@ -2,6 +2,7 @@ import type { Message } from "discord.js";
 
 import { prisma } from "../../lib/prisma.js";
 import {
+  activateLionChannelEffect,
   attemptCatchWildLion,
   listLionShopItems,
   listUserItemInventory,
@@ -12,6 +13,7 @@ import {
   syncDefaultLionData
 } from "../../features/lions/lion-creature.service.js";
 import {
+  formatLionHelpMessage,
   formatLionInventoryMessage,
   formatLionShopMessage,
   formatOwnedLionMessage,
@@ -82,9 +84,17 @@ export const handleLionCreatureMessage = async (
   const normalizedCommand = command.toLowerCase();
 
   if (
-    !["~shop", "~buy", "~bag", "~catch", "~lions", "~lion", "~wild"].includes(
-      normalizedCommand
-    )
+    ![
+      "~help",
+      "~shop",
+      "~buy",
+      "~bag",
+      "~use",
+      "~catch",
+      "~lions",
+      "~lion",
+      "~wild"
+    ].includes(normalizedCommand)
   ) {
     return false;
   }
@@ -94,6 +104,11 @@ export const handleLionCreatureMessage = async (
   }
 
   await ensureLionData();
+
+  if (normalizedCommand === "~help") {
+    await message.reply(formatLionHelpMessage());
+    return true;
+  }
 
   if (normalizedCommand === "~shop") {
     const items = await listLionShopItems(prisma);
@@ -144,6 +159,60 @@ export const handleLionCreatureMessage = async (
       userId: message.author.id
     });
     await message.reply(formatLionInventoryMessage({ inventory }));
+    return true;
+  }
+
+  if (normalizedCommand === "~use") {
+    if (args.length === 0) {
+      await message.reply("Use `~use <item>` to activate a lion item in this channel.");
+      return true;
+    }
+
+    const itemKey = normalizeLionItemKey(args.join(" "));
+    const items = await listLionShopItems(prisma);
+    const item = items.find((entry) => entry.itemKey === itemKey) ?? null;
+
+    if (!item) {
+      await message.reply("That item does not exist. Use `~shop` to see items.");
+      return true;
+    }
+
+    if (item.category === "BALL") {
+      await message.reply(
+        `${item.name} is a catching ball, so it is used with \`~catch ${item.itemKey}\` instead.`
+      );
+      return true;
+    }
+
+    if (!message.channel.isTextBased() || !("send" in message.channel)) {
+      await message.reply("That item can only be used in a server text channel.");
+      return true;
+    }
+
+    if (item.effectType !== "SPAWN_BOOST" && item.effectType !== "RARITY_BOOST") {
+      await message.reply(`${item.name} does not have an active-use effect yet.`);
+      return true;
+    }
+
+    const effect = await activateLionChannelEffect(prisma, {
+      guildId: message.guildId,
+      channelId: message.channelId,
+      userId: message.author.id,
+      itemKey,
+      effectType: item.effectType,
+      effectValue: item.effectValue,
+      durationMinutes: item.effectType === "SPAWN_BOOST" ? 30 : 45,
+      now: message.createdAt
+    });
+
+    if (!effect) {
+      await message.reply(`You do not have any \`${item.itemKey}\` to use.`);
+      return true;
+    }
+
+    await message.reply(
+      `${getDisplayName(message)} activated ${item.name} in this channel. It will affect future wild lion spawns for a while.`
+    );
     return true;
   }
 

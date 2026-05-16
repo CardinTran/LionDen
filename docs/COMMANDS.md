@@ -149,6 +149,8 @@ LionDen now has a first public lion-creature loop inspired by Poketwo-style wild
 - `~shop` shows lion items that can be bought with coins.
 - `~buy <item> [quantity]` buys lion items such as balls and future spawn modifiers.
 - `~bag` shows the caller's lion item inventory.
+- `~help` shows the public lion command guide for new users.
+- `~use <item>` activates a usable lure or spawn modifier in the current channel.
 - `~catch <ball>` attempts to catch the active wild lion in the current channel.
 - `~lions` shows the caller's caught lion roster.
 - `~lion <id, code, slug, or name>` inspects one caught lion owned by the caller.
