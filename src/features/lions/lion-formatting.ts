@@ -4,15 +4,22 @@ import type {
   UserItemInventoryRecord,
   UserLionWithSpeciesRecord
 } from "./lion-creature.service.js";
+import {
+  deriveLionStats,
+  getLionExperienceProgress
+} from "./lion-progression.service.js";
 
-export const formatDiscordTimestamp = (date: Date, style: "R" | "t" = "R"): string =>
-  `<t:${Math.floor(date.getTime() / 1000)}:${style}>`;
+export const formatDiscordTimestamp = (
+  date: Date,
+  style: "R" | "t" = "R"
+): string => `<t:${Math.floor(date.getTime() / 1000)}:${style}>`;
 
 export const formatWildLionSpawnMessage = (input: {
   spawn: ActiveLionSpawnWithSpeciesRecord;
 }): string =>
   [
     `A wild ${input.spawn.species.name} appeared in <#${input.spawn.channelId}>.`,
+    `Code: \`${input.spawn.species.publicId}\` | Slug: \`${input.spawn.species.slug}\``,
     `Rarity: ${input.spawn.species.rarity} | Type: ${input.spawn.species.primaryType}`,
     `Catch it with \`~catch basic-ball\`, \`~catch great-ball\`, or \`~catch ultra-ball\`.`,
     `It leaves ${formatDiscordTimestamp(input.spawn.expiresAt)}.`
@@ -60,21 +67,30 @@ export const formatUserLionsMessage = (input: {
     `${input.displayName}'s lions:`,
     ...input.lions.map(
       (lion, index) =>
-        `${index + 1}. ${lion.species.name} (${lion.species.rarity}) - Lv. ${lion.level} - id: \`${lion.id.slice(0, 8)}\``
+        `${index + 1}. ${lion.species.name} \`${lion.species.publicId}\` (${lion.species.rarity}) - Lv. ${lion.level} - owned id: \`${lion.id.slice(0, 8)}\``
     )
   ].join("\n");
 };
 
-export const formatOwnedLionMessage = (lion: UserLionWithSpeciesRecord): string =>
-  [
-    `${lion.species.name}`,
+export const formatOwnedLionMessage = (
+  lion: UserLionWithSpeciesRecord
+): string => {
+  const stats = deriveLionStats(lion.species, lion.level);
+  const progress = getLionExperienceProgress(lion.experience);
+
+  return [
+    `${lion.species.name} \`${lion.species.publicId}\``,
+    `Slug: \`${lion.species.slug}\` | Owned id: \`${lion.id.slice(0, 8)}\``,
     `Rarity: ${lion.species.rarity}`,
-    `Type: ${lion.species.primaryType}`,
+    `Type: ${lion.species.primaryType}${lion.species.secondaryType ? ` / ${lion.species.secondaryType}` : ""}`,
+    `Ability: ${lion.species.abilityName}`,
     `Level: ${lion.level}`,
-    `XP: ${lion.experience}`,
+    `XP: ${lion.experience} (${progress.xpNeededForNextLevel} to next level)`,
+    `Stats: ${stats.hp} HP | ${stats.attack} ATK | ${stats.defense} DEF | ${stats.speed} SPD`,
     `Caught: ${formatDiscordTimestamp(lion.acquiredAt, "t")}`,
     lion.species.description
   ].join("\n");
+};
 
 export const formatWildLionStatusMessage = (
   spawns: ActiveLionSpawnWithSpeciesRecord[]
@@ -87,7 +103,7 @@ export const formatWildLionStatusMessage = (
     "Active wild lions:",
     ...spawns.map(
       (spawn) =>
-        `- ${spawn.species.name} in <#${spawn.channelId}> until ${formatDiscordTimestamp(spawn.expiresAt)}`
+        `- ${spawn.species.name} \`${spawn.species.publicId}\` in <#${spawn.channelId}> until ${formatDiscordTimestamp(spawn.expiresAt)}`
     )
   ].join("\n");
 };

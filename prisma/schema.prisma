@@ -57,23 +57,32 @@ model RedEnvelopeDropConfig {
 }
 
 model LionSpecies {
-  id            String            @id @default(cuid())
-  slug          String            @unique
-  name          String
-  imagePath     String
-  rarity        LionRarity        @default(COMMON)
-  baseCatchRate Int               @default(60)
-  baseValue     Int               @default(1)
-  spawnWeight   Int               @default(100)
-  primaryType   LionElement       @default(NEUTRAL)
-  secondaryType LionElement?
-  description   String            @default("")
-  isEnabled     Boolean           @default(true)
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
-  ownedLions    UserLion[]
-  activeSpawns  ActiveLionSpawn[]
+  id                 String            @id @default(cuid())
+  publicId           String            @unique
+  slug               String            @unique
+  name               String
+  imagePath          String
+  rarity             LionRarity        @default(COMMON)
+  baseCatchRate      Int               @default(60)
+  baseValue          Int               @default(1)
+  spawnWeight        Int               @default(100)
+  primaryType        LionElement       @default(NEUTRAL)
+  secondaryType      LionElement?
+  baseHp             Int               @default(50)
+  baseAttack         Int               @default(10)
+  baseDefense        Int               @default(10)
+  baseSpeed          Int               @default(10)
+  abilityKey         String            @default("steady-heart")
+  abilityName        String            @default("Steady Heart")
+  abilityDescription String            @default("No special battle effect yet.")
+  description        String            @default("")
+  isEnabled          Boolean           @default(true)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  ownedLions         UserLion[]
+  activeSpawns       ActiveLionSpawn[]
 
+  @@index([publicId])
   @@index([rarity, isEnabled])
 }
 
