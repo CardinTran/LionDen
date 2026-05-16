@@ -521,14 +521,19 @@ Goal:
 
 Tasks:
 
-- define XP sources for lions
-- define level curve
-- choose whether passive leveling, gambling, or activity events grant lion XP
-- implement lion level-up storage
+- implement `~train <lion>` as an explicit lion XP source
+- use the lion level curve for training and battle rewards
+- store per-lion cooldowns for progression actions
+- show level-up feedback in public messages
 
 Output:
 
 - lions become long-term progression units
+
+Current implementation note:
+
+- `~train <lion>` awards lion XP on a per-owned-lion cooldown
+- quick battles award winner and participation XP on a separate per-owned-lion cooldown
 
 Important note:
 
@@ -558,7 +563,8 @@ Current implementation note:
 - species now have readable codes like `L001`
 - species now store base HP, attack, defense, speed, type, and ability labels
 - owned lions derive battle-ready stats from species base stats plus level
-- battle math scaffolding exists for type effectiveness, damage, and turn order
+- starter move sets are generated from each lion's type or dual type
+- battle math supports type effectiveness, damage, and turn order
 
 ### Phase 8: Battles
 
@@ -568,14 +574,19 @@ Goal:
 
 Tasks:
 
-- choose battle format
-- implement team selection
-- implement turn resolution
-- implement damage and status rules
+- support `~battle @user <your lion> vs <their lion>`
+- auto-resolve a first 1v1 battle format
+- use speed, moves, type matchups, and derived stats
+- keep richer challenge acceptance and turn menus for later
 
 Output:
 
 - first PvP or PvE battle loop
+
+Current implementation note:
+
+- quick public 1v1 battles exist as an auto-resolved first slice
+- full interactive battle menus, status effects, and raids are still future phases
 
 ### Phase 9: Raids
 

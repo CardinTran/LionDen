@@ -443,9 +443,51 @@ speed = baseSpeed + floor(levelBonus * 1.1)
 
 All derived stats clamp to at least `1`.
 
+### Training XP
+
+Training is an intentional public action on an owned lion.
+
+- `LION_TRAINING_XP = 35`
+- `LION_TRAINING_COOLDOWN_MS = 30 minutes = 1,800,000 ms`
+
+On a successful training action:
+
+```text
+nextLionXp = currentLionXp + 35
+nextLionLevel = level(nextLionXp)
+lastTrainedAt = now
+```
+
+The same owned lion cannot train again until:
+
+```text
+trainingAvailableAt = lastTrainedAt + 30 minutes
+```
+
 ## 11. Lion Battle Foundation Math
 
-The current battle implementation is a reusable math foundation, not a full Discord battle flow yet.
+The current battle implementation supports a quick auto-resolved 1v1 battle flow.
+
+### Battle Moves
+
+Each lion gets a small move set from its typing:
+
+```text
+moves = [primaryTypeMove]
+
+if secondaryType exists:
+  moves += [secondaryTypeMove]
+
+if Pounce is not already included:
+  moves += [Pounce]
+```
+
+The current default move is:
+
+- `Pounce`
+- type: `NEUTRAL`
+- power: `40`
+- accuracy: `100`
 
 ### Type Effectiveness
 
@@ -504,6 +546,43 @@ if speeds tie:
 
 This deterministic tie-breaker keeps tests stable until full battle state exists.
 
+### Auto Battle Resolution
+
+Quick battles run up to `12` rounds.
+
+Each round:
+
+```text
+turnOrder = faster lion first
+each living lion uses the next move in its move set
+damage is subtracted from the defender's current HP
+if either lion reaches 0 HP, battle ends
+```
+
+If both lions are still standing after the round limit, the winner is the lion with more HP left. If HP is tied, the faster lion wins using the same deterministic turn-order tie-breaker.
+
+### Battle XP
+
+Battle XP rewards are intentionally cooldown-limited per owned lion.
+
+- `LION_BATTLE_WIN_XP = 45`
+- `LION_BATTLE_LOSS_XP = 18`
+- `LION_BATTLE_COOLDOWN_MS = 10 minutes = 600,000 ms`
+
+On an eligible battle XP award:
+
+```text
+nextLionXp = currentLionXp + battleXp
+nextLionLevel = level(nextLionXp)
+lastBattledAt = now
+```
+
+If the same owned lion is still on battle XP cooldown, the battle can still resolve, but that lion does not receive battle XP again until:
+
+```text
+battleXpAvailableAt = lastBattledAt + 10 minutes
+```
+
 ## 12. Future Math Not Yet Finalized
 
 These systems are planned but not yet fully designed:
@@ -512,7 +591,7 @@ These systems are planned but not yet fully designed:
 - gambling-linked lion growth math
 - move learning rules
 - ability and passive battle effects
-- battle rewards and XP payouts
+- interactive battle challenge acceptance
 
 When those systems are implemented, this document should be extended rather than replaced.
 
@@ -529,6 +608,8 @@ When those systems are implemented, this document should be extended rather than
 - Catch chance: `clamp(baseCatchRate + itemBonus, 5, 95)`
 - Lion level 2 threshold: `70 XP`
 - Lion default move foundation: `Pounce`, neutral type, `40` power, `100` accuracy
+- Lion training reward: `35 XP` every `30 minutes` per owned lion
+- Lion battle reward: `45 XP` winner, `18 XP` loser, every `10 minutes` per owned lion
 
 ## 14. Notes
 
