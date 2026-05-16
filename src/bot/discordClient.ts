@@ -15,11 +15,13 @@ import {
 import { recordChannelActivity } from "../features/economy/channel-activity.service.js";
 import { awardMessageXp } from "../features/progression/message-xp.service.js";
 import { startRedEnvelopeScheduler } from "../features/economy/red-envelope-scheduler.js";
+import { startLionSpawnScheduler } from "../features/lions/lion-spawn-scheduler.js";
 import { startPracticeScheduler } from "../features/practice/practice-scheduler.js";
 import { env } from "../config/env.js";
 import { logger } from "../lib/logger.js";
 import { prisma } from "../lib/prisma.js";
 import { commandRegistry, commands } from "./commands/index.js";
+import { handleLionCreatureMessage } from "./messages/lion-creatures.js";
 import {
   handlePracticeButton,
   isPracticeButtonCustomId
@@ -46,6 +48,7 @@ export const createDiscordClient = (): Client => {
     });
     startPracticeScheduler(client);
     startRedEnvelopeScheduler(client);
+    startLionSpawnScheduler(client);
   });
 
   client.on(Events.InteractionCreate, async (interaction: Interaction) => {
@@ -169,6 +172,23 @@ export const createDiscordClient = (): Client => {
 
       return;
     }
+
+    try {
+      const handledLionCommand = await handleLionCreatureMessage(message);
+
+      if (handledLionCommand) {
+        return;
+      }
+    } catch (error) {
+      logger.error("Lion creature message command failed", {
+        guildId: message.guildId,
+        channelId: message.channelId,
+        userId: message.author.id,
+        error
+      });
+      return;
+    }
+
     recordChannelActivity({
       guildId: message.guildId,
       channelId: message.channelId,

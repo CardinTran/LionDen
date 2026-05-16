@@ -122,6 +122,29 @@ RSVP is for planning. Attendance is the authoritative record for rewards.
 - open red envelopes automatically expire after 15 minutes if nobody claims them
 - `/redenvelope status` gives officers a quick view of whether the red envelope system is healthy
 
+### Lion Creature Commands
+
+LionDen now has a first public lion-creature loop inspired by Poketwo-style wild encounters.
+
+- `~shop` shows lion items that can be bought with coins.
+- `~buy <item> [quantity]` buys lion items such as balls and future spawn modifiers.
+- `~bag` shows the caller's lion item inventory.
+- `~catch <ball>` attempts to catch the active wild lion in the current channel.
+- `~lions` shows the caller's caught lion roster.
+- `~lion <id or name>` inspects one caught lion owned by the caller.
+- `~wild` shows active wild lions and their channel locations.
+- `~wild drop` lets a member with Manage Server force a wild lion drop in the current channel for testing and officer events.
+
+Current lion creature rules:
+
+- users cannot buy lions directly from the shop
+- users buy catch and spawn-related items with coins
+- wild lions can spawn in active channels through the lion spawn scheduler
+- only one active wild lion may exist in a channel at a time
+- catches consume the selected ball
+- catch success uses the lion species base catch rate plus the selected ball modifier
+- caught lions become persistent user-owned creatures
+
 ## Planned MVP Commands
 
 - `/daily`

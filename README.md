@@ -33,6 +33,7 @@ Phase 0 foundation is in progress. This repo currently includes:
 - admin controls to pause random red envelope drops or force one immediately
 - admin recovery control to clear stale open red envelopes
 - automatic expiry and status visibility for open red envelopes
+- lion creature foundation with shop items, wild spawns, catches, and roster commands
 - practice sessions with separate RSVP and attendance posts plus weekly scheduling
 - practice-end XP rewards for members marked `I'm Here`
 - coin balance foundation stored on user profiles

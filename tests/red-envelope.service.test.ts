@@ -207,7 +207,7 @@ describe("red envelope service", () => {
       envelopeId: "envelope_123",
       userId: "member_123",
       displayName: "MemberA",
-      claimedAt: new Date("2026-05-14T12:30:00.000Z")
+      claimedAt: new Date("2026-05-14T12:05:00.000Z")
     });
 
     expect(result.outcome).toBe("claimed");
@@ -451,7 +451,8 @@ describe("red envelope service", () => {
       },
       {
         guildId: "guild_123",
-        channelId: "channel_123"
+        channelId: "channel_123",
+        now: new Date("2026-05-14T12:05:00.000Z")
       }
     );
 
@@ -460,6 +461,9 @@ describe("red envelope service", () => {
         guildId: "guild_123",
         channelId: "channel_123",
         status: "OPEN"
+      },
+      orderBy: {
+        createdAt: "asc"
       }
     });
     expect(envelope?.id).toBe("envelope_123");
