@@ -59,7 +59,27 @@ Officer/admin command that configures automated wild lion spawn timing. This com
 
 ### `/lionadmin dropnow`
 
-Officer/admin command that forces one wild lion spawn in the current text channel for testing, events, or moderation-controlled gameplay moments.
+Officer/admin command that forces one wild lion spawn in the current text channel for testing, events, or moderation-controlled gameplay moments. Officers can optionally force a species, rarity, or event level range.
+
+### `/lionadmin clearspawn`
+
+Officer/admin command that expires active wild lion spawns in the current channel if server state gets stuck.
+
+### `/lionadmin cleareffects`
+
+Officer/admin command that clears active lion item effects in the current channel.
+
+### `/lionadmin grantitem`
+
+Officer/admin command that grants a lion item to a member for events, support, or recovery.
+
+### `/lionadmin species enable/tune`
+
+Officer/admin controls for enabling or disabling a species and tuning its spawn weight or base catch rate.
+
+### `/lionadmin item enable/tune`
+
+Officer/admin controls for enabling or disabling a shop item and tuning its price or effect value.
 
 ### `/lionadmin pause`
 
@@ -76,6 +96,14 @@ Officer/admin command that shows lion spawn automation state, interval ranges, n
 ### `/botadmin status`
 
 Officer/admin command that shows whether LionDen maintenance mode is enabled. This command is hidden from normal members by Discord's Manage Server permission gate.
+
+### `/botadmin health`
+
+Officer/admin command that runs a lightweight health check for database reachability, maintenance state, and Discord client readiness.
+
+### `/botadmin reloadpresence`
+
+Officer/admin command that reapplies the bot's rich presence from the current maintenance state.
 
 ### `/botadmin maintenance`
 
@@ -159,13 +187,18 @@ LionDen now has a first public lion-creature loop inspired by Poketwo-style wild
 - `~bag` shows the caller's lion item inventory.
 - `~help` shows the public lion command guide for new users.
 - `~use <item>` activates a usable lure or spawn modifier in the current channel.
+- `~use training-snack <lion>` gives one owned lion bonus XP from inventory.
 - `~catch <ball>` attempts to catch the active wild lion in the current channel.
 - `~train <lion>` trains one owned lion for XP, using that lion's training cooldown.
+- `~nickname <lion> <name>` sets a compact nickname for one owned lion.
+- `~nickname <lion> clear` clears that lion's nickname.
 - `~team` shows the caller's saved battle team.
 - `~team set <lion1> <lion2> <lion3>` saves up to 3 owned lions as the caller's battle team.
 - `~team clear` clears the caller's battle team.
 - `~battle @user` runs a quick auto-resolved team battle using both users' saved teams.
+- `~battlehistory [@user]` shows recent recorded team battles.
 - `~toplions` or `~lionboard` shows the top 10 strongest owned lions in the server.
+- `~rarecatches` shows recent rare or high-level catches in the server.
 - `~lions` shows the caller's caught lion roster.
 - `~lion <id, code, slug, or name>` inspects one caught lion owned by the caller.
 - `~wild` shows active wild lions and their channel locations.
@@ -180,18 +213,25 @@ Current lion creature rules:
 - public `~help` intentionally does not list officer-only slash commands
 - wild lions can spawn in active channels through the lion spawn scheduler
 - wild lions spawn with encounter levels, and caught lions preserve that level
+- rare or high-level wild spawns and catches get notable public text
 - only one active wild lion may exist in a channel at a time
 - catches consume the selected ball
 - catch success uses the lion species base catch rate plus the selected ball modifier, with a small high-level catch penalty
 - caught lions become persistent user-owned creatures
+- owned lions can have validated nicknames for public display
 - owned lions keep stable internal Discord user IDs, while public output uses display names
 - training awards explicit lion XP and shows level-up progress
+- training snacks are consumable utility items that award lion XP without using the normal training cooldown
+- activity lures make a channel preferred for the next automated wild spawn
+- rare lures boost rare/epic/legendary spawn weights in the channel
+- level lures raise wild encounter levels in the channel
 - battle teams are persistent per guild/user and can contain 1 to 3 owned lions
 - team battles send out team slot 1 first, then the next slot when a lion faints
-- quick battles use speed, move power, type matchups, derived stats, and battle XP cooldowns
+- quick battles use speed, move power, type matchups, derived stats, battle records, and battle XP cooldowns
+- team battle starts are cooldown-limited per recent participant pair to reduce spam
 - only lions that participate in a team battle receive battle XP
 - species have readable public codes such as `L001`, plus internal database IDs for persistence
-- owned lion inspection now shows type, ability, level, XP, and derived battle stats
+- owned lion inspection now shows nickname, acquisition source, type, ability, level, XP, and derived battle stats
 
 ## Planned MVP Commands
 

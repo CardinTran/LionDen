@@ -591,8 +591,15 @@ Current implementation note:
 
 - `~team`, `~team set`, and `~team clear` manage persistent battle teams
 - quick public team battles exist as an auto-resolved first slice
+- quick team battles now create compact battle records for `~battlehistory`
+- a short per-user battle start cooldown reduces public battle spam
+- battle summaries call out an MVP based on damage dealt
 - participating lions receive battle XP, with winners receiving more than the other team
 - wild spawns now generate encounter levels, and catches preserve the spawned level
+- level lures and rare lures now affect future channel spawns
+- training snacks now provide an item-based lion XP sink for coins
+- owned lions can be nicknamed with validated public display text
+- notable rare or high-level catches feed the `~rarecatches` board
 - `~toplions` gives the server a public top-10 status board using display names
 - full interactive battle menus, status effects, and raids are still future phases
 
