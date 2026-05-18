@@ -240,6 +240,27 @@ model LionBattleRecord {
   @@index([guildId, winnerUserId, createdAt])
 }
 
+model LionBattleChallenge {
+  id                     String   @id @default(cuid())
+  guildId                String
+  channelId              String
+  challengerUserId       String
+  challengerDisplayName  String
+  opponentUserId         String
+  opponentDisplayName    String
+  status                 String   @default("PENDING")
+  expiresAt              DateTime
+  acceptedAt             DateTime?
+  declinedAt             DateTime?
+  resolvedBattleRecordId String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@index([guildId, channelId, status, expiresAt])
+  @@index([guildId, challengerUserId, status, expiresAt])
+  @@index([guildId, opponentUserId, status, expiresAt])
+}
+
 model PracticeSession {
   id                    String                @id @default(cuid())
   guildId               String

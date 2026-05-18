@@ -684,8 +684,8 @@ battleXpAvailableAt = lastBattledAt + 10 minutes
 ### Team Battle Start Cooldown
 
 Team battles now also record a compact persistent battle summary. Before a new
-team battle starts, LionDen checks whether either participant has a recent battle
-record in the current guild.
+team battle resolves, LionDen checks whether either participant has a recent
+battle record in the current guild.
 
 ```text
 LION_USER_BATTLE_COOLDOWN_MS = 5 minutes
@@ -696,6 +696,35 @@ if latestBattleForEitherUser.createdAt > now - 5 minutes:
 
 This cooldown limits public battle spam while keeping the current auto-resolved
 team battle flow simple.
+
+### Battle Challenges
+
+PvP battles use persisted challenge rows instead of in-memory state.
+
+```text
+challengeDuration = 2 minutes
+~battle @user creates a PENDING challenge
+~accept resolves the newest matching PENDING challenge
+~decline marks it DECLINED
+~cancelbattle marks it CANCELED
+expired PENDING challenges are marked EXPIRED before challenge reads
+```
+
+This keeps challenge state safe across process restarts and avoids fragile
+long-lived Discord sessions.
+
+### Training Hall Battles
+
+`~battle training` builds a temporary NPC team from enabled species.
+
+```text
+npcTeamSize = min(3, userTeamSize)
+averageLevel = round(sum(userTeamLevels) / userTeamSize)
+npcLevel = clamp(averageLevel + random integer [-2, 2], 1, 50)
+```
+
+Training Hall battle records use a reserved internal user id and are excluded
+from public trainer stat boards.
 
 ### Battle MVP
 
@@ -722,6 +751,27 @@ This makes level the primary signal while still letting strong species stats
 matter. Public output shows owner display names, but ownership and validation
 continue to use stable Discord user IDs internally.
 
+## 12.5. Trainer Battle Boards
+
+Trainer battle stats are derived from persisted `LionBattleRecord` rows inside
+the current guild.
+
+```text
+wins = count(records where winnerUserId = userId)
+losses = count(records where loserUserId = userId)
+battles = wins + losses
+winRate = wins / battles
+```
+
+The `~battleboard` ranking sorts by:
+
+```text
+wins desc
+winRate desc
+battles desc
+displayName asc
+```
+
 ## 13. Future Math Not Yet Finalized
 
 These systems are planned but not yet fully designed:
@@ -730,7 +780,7 @@ These systems are planned but not yet fully designed:
 - gambling-linked lion growth math
 - move learning rules
 - ability and passive battle effects
-- interactive battle challenge acceptance
+- full turn-menu battle interaction
 
 When those systems are implemented, this document should be extended rather than replaced.
 

@@ -581,7 +581,7 @@ Tasks:
 - support `~battle @user` using both users' saved teams
 - auto-resolve a first team battle format
 - use speed, moves, type matchups, and derived stats
-- keep richer challenge acceptance and turn menus for later
+- keep full turn menus for later
 
 Output:
 
@@ -590,8 +590,10 @@ Output:
 Current implementation note:
 
 - `~team`, `~team set`, and `~team clear` manage persistent battle teams
-- quick public team battles exist as an auto-resolved first slice
+- public PvP team battles now use persisted challenge acceptance before resolving
+- `~battle training` provides a lightweight PvE Training Hall battle
 - quick team battles now create compact battle records for `~battlehistory`
+- `~battlestats` and `~battleboard` turn battle records into social trainer boards
 - a short per-user battle start cooldown reduces public battle spam
 - battle summaries call out an MVP based on damage dealt
 - participating lions receive battle XP, with winners receiving more than the other team

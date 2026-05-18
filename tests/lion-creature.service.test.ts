@@ -3,14 +3,19 @@ import { describe, expect, it, vi } from "vitest";
 import {
   awardBattleLionExperience,
   activateLionChannelEffect,
+  acceptLionBattleChallenge,
   attemptCatchWildLion,
+  buildTrainingNpcLionTeam,
+  calculateLionTrainerBattleStats,
   calculateCatchChance,
   chooseWeightedLionSpecies,
   clearUserLionTeam,
+  createLionBattleChallenge,
   createWildLionSpawn,
   generateWildLionSpawnLevel,
   getOwnedLionDisplayName,
   getUserLionBattleCooldown,
+  listTopLionBattleTrainers,
   listUserLionTeam,
   listTopOwnedLions,
   listRecentNotableLionCatches,
@@ -24,6 +29,7 @@ import {
   trainUserLion,
   useLionTrainingItem,
   type ActiveLionSpawnWithSpeciesRecord,
+  type LionBattleChallengeRecord,
   type LionBattleRecord,
   type LionChannelEffectRecord,
   type LionShopItemRecord,
@@ -210,6 +216,26 @@ const buildBattleRecord = (
   mvpLionName: "RDL Lion 001",
   roundsCount: 4,
   createdAt: now,
+  ...overrides
+});
+
+const buildBattleChallenge = (
+  overrides: Partial<LionBattleChallengeRecord> = {}
+): LionBattleChallengeRecord => ({
+  id: "challenge_123",
+  guildId: "guild_123",
+  channelId: "channel_123",
+  challengerUserId: "user_123",
+  challengerDisplayName: "Cardin",
+  opponentUserId: "user_456",
+  opponentDisplayName: "Mira",
+  status: "PENDING",
+  expiresAt: new Date(now.getTime() + 2 * 60_000),
+  acceptedAt: null,
+  declinedAt: null,
+  resolvedBattleRecordId: null,
+  createdAt: now,
+  updatedAt: now,
   ...overrides
 });
 
@@ -1173,5 +1199,184 @@ describe("lion creature service", () => {
         })
       })
     );
+  });
+
+  it("creates one pending battle challenge per trainer pair", async () => {
+    const createdChallenge = buildBattleChallenge();
+    const create = vi.fn().mockResolvedValue(createdChallenge);
+
+    const result = await createLionBattleChallenge(
+      {
+        lionBattleChallenge: {
+          updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+          findFirst: vi.fn().mockResolvedValue(null),
+          create
+        }
+      } as never,
+      {
+        guildId: "guild_123",
+        channelId: "channel_123",
+        challengerUserId: "user_123",
+        challengerDisplayName: "Cardin",
+        opponentUserId: "user_456",
+        opponentDisplayName: "Mira",
+        now
+      }
+    );
+
+    expect(result.outcome).toBe("created");
+    expect(result.challenge?.id).toBe("challenge_123");
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          challengerUserId: "user_123",
+          opponentUserId: "user_456"
+        })
+      })
+    );
+  });
+
+  it("returns an existing pending battle challenge instead of duplicating it", async () => {
+    const existingChallenge = buildBattleChallenge();
+    const create = vi.fn();
+
+    const result = await createLionBattleChallenge(
+      {
+        lionBattleChallenge: {
+          updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+          findFirst: vi.fn().mockResolvedValue(existingChallenge),
+          create
+        }
+      } as never,
+      {
+        guildId: "guild_123",
+        channelId: "channel_123",
+        challengerUserId: "user_123",
+        challengerDisplayName: "Cardin",
+        opponentUserId: "user_456",
+        opponentDisplayName: "Mira",
+        now
+      }
+    );
+
+    expect(result.outcome).toBe("existing_challenge");
+    expect(result.existingChallenge).toBe(existingChallenge);
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("accepts a pending battle challenge atomically", async () => {
+    const acceptedChallenge = buildBattleChallenge({
+      status: "ACCEPTED",
+      acceptedAt: now
+    });
+
+    const result = await acceptLionBattleChallenge(
+      {
+        lionBattleChallenge: {
+          updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+          findFirst: vi.fn().mockResolvedValue(buildBattleChallenge()),
+          findUnique: vi.fn().mockResolvedValue(acceptedChallenge)
+        }
+      } as never,
+      {
+        guildId: "guild_123",
+        opponentUserId: "user_456",
+        challengerUserId: "user_123",
+        now
+      }
+    );
+
+    expect(result.outcome).toBe("accepted");
+    expect(result.challenge?.status).toBe("ACCEPTED");
+  });
+
+  it("calculates trainer battle stats and ranks battle trainers", async () => {
+    const battles = [
+      buildBattleRecord({
+        id: "battle_1",
+        winnerUserId: "user_123",
+        winnerDisplayName: "Cardin",
+        loserUserId: "user_456",
+        loserDisplayName: "Mira"
+      }),
+      buildBattleRecord({
+        id: "battle_2",
+        winnerUserId: "user_456",
+        winnerDisplayName: "Mira",
+        loserUserId: "user_789",
+        loserDisplayName: "Noah"
+      }),
+      buildBattleRecord({
+        id: "battle_3",
+        winnerUserId: "user_123",
+        winnerDisplayName: "Cardin",
+        loserUserId: "user_456",
+        loserDisplayName: "Mira"
+      })
+    ];
+
+    expect(calculateLionTrainerBattleStats(battles)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          userId: "user_123",
+          wins: 2,
+          losses: 0,
+          battles: 2,
+          winRate: 1
+        }),
+        expect.objectContaining({
+          userId: "user_456",
+          wins: 1,
+          losses: 2,
+          battles: 3,
+          winRate: 1 / 3
+        })
+      ])
+    );
+
+    const board = await listTopLionBattleTrainers(
+      {
+        lionBattleRecord: {
+          findMany: vi.fn().mockResolvedValue(battles)
+        }
+      } as never,
+      {
+        guildId: "guild_123",
+        limit: 2
+      }
+    );
+
+    expect(board.map((entry) => entry.userId)).toEqual([
+      "user_123",
+      "user_456"
+    ]);
+  });
+
+  it("builds a scaled Training Hall team from enabled species", async () => {
+    const team = await buildTrainingNpcLionTeam(
+      {
+        lionSpecies: {
+          findMany: vi.fn().mockResolvedValue([buildSpecies()])
+        }
+      } as never,
+      {
+        guildId: "guild_123",
+        referenceTeam: [
+          buildOwnedLion({
+            level: 12
+          }),
+          buildOwnedLion({
+            id: "owned_456",
+            level: 16
+          })
+        ],
+        now,
+        random: () => 0.5
+      }
+    );
+
+    expect(team).toHaveLength(2);
+    expect(team[0].userId).toBe("lionden-training-npc");
+    expect(team[0].level).toBe(14);
   });
 });
