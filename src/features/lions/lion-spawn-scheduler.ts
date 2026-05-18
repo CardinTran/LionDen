@@ -14,6 +14,7 @@ import {
   ensureLionSpawnConfig,
   expireActiveLionSpawns,
   generateNextLionSpawnAt,
+  listActiveLionChannelEffects,
   listActiveWildLionSpawns,
   listEnabledLionSpawnConfigs,
   syncDefaultLionData,
@@ -21,6 +22,7 @@ import {
   type ActiveLionSpawnWithSpeciesRecord
 } from "./lion-creature.service.js";
 import { formatWildLionSpawnMessage } from "./lion-formatting.js";
+import type { LionRarityValue } from "./lion-seed-data.js";
 
 let schedulerTimer: ReturnType<typeof setInterval> | null = null;
 let runtimeInitialized = false;
@@ -63,6 +65,10 @@ export const postWildLionSpawnToChannel = async (
     guildId: string;
     now: Date;
     random: () => number;
+    speciesPublicId?: string | null;
+    rarity?: LionRarityValue | null;
+    minLevel?: number | null;
+    maxLevel?: number | null;
   }
 ): Promise<ActiveLionSpawnWithSpeciesRecord | null> => {
   await ensureLionRuntime();
@@ -71,7 +77,11 @@ export const postWildLionSpawnToChannel = async (
     guildId: input.guildId,
     channelId: channel.id,
     now: input.now,
-    random: input.random
+    random: input.random,
+    speciesPublicId: input.speciesPublicId,
+    rarity: input.rarity,
+    minLevel: input.minLevel,
+    maxLevel: input.maxLevel
   });
 
   if (result.outcome !== "spawned" || !result.spawn) {
@@ -111,6 +121,20 @@ export const resolveWildLionSpawnChannel = async (
     now: Date;
   }
 ): Promise<SendableTextChannel | null> => {
+  const activeSpawnBoosts = await listActiveLionChannelEffects(prisma, {
+    guildId: input.guildId,
+    now: input.now,
+    effectType: "SPAWN_BOOST"
+  });
+
+  for (const effect of activeSpawnBoosts) {
+    const channel = await fetchSpawnChannel(client, effect.channelId);
+
+    if (channel) {
+      return channel;
+    }
+  }
+
   const activeChannels = listMostActiveChannels({
     guildId: input.guildId,
     now: input.now,

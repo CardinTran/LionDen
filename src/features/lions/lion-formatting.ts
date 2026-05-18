@@ -1,14 +1,23 @@
 import type {
   ActiveLionSpawnWithSpeciesRecord,
   AwardBattleLionExperienceResult,
+  LionBattleRecord,
   LionExperienceAwardResult,
   LionShopItemRecord,
+  RecentLionCatchEntry,
   SetUserLionTeamResult,
+  SetUserLionNicknameResult,
   TopLionBoardEntry,
   TrainUserLionResult,
+  UseLionTrainingItemResult,
   UserItemInventoryRecord,
   UserLionTeamSlotWithLionRecord,
   UserLionWithSpeciesRecord
+} from "./lion-creature.service.js";
+import {
+  getOwnedLionDisplayName,
+  getOwnedLionShortReference,
+  HIGH_LEVEL_WILD_LION_THRESHOLD
 } from "./lion-creature.service.js";
 import type {
   LionAutoBattleResult,
@@ -26,14 +35,21 @@ export const formatDiscordTimestamp = (
 
 export const formatWildLionSpawnMessage = (input: {
   spawn: ActiveLionSpawnWithSpeciesRecord;
-}): string =>
-  [
-    `A wild Lv. ${input.spawn.level} ${input.spawn.species.name} appeared in <#${input.spawn.channelId}>.`,
+}): string => {
+  const notable =
+    input.spawn.level >= HIGH_LEVEL_WILD_LION_THRESHOLD ||
+    ["RARE", "EPIC", "LEGENDARY"].includes(input.spawn.species.rarity);
+
+  return [
+    notable
+      ? `Notable wild spawn: Lv. ${input.spawn.level} ${input.spawn.species.rarity} ${input.spawn.species.name} appeared in <#${input.spawn.channelId}>.`
+      : `A wild Lv. ${input.spawn.level} ${input.spawn.species.name} appeared in <#${input.spawn.channelId}>.`,
     `Code: \`${input.spawn.species.publicId}\` | Slug: \`${input.spawn.species.slug}\``,
     `Rarity: ${input.spawn.species.rarity} | Type: ${input.spawn.species.primaryType}`,
     `Catch it with \`~catch basic-ball\`, \`~catch great-ball\`, or \`~catch ultra-ball\`.`,
     `It leaves ${formatDiscordTimestamp(input.spawn.expiresAt)}.`
   ].join("\n");
+};
 
 export const formatLionShopMessage = (items: LionShopItemRecord[]): string => {
   if (items.length === 0) {
@@ -76,11 +92,14 @@ export const formatLionHelpMessage = (): string =>
     "- `~use <item>` activate a usable item in the current channel",
     "- `~catch <ball>` catch a wild lion",
     "- `~train <lion>` train one of your lions for XP",
+    "- `~nickname <lion> <name>` nickname one of your lions",
     "- `~team` view your battle team",
     "- `~team set <lion1> <lion2> <lion3>` set up to 3 team slots",
     "- `~team clear` clear your battle team",
     "- `~battle @user` battle using both saved teams",
+    "- `~battlehistory [@user]` view recent team battles",
     "- `~toplions` view the strongest lions in this server",
+    "- `~rarecatches` view recent rare or high-level catches",
     "- `~lions` view your roster",
     "- `~lion <id or name>` inspect one lion",
     "- `~wild` view active wild lions",
@@ -93,7 +112,7 @@ const formatCompactLionLine = (
 ): string => {
   const stats = deriveLionStats(lion.species, lion.level);
 
-  return `${prefix}${lion.species.name} \`${lion.species.publicId}\` - Lv. ${lion.level} - ${stats.hp} HP/${stats.attack} ATK - Lion ID: \`${lion.id.slice(0, 8)}\``;
+  return `${prefix}${getOwnedLionDisplayName(lion)} \`${lion.species.publicId}\` - Lv. ${lion.level} - ${stats.hp} HP/${stats.attack} ATK - Lion ID: \`${getOwnedLionShortReference(lion)}\``;
 };
 
 export const formatUserLionsMessage = (input: {
@@ -177,11 +196,16 @@ export const formatOwnedLionMessage = (
 ): string => {
   const stats = deriveLionStats(lion.species, lion.level);
   const progress = getLionExperienceProgress(lion.experience);
+  const source =
+    lion.sourceType === "WILD_CATCH"
+      ? "Wild catch"
+      : lion.sourceType.replace(/_/g, " ").toLowerCase();
 
   return [
-    `${lion.species.name} \`${lion.species.publicId}\``,
+    `${getOwnedLionDisplayName(lion)} \`${lion.species.publicId}\``,
     ownerDisplayName ? `Owner: ${ownerDisplayName}` : null,
-    `Slug: \`${lion.species.slug}\` | Lion ID: \`${lion.id.slice(0, 8)}\``,
+    `Slug: \`${lion.species.slug}\` | Lion ID: \`${getOwnedLionShortReference(lion)}\``,
+    lion.nickname ? `Nickname: ${lion.nickname}` : null,
     `Rarity: ${lion.species.rarity}`,
     `Type: ${lion.species.primaryType}${lion.species.secondaryType ? ` / ${lion.species.secondaryType}` : ""}`,
     `Ability: ${lion.species.abilityName}`,
@@ -189,7 +213,7 @@ export const formatOwnedLionMessage = (
     `Level: ${lion.level}`,
     `XP: ${lion.experience} (${progress.xpNeededForNextLevel} to next level)`,
     `Stats: ${stats.hp} HP | ${stats.attack} ATK | ${stats.defense} DEF | ${stats.speed} SPD`,
-    `Caught: ${formatDiscordTimestamp(lion.acquiredAt, "t")}`,
+    `Acquired: ${source} ${formatDiscordTimestamp(lion.acquiredAt, "t")}`,
     lion.species.description
   ]
     .filter(Boolean)
@@ -226,10 +250,59 @@ export const formatTrainLionMessage = (input: {
   }
 
   return [
-    `${lion.species.name} \`${lion.species.publicId}\` finished training.`,
+    `${getOwnedLionDisplayName(lion)} \`${lion.species.publicId}\` finished training.`,
     formatExperienceAwardLine(input.result.result),
     `Next training available ${input.result.cooldownEndsAt ? formatDiscordTimestamp(input.result.cooldownEndsAt) : "later"}.`
   ].join("\n");
+};
+
+export const formatUseLionTrainingItemMessage = (input: {
+  result: UseLionTrainingItemResult;
+}): string => {
+  if (input.result.outcome === "item_not_found") {
+    return "That lion item does not exist. Use `~shop` to see items.";
+  }
+
+  if (input.result.outcome === "not_training_item") {
+    return `${input.result.item?.name ?? "That item"} is not a training item.`;
+  }
+
+  if (input.result.outcome === "lion_not_found") {
+    return `I could not find \`${input.result.failedQuery ?? "that lion"}\` in your roster.`;
+  }
+
+  if (input.result.outcome === "no_item") {
+    return `You do not have any \`${input.result.item?.itemKey ?? "that item"}\`.`;
+  }
+
+  const lion = input.result.result?.lion;
+
+  if (!lion) {
+    return "That training item could not be used right now.";
+  }
+
+  return [
+    `${lion.species.name} used ${input.result.item?.name ?? "a training item"}.`,
+    formatExperienceAwardLine(input.result.result)
+  ].join("\n");
+};
+
+export const formatSetUserLionNicknameMessage = (
+  result: SetUserLionNicknameResult
+): string => {
+  if (result.outcome === "lion_not_found") {
+    return "I could not find that lion in your roster. Try `~lions` to see your owned IDs.";
+  }
+
+  if (result.outcome === "invalid") {
+    return result.error ?? "That nickname is not allowed.";
+  }
+
+  if (result.outcome === "cleared") {
+    return `${result.lion?.species.name ?? "That lion"} no longer has a nickname.`;
+  }
+
+  return `${result.lion?.species.name ?? "That lion"} is now nicknamed ${result.normalizedNickname}.`;
 };
 
 export const formatBattleLionMessage = (input: {
@@ -275,18 +348,17 @@ const formatBattleXpSummary = (
   }
 
   const awarded = rewards.filter((reward) => reward.outcome === "awarded");
-  const levelUps = awarded
-    .filter((reward) => reward.result?.leveledUp)
-    .map(
-      (reward) =>
-        `${reward.result?.lion.species.name ?? "A lion"} to Lv. ${reward.result?.nextLevel ?? "?"}`
-    );
+  const awardedLines = awarded.map(
+    (reward) =>
+      `${reward.result ? getOwnedLionDisplayName(reward.result.lion) : "A lion"} +${reward.result?.gainedExperience ?? 0} XP${reward.result?.leveledUp ? ` (Lv. ${reward.result.nextLevel})` : ""}`
+  );
   const cooldownCount = rewards.length - awarded.length;
 
   return [
-    `${awarded.length}/${rewards.length} awarded XP`,
+    awardedLines.length > 0
+      ? awardedLines.join(", ")
+      : `${awarded.length}/${rewards.length} awarded XP`,
     cooldownCount > 0 ? `${cooldownCount} on cooldown` : null,
-    levelUps.length > 0 ? `Level ups: ${levelUps.join(", ")}` : null
   ]
     .filter(Boolean)
     .join(" | ");
@@ -304,6 +376,7 @@ export const formatTeamBattleLionMessage = (input: {
   secondDisplayName: string;
   winnerRewards: AwardBattleLionExperienceResult[];
   loserRewards: AwardBattleLionExperienceResult[];
+  mvpLion?: UserLionWithSpeciesRecord | null;
 }): string => {
   const winnerName =
     input.battle.winnerSide === "first"
@@ -340,6 +413,9 @@ export const formatTeamBattleLionMessage = (input: {
     hiddenRounds > 0
       ? `- ${hiddenRounds} more battle action${hiddenRounds === 1 ? "" : "s"} resolved.`
       : null,
+    input.mvpLion
+      ? `MVP: ${getOwnedLionDisplayName(input.mvpLion)} \`${input.mvpLion.species.publicId}\``
+      : null,
     `Winner team XP: ${formatBattleXpSummary(input.winnerRewards)}`,
     `Other team XP: ${formatBattleXpSummary(input.loserRewards)}`
   ]
@@ -363,6 +439,43 @@ export const formatWildLionStatusMessage = (
   ].join("\n");
 };
 
+export const formatRecentNotableLionCatchesMessage = (input: {
+  entries: RecentLionCatchEntry[];
+}): string => {
+  if (input.entries.length === 0) {
+    return "No rare or high-level catches have been recorded in this server yet.";
+  }
+
+  return [
+    "Recent notable lion catches:",
+    ...input.entries.map(
+      (entry) =>
+        `${entry.rank}. Lv. ${entry.spawn.level} ${entry.spawn.species.rarity} ${entry.spawn.species.name} \`${entry.spawn.species.publicId}\` caught by ${entry.caughtByDisplayName}${entry.spawn.caughtAt ? ` ${formatDiscordTimestamp(entry.spawn.caughtAt)}` : ""}`
+    )
+  ].join("\n");
+};
+
+export const formatLionBattleHistoryMessage = (input: {
+  battles: LionBattleRecord[];
+  displayName?: string;
+}): string => {
+  if (input.battles.length === 0) {
+    return input.displayName
+      ? `${input.displayName} has no recorded lion team battles yet.`
+      : "No lion team battles have been recorded in this server yet.";
+  }
+
+  return [
+    input.displayName
+      ? `Recent lion battles for ${input.displayName}:`
+      : "Recent lion battles:",
+    ...input.battles.map(
+      (battle, index) =>
+        `${index + 1}. ${battle.winnerDisplayName} defeated ${battle.loserDisplayName} ${formatDiscordTimestamp(battle.createdAt)}${battle.mvpLionName ? ` | MVP: ${battle.mvpLionName}` : ""} | ${battle.roundsCount} rounds`
+    )
+  ].join("\n");
+};
+
 export const formatTopLionsMessage = (input: {
   entries: TopLionBoardEntry[];
 }): string => {
@@ -375,7 +488,7 @@ export const formatTopLionsMessage = (input: {
     ...input.entries.map((entry) => {
       const stats = deriveLionStats(entry.lion.species, entry.lion.level);
 
-      return `${entry.rank}. ${entry.lion.species.name} \`${entry.lion.species.publicId}\` - Lv. ${entry.lion.level} - ${entry.lion.species.rarity} - ${stats.hp} HP/${stats.attack} ATK/${stats.defense} DEF/${stats.speed} SPD - owner: ${entry.ownerDisplayName}`;
+      return `${entry.rank}. ${getOwnedLionDisplayName(entry.lion)} \`${entry.lion.species.publicId}\` - Lv. ${entry.lion.level} - ${entry.lion.species.rarity} - ${stats.hp} HP/${stats.attack} ATK/${stats.defense} DEF/${stats.speed} SPD - owner: ${entry.ownerDisplayName}`;
     })
   ].join("\n");
 };

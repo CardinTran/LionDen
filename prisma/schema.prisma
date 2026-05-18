@@ -106,6 +106,7 @@ model UserLion {
   teamSlots         UserLionTeamSlot[]
 
   @@index([guildId, userId])
+  @@index([guildId, level])
   @@index([lionSpeciesId])
 }
 
@@ -209,7 +210,34 @@ model LionChannelEffect {
   updatedAt         DateTime           @updatedAt
 
   @@index([guildId, channelId])
+  @@index([guildId, channelId, effectType])
   @@index([guildId, expiresAt])
+}
+
+model LionBattleRecord {
+  id                     String   @id @default(cuid())
+  guildId                String
+  challengerUserId       String
+  challengerDisplayName  String
+  opponentUserId         String
+  opponentDisplayName    String
+  winnerUserId           String
+  winnerDisplayName      String
+  loserUserId            String
+  loserDisplayName       String
+  winnerSide             String
+  challengerTeamLionIds  String
+  opponentTeamLionIds    String
+  participantLionIds     String
+  mvpLionId              String?
+  mvpLionName            String?
+  roundsCount            Int      @default(0)
+  createdAt              DateTime @default(now())
+
+  @@index([guildId, createdAt])
+  @@index([guildId, challengerUserId, createdAt])
+  @@index([guildId, opponentUserId, createdAt])
+  @@index([guildId, winnerUserId, createdAt])
 }
 
 model PracticeSession {
@@ -318,6 +346,8 @@ enum LionItemEffectType {
   SPAWN_BOOST
   RARITY_BOOST
   TYPE_ATTRACTOR
+  LEVEL_BOOST
+  TRAINING_XP
 }
 
 enum LionSpawnStatus {

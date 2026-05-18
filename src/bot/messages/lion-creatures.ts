@@ -1,7 +1,10 @@
 import type { Message } from "discord.js";
 
 import { prisma } from "../../lib/prisma.js";
-import { resolveAutoLionTeamBattle } from "../../features/lions/lion-battle.service.js";
+import {
+  getLionBattleMvpLionId,
+  resolveAutoLionTeamBattle
+} from "../../features/lions/lion-battle.service.js";
 import {
   activateLionChannelEffect,
   awardBattleLionExperience,
@@ -12,26 +15,38 @@ import {
   LION_BATTLE_WIN_XP,
   listLionShopItems,
   listTopOwnedLions,
+  listRecentLionBattles,
+  listRecentNotableLionCatches,
   listUserItemInventory,
   listUserLionTeam,
   listUserLions,
   listActiveWildLionSpawns,
+  getOwnedLionDisplayName,
+  getUserLionBattleCooldown,
+  HIGH_LEVEL_WILD_LION_THRESHOLD,
   normalizeLionItemKey,
   purchaseLionShopItem,
+  recordLionBattle,
+  setUserLionNickname,
   setUserLionTeam,
   syncDefaultLionData,
-  trainUserLion
+  trainUserLion,
+  useLionTrainingItem
 } from "../../features/lions/lion-creature.service.js";
 import {
   formatClearUserLionTeamMessage,
   formatLionHelpMessage,
+  formatLionBattleHistoryMessage,
   formatLionInventoryMessage,
   formatLionShopMessage,
   formatOwnedLionMessage,
+  formatRecentNotableLionCatchesMessage,
+  formatSetUserLionNicknameMessage,
   formatSetUserLionTeamMessage,
   formatTeamBattleLionMessage,
   formatTopLionsMessage,
   formatTrainLionMessage,
+  formatUseLionTrainingItemMessage,
   formatUserLionTeamMessage,
   formatUserLionsMessage,
   formatWildLionStatusMessage
@@ -93,10 +108,13 @@ export const handleLionCreatureMessage = async (
       "~use",
       "~catch",
       "~train",
+      "~nickname",
       "~team",
       "~battle",
+      "~battlehistory",
       "~toplions",
       "~lionboard",
+      "~rarecatches",
       "~lions",
       "~lion",
       "~wild"
@@ -176,7 +194,7 @@ export const handleLionCreatureMessage = async (
       return true;
     }
 
-    const itemKey = normalizeLionItemKey(args.join(" "));
+    const itemKey = normalizeLionItemKey(args[0] ?? "");
     const items = await listLionShopItems(prisma);
     const item = items.find((entry) => entry.itemKey === itemKey) ?? null;
 
@@ -194,6 +212,27 @@ export const handleLionCreatureMessage = async (
       return true;
     }
 
+    if (item.effectType === "TRAINING_XP") {
+      const lionQuery = args.slice(1).join(" ");
+
+      if (!lionQuery) {
+        await message.reply(
+          `Use \`~use ${item.itemKey} <lion>\` to give that item to one of your lions.`
+        );
+        return true;
+      }
+
+      const result = await useLionTrainingItem(prisma, {
+        guildId: message.guildId,
+        userId: message.author.id,
+        itemKey,
+        lionQuery
+      });
+
+      await message.reply(formatUseLionTrainingItemMessage({ result }));
+      return true;
+    }
+
     if (!message.channel.isTextBased() || !("send" in message.channel)) {
       await message.reply(
         "That item can only be used in a server text channel."
@@ -203,7 +242,8 @@ export const handleLionCreatureMessage = async (
 
     if (
       item.effectType !== "SPAWN_BOOST" &&
-      item.effectType !== "RARITY_BOOST"
+      item.effectType !== "RARITY_BOOST" &&
+      item.effectType !== "LEVEL_BOOST"
     ) {
       await message.reply(
         `${item.name} does not have an active-use effect yet.`
@@ -222,13 +262,20 @@ export const handleLionCreatureMessage = async (
       now: message.createdAt
     });
 
-    if (!effect) {
+    if (effect.outcome === "no_item") {
       await message.reply(`You do not have any \`${item.itemKey}\` to use.`);
       return true;
     }
 
+    if (effect.outcome === "already_active") {
+      await message.reply(
+        `${item.name} is already active in this channel until ${effect.activeEffect?.expiresAt ? `<t:${Math.floor(effect.activeEffect.expiresAt.getTime() / 1000)}:R>` : "later"}.`
+      );
+      return true;
+    }
+
     await message.reply(
-      `${getDisplayName(message)} activated ${item.name} in this channel. It will affect future wild lion spawns for a while.`
+      `${getDisplayName(message)} activated ${item.name} in this channel until ${effect.effect?.expiresAt ? `<t:${Math.floor(effect.effect.expiresAt.getTime() / 1000)}:R>` : "later"}.`
     );
     return true;
   }
@@ -288,8 +335,16 @@ export const handleLionCreatureMessage = async (
       return true;
     }
 
+    const notableCatch =
+      (result.ownedLion?.level ?? result.spawn?.level ?? 1) >=
+        HIGH_LEVEL_WILD_LION_THRESHOLD ||
+      ["RARE", "EPIC", "LEGENDARY"].includes(
+        result.ownedLion?.species.rarity ?? result.spawn?.species.rarity ?? ""
+      );
+    const catchPrefix = notableCatch ? "Notable catch! " : "";
+
     await message.reply(
-      `${getDisplayName(message)} caught Lv. ${result.ownedLion?.level ?? result.spawn?.level ?? 1} ${result.ownedLion?.species.name ?? "a wild lion"} ${result.ownedLion?.species.publicId ? `\`${result.ownedLion.species.publicId}\`` : ""} with ${result.item?.name ?? "a ball"}.`
+      `${catchPrefix}${getDisplayName(message)} caught Lv. ${result.ownedLion?.level ?? result.spawn?.level ?? 1} ${result.ownedLion ? getOwnedLionDisplayName(result.ownedLion) : (result.spawn?.species.name ?? "a wild lion")} ${result.ownedLion?.species.publicId ? `\`${result.ownedLion.species.publicId}\`` : ""} with ${result.item?.name ?? "a ball"}.`
     );
     return true;
   }
@@ -310,6 +365,26 @@ export const handleLionCreatureMessage = async (
     });
 
     await message.reply(formatTrainLionMessage({ result }));
+    return true;
+  }
+
+  if (normalizedCommand === "~nickname") {
+    if (args.length < 2) {
+      await message.reply(
+        "Use `~nickname <lion id or code> <name>`. Use `clear` as the name to remove a nickname."
+      );
+      return true;
+    }
+
+    const nicknameInput = args.slice(1).join(" ");
+    const result = await setUserLionNickname(prisma, {
+      guildId: message.guildId,
+      userId: message.author.id,
+      query: args[0] ?? "",
+      nickname: nicknameInput.toLowerCase() === "clear" ? "" : nicknameInput
+    });
+
+    await message.reply(formatSetUserLionNicknameMessage(result));
     return true;
   }
 
@@ -391,6 +466,20 @@ export const handleLionCreatureMessage = async (
       return true;
     }
 
+    const battleCooldown = await getUserLionBattleCooldown(prisma, {
+      guildId: message.guildId,
+      challengerUserId: message.author.id,
+      opponentUserId: opponent.id,
+      now: message.createdAt
+    });
+
+    if (!battleCooldown.allowed && battleCooldown.cooldownEndsAt) {
+      await message.reply(
+        `One of these trainers battled recently. Try another team battle <t:${Math.floor(battleCooldown.cooldownEndsAt.getTime() / 1000)}:R>.`
+      );
+      return true;
+    }
+
     const battle = resolveAutoLionTeamBattle({
       firstTeam: challengerTeam.map((slot) => slot.lion),
       secondTeam: opponentTeam.map((slot) => slot.lion),
@@ -428,15 +517,68 @@ export const handleLionCreatureMessage = async (
         )
       )
     ]);
+    const firstDisplayName = getDisplayName(message);
+    const secondDisplayName =
+      message.mentions.members?.first()?.displayName ?? opponent.username;
+    const mvpLionId = getLionBattleMvpLionId(battle);
+    const mvpLion = mvpLionId ? (lionById.get(mvpLionId) ?? null) : null;
+    const winnerDisplayName =
+      battle.winnerSide === "first" ? firstDisplayName : secondDisplayName;
+    const loserDisplayName =
+      battle.loserSide === "first" ? firstDisplayName : secondDisplayName;
+
+    await recordLionBattle(prisma, {
+      guildId: message.guildId,
+      challengerUserId: message.author.id,
+      challengerDisplayName: firstDisplayName,
+      opponentUserId: opponent.id,
+      opponentDisplayName: secondDisplayName,
+      winnerUserId:
+        battle.winnerSide === "first" ? message.author.id : opponent.id,
+      winnerDisplayName,
+      loserUserId:
+        battle.loserSide === "first" ? message.author.id : opponent.id,
+      loserDisplayName,
+      winnerSide: battle.winnerSide,
+      challengerTeamLionIds: challengerTeam.map((slot) => slot.lion.id),
+      opponentTeamLionIds: opponentTeam.map((slot) => slot.lion.id),
+      participantLionIds: [
+        ...battle.participantLionIds.first,
+        ...battle.participantLionIds.second
+      ],
+      mvpLionId,
+      mvpLionName: mvpLion ? getOwnedLionDisplayName(mvpLion) : null,
+      roundsCount: battle.rounds.length,
+      createdAt: message.createdAt
+    });
 
     await message.reply(
       formatTeamBattleLionMessage({
         battle,
-        firstDisplayName: getDisplayName(message),
-        secondDisplayName:
-          message.mentions.members?.first()?.displayName ?? opponent.username,
+        firstDisplayName,
+        secondDisplayName,
         winnerRewards,
-        loserRewards
+        loserRewards,
+        mvpLion
+      })
+    );
+    return true;
+  }
+
+  if (normalizedCommand === "~battlehistory") {
+    const target = message.mentions.users.first();
+    const battles = await listRecentLionBattles(prisma, {
+      guildId: message.guildId,
+      userId: target?.id,
+      limit: 5
+    });
+
+    await message.reply(
+      formatLionBattleHistoryMessage({
+        battles,
+        displayName: target
+          ? (message.mentions.members?.first()?.displayName ?? target.username)
+          : undefined
       })
     );
     return true;
@@ -472,6 +614,16 @@ export const handleLionCreatureMessage = async (
     });
 
     await message.reply(formatTopLionsMessage({ entries }));
+    return true;
+  }
+
+  if (normalizedCommand === "~rarecatches") {
+    const entries = await listRecentNotableLionCatches(prisma, {
+      guildId: message.guildId,
+      limit: 10
+    });
+
+    await message.reply(formatRecentNotableLionCatchesMessage({ entries }));
     return true;
   }
 

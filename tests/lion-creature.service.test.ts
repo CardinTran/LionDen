@@ -2,20 +2,30 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   awardBattleLionExperience,
+  activateLionChannelEffect,
   attemptCatchWildLion,
   calculateCatchChance,
   chooseWeightedLionSpecies,
   clearUserLionTeam,
   createWildLionSpawn,
   generateWildLionSpawnLevel,
+  getOwnedLionDisplayName,
+  getUserLionBattleCooldown,
   listUserLionTeam,
   listTopOwnedLions,
+  listRecentNotableLionCatches,
   LION_BATTLE_WIN_XP,
   LION_TRAINING_XP,
+  LION_USER_BATTLE_COOLDOWN_MS,
   purchaseLionShopItem,
+  recordLionBattle,
+  setUserLionNickname,
   setUserLionTeam,
   trainUserLion,
+  useLionTrainingItem,
   type ActiveLionSpawnWithSpeciesRecord,
+  type LionBattleRecord,
+  type LionChannelEffectRecord,
   type LionShopItemRecord,
   type LionSpeciesRecord,
   type UserItemInventoryRecord,
@@ -101,6 +111,23 @@ const buildInventory = (
   ...overrides
 });
 
+const buildChannelEffect = (
+  overrides: Partial<LionChannelEffectRecord> = {}
+): LionChannelEffectRecord => ({
+  id: "effect_123",
+  guildId: "guild_123",
+  channelId: "channel_123",
+  itemKey: "rare-lure",
+  effectType: "RARITY_BOOST",
+  effectValue: 10,
+  activatedByUserId: "user_123",
+  activatedAt: now,
+  expiresAt: new Date(now.getTime() + 30 * 60_000),
+  createdAt: now,
+  updatedAt: now,
+  ...overrides
+});
+
 const buildSpawn = (
   overrides: Partial<ActiveLionSpawnWithSpeciesRecord> = {}
 ): ActiveLionSpawnWithSpeciesRecord => ({
@@ -162,6 +189,30 @@ const buildTeamSlot = (
   };
 };
 
+const buildBattleRecord = (
+  overrides: Partial<LionBattleRecord> = {}
+): LionBattleRecord => ({
+  id: "battle_123",
+  guildId: "guild_123",
+  challengerUserId: "user_123",
+  challengerDisplayName: "Cardin",
+  opponentUserId: "user_456",
+  opponentDisplayName: "Mira",
+  winnerUserId: "user_123",
+  winnerDisplayName: "Cardin",
+  loserUserId: "user_456",
+  loserDisplayName: "Mira",
+  winnerSide: "first",
+  challengerTeamLionIds: JSON.stringify(["owned_123"]),
+  opponentTeamLionIds: JSON.stringify(["owned_456"]),
+  participantLionIds: JSON.stringify(["owned_123", "owned_456"]),
+  mvpLionId: "owned_123",
+  mvpLionName: "RDL Lion 001",
+  roundsCount: 4,
+  createdAt: now,
+  ...overrides
+});
+
 describe("lion creature service", () => {
   it("clamps catch chance into a playable range", () => {
     expect(
@@ -213,6 +264,25 @@ describe("lion creature service", () => {
     expect(generateWildLionSpawnLevel({ random })).toBe(1);
     expect(generateWildLionSpawnLevel({ random })).toBe(11);
     expect(generateWildLionSpawnLevel({ random })).toBe(50);
+  });
+
+  it("applies level lure bonuses while clamping wild lion levels", () => {
+    const rolls = [0, 0.5, 0.95, 0.999];
+    let index = 0;
+    const random = (): number => rolls[index++] ?? 0;
+
+    expect(
+      generateWildLionSpawnLevel({
+        random,
+        levelBonus: 8
+      })
+    ).toBe(14);
+    expect(
+      generateWildLionSpawnLevel({
+        random,
+        levelBonus: 8
+      })
+    ).toBe(50);
   });
 
   it("purchases shop items with coins and adds inventory", async () => {
@@ -271,6 +341,85 @@ describe("lion creature service", () => {
     expect(result.inventory?.quantity).toBe(2);
   });
 
+  it("activates a channel effect after consuming one item", async () => {
+    const create = vi.fn().mockResolvedValue(
+      buildChannelEffect({
+        effectType: "LEVEL_BOOST",
+        itemKey: "level-lure"
+      })
+    );
+    const inventoryUpdate = vi.fn().mockResolvedValue({ count: 1 });
+
+    const result = await activateLionChannelEffect(
+      {
+        lionChannelEffect: {
+          findFirst: vi.fn().mockResolvedValue(null),
+          create
+        },
+        userItemInventory: {
+          findUnique: vi.fn().mockResolvedValue(
+            buildInventory({
+              itemKey: "level-lure",
+              quantity: 1
+            })
+          ),
+          updateMany: inventoryUpdate
+        }
+      } as never,
+      {
+        guildId: "guild_123",
+        channelId: "channel_123",
+        userId: "user_123",
+        itemKey: "level-lure",
+        effectType: "LEVEL_BOOST",
+        effectValue: 8,
+        durationMinutes: 45,
+        now
+      }
+    );
+
+    expect(result.outcome).toBe("activated");
+    expect(inventoryUpdate).toHaveBeenCalled();
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          effectType: "LEVEL_BOOST",
+          effectValue: 8
+        })
+      })
+    );
+  });
+
+  it("does not consume a lure while the same effect is already active", async () => {
+    const inventoryUpdate = vi.fn();
+
+    const result = await activateLionChannelEffect(
+      {
+        lionChannelEffect: {
+          findFirst: vi.fn().mockResolvedValue(buildChannelEffect()),
+          create: vi.fn()
+        },
+        userItemInventory: {
+          findUnique: vi.fn(),
+          updateMany: inventoryUpdate
+        }
+      } as never,
+      {
+        guildId: "guild_123",
+        channelId: "channel_123",
+        userId: "user_123",
+        itemKey: "rare-lure",
+        effectType: "RARITY_BOOST",
+        effectValue: 10,
+        durationMinutes: 45,
+        now
+      }
+    );
+
+    expect(result.outcome).toBe("already_active");
+    expect(inventoryUpdate).not.toHaveBeenCalled();
+  });
+
   it("creates a wild spawn when the channel has no active spawn", async () => {
     const spawn = buildSpawn();
     const updateMany = vi.fn().mockResolvedValue({ count: 0 });
@@ -285,7 +434,7 @@ describe("lion creature service", () => {
           create
         },
         lionChannelEffect: {
-          findFirst: vi.fn().mockResolvedValue(null)
+          findMany: vi.fn().mockResolvedValue([])
         },
         lionSpecies: {
           findMany: vi.fn().mockResolvedValue([buildSpecies()])
@@ -309,6 +458,50 @@ describe("lion creature service", () => {
     );
   });
 
+  it("uses active level lure effects when creating wild spawns", async () => {
+    const create = vi.fn().mockResolvedValue(
+      buildSpawn({
+        level: 9
+      })
+    );
+
+    const result = await createWildLionSpawn(
+      {
+        activeLionSpawn: {
+          updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+          findFirst: vi.fn().mockResolvedValue(null),
+          create
+        },
+        lionChannelEffect: {
+          findMany: vi.fn().mockResolvedValue([
+            buildChannelEffect({
+              effectType: "LEVEL_BOOST",
+              effectValue: 8
+            })
+          ])
+        },
+        lionSpecies: {
+          findMany: vi.fn().mockResolvedValue([buildSpecies()])
+        }
+      } as never,
+      {
+        guildId: "guild_123",
+        channelId: "channel_123",
+        now,
+        random: () => 0
+      }
+    );
+
+    expect(result.outcome).toBe("spawned");
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          level: 9
+        })
+      })
+    );
+  });
+
   it("does not create a second wild spawn in the same active channel", async () => {
     const activeSpawn = buildSpawn();
 
@@ -320,7 +513,7 @@ describe("lion creature service", () => {
           create: vi.fn()
         },
         lionChannelEffect: {
-          findFirst: vi.fn().mockResolvedValue(null)
+          findMany: vi.fn().mockResolvedValue([])
         },
         lionSpecies: {
           findMany: vi.fn()
@@ -532,6 +725,110 @@ describe("lion creature service", () => {
 
     expect(result.outcome).toBe("on_cooldown");
     expect(result.cooldownEndsAt?.getTime()).toBeGreaterThan(now.getTime());
+  });
+
+  it("updates owned lion nicknames with validation", async () => {
+    const updatedLion = buildOwnedLion({
+      nickname: "Moon Step"
+    });
+    const update = vi.fn().mockResolvedValue(updatedLion);
+
+    const result = await setUserLionNickname(
+      {
+        userLion: {
+          findMany: vi.fn().mockResolvedValue([buildOwnedLion()]),
+          update
+        }
+      } as never,
+      {
+        guildId: "guild_123",
+        userId: "user_123",
+        query: "L001",
+        nickname: "  Moon   Step "
+      }
+    );
+
+    expect(result.outcome).toBe("updated");
+    expect(result.normalizedNickname).toBe("Moon Step");
+    expect(getOwnedLionDisplayName(result.lion ?? updatedLion)).toBe(
+      "Moon Step (RDL Lion 001)"
+    );
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          nickname: "Moon Step"
+        }
+      })
+    );
+  });
+
+  it("rejects nicknames that could create mentions or noisy output", async () => {
+    const result = await setUserLionNickname(
+      {
+        userLion: {
+          findMany: vi.fn().mockResolvedValue([buildOwnedLion()]),
+          update: vi.fn()
+        }
+      } as never,
+      {
+        guildId: "guild_123",
+        userId: "user_123",
+        query: "L001",
+        nickname: "@everyone"
+      }
+    );
+
+    expect(result.outcome).toBe("invalid");
+  });
+
+  it("uses training snack inventory to award lion XP without training cooldown", async () => {
+    const update = vi.fn().mockResolvedValue(
+      buildOwnedLion({
+        experience: 60
+      })
+    );
+    const inventoryUpdate = vi.fn().mockResolvedValue({ count: 1 });
+
+    const result = await useLionTrainingItem(
+      {
+        lionShopItemDefinition: {
+          findUnique: vi.fn().mockResolvedValue(
+            buildItem({
+              itemKey: "training-snack",
+              name: "Training Snack",
+              category: "UTILITY",
+              effectType: "TRAINING_XP",
+              effectValue: 60
+            })
+          )
+        },
+        userItemInventory: {
+          updateMany: inventoryUpdate
+        },
+        userLion: {
+          findMany: vi.fn().mockResolvedValue([buildOwnedLion()]),
+          update
+        }
+      } as never,
+      {
+        guildId: "guild_123",
+        userId: "user_123",
+        itemKey: "training-snack",
+        lionQuery: "L001"
+      }
+    );
+
+    expect(result.outcome).toBe("used");
+    expect(result.result?.gainedExperience).toBe(60);
+    expect(inventoryUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          quantity: {
+            decrement: 1
+          }
+        }
+      })
+    );
   });
 
   it("sets a user's battle team in requested order", async () => {
@@ -746,6 +1043,39 @@ describe("lion creature service", () => {
     expect(entries[1].ownerDisplayName).toBe("Profile Name");
   });
 
+  it("lists recent notable catches from caught spawn history", async () => {
+    const rareCatch = buildSpawn({
+      id: "spawn_rare",
+      status: "CAUGHT",
+      level: 5,
+      caughtByDisplayName: "Rare Hunter",
+      caughtAt: now,
+      species: buildSpecies({
+        rarity: "RARE"
+      })
+    });
+
+    const entries = await listRecentNotableLionCatches(
+      {
+        activeLionSpawn: {
+          findMany: vi.fn().mockResolvedValue([rareCatch])
+        }
+      } as never,
+      {
+        guildId: "guild_123",
+        limit: 5
+      }
+    );
+
+    expect(entries).toEqual([
+      {
+        rank: 1,
+        spawn: rareCatch,
+        caughtByDisplayName: "Rare Hunter"
+      }
+    ]);
+  });
+
   it("awards battle XP and stores the battle cooldown", async () => {
     const updatedLion = buildOwnedLion({
       experience: LION_BATTLE_WIN_XP,
@@ -773,6 +1103,73 @@ describe("lion creature service", () => {
         data: expect.objectContaining({
           experience: LION_BATTLE_WIN_XP,
           lastBattledAt: now
+        })
+      })
+    );
+  });
+
+  it("detects recent battle cooldowns across both battle users", async () => {
+    const recentBattle = buildBattleRecord({
+      createdAt: new Date(now.getTime() - 60_000)
+    });
+
+    const result = await getUserLionBattleCooldown(
+      {
+        lionBattleRecord: {
+          findFirst: vi.fn().mockResolvedValue(recentBattle)
+        }
+      } as never,
+      {
+        guildId: "guild_123",
+        challengerUserId: "user_123",
+        opponentUserId: "user_456",
+        now
+      }
+    );
+
+    expect(result.allowed).toBe(false);
+    expect(result.cooldownEndsAt?.getTime()).toBe(
+      recentBattle.createdAt.getTime() + LION_USER_BATTLE_COOLDOWN_MS
+    );
+  });
+
+  it("records team battle summaries for history boards", async () => {
+    const create = vi.fn().mockResolvedValue(buildBattleRecord());
+
+    const result = await recordLionBattle(
+      {
+        lionBattleRecord: {
+          create
+        }
+      } as never,
+      {
+        guildId: "guild_123",
+        challengerUserId: "user_123",
+        challengerDisplayName: "Cardin",
+        opponentUserId: "user_456",
+        opponentDisplayName: "Mira",
+        winnerUserId: "user_123",
+        winnerDisplayName: "Cardin",
+        loserUserId: "user_456",
+        loserDisplayName: "Mira",
+        winnerSide: "first",
+        challengerTeamLionIds: ["owned_123"],
+        opponentTeamLionIds: ["owned_456"],
+        participantLionIds: ["owned_123", "owned_456"],
+        mvpLionId: "owned_123",
+        mvpLionName: "RDL Lion 001",
+        roundsCount: 4,
+        createdAt: now
+      }
+    );
+
+    expect(result.id).toBe("battle_123");
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          challengerTeamLionIds: JSON.stringify(["owned_123"]),
+          participantLionIds: JSON.stringify(["owned_123", "owned_456"]),
+          roundsCount: 4
         })
       })
     );

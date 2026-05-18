@@ -22,7 +22,9 @@ export type LionItemEffectTypeValue =
   | "CATCH_MODIFIER"
   | "SPAWN_BOOST"
   | "RARITY_BOOST"
-  | "TYPE_ATTRACTOR";
+  | "TYPE_ATTRACTOR"
+  | "LEVEL_BOOST"
+  | "TRAINING_XP";
 
 export interface LionSpeciesSeed {
   publicId: string;
@@ -226,7 +228,8 @@ export const DEFAULT_LION_SHOP_ITEMS: LionShopItemSeed[] = [
     priceCoins: 50,
     effectType: "SPAWN_BOOST",
     effectValue: 20,
-    description: "A future spawn modifier for increasing wild lion activity."
+    description:
+      "Marks this channel as a preferred target for the next automated wild lion spawn."
   },
   {
     itemKey: "rare-lure",
@@ -236,6 +239,26 @@ export const DEFAULT_LION_SHOP_ITEMS: LionShopItemSeed[] = [
     effectType: "RARITY_BOOST",
     effectValue: 10,
     description:
-      "A future spawn modifier for nudging wild spawns toward rarer lions."
+      "Boosts rare, epic, and legendary spawn weights in this channel."
+  },
+  {
+    itemKey: "level-lure",
+    name: "Level Lure",
+    category: "SPAWN_MODIFIER",
+    priceCoins: 90,
+    effectType: "LEVEL_BOOST",
+    effectValue: 8,
+    description:
+      "Raises wild lion encounter levels in this channel for a limited time."
+  },
+  {
+    itemKey: "training-snack",
+    name: "Training Snack",
+    category: "UTILITY",
+    priceCoins: 40,
+    effectType: "TRAINING_XP",
+    effectValue: 60,
+    description:
+      "A consumable treat that gives one owned lion bonus XP without waiting for training cooldown."
   }
 ];

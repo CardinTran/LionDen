@@ -10,6 +10,8 @@ describe("botadmin command", () => {
     expect(botAdminCommandJson.name).toBe("botadmin");
     expect(botAdminCommandJson.options?.map((option) => option.name)).toEqual([
       "status",
+      "health",
+      "reloadpresence",
       "maintenance"
     ]);
   });

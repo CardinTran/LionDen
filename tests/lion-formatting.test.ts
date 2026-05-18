@@ -7,6 +7,9 @@ describe("lion formatting", () => {
     const message = formatLionHelpMessage();
 
     expect(message).toContain("~toplions");
+    expect(message).toContain("~nickname");
+    expect(message).toContain("~battlehistory");
+    expect(message).toContain("~rarecatches");
     expect(message).not.toContain("/lionadmin");
     expect(message).not.toContain("Admin command");
   });
