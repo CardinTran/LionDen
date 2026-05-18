@@ -51,6 +51,16 @@ export const botAdminCommand: SlashCommand = {
     )
     .addSubcommand((subcommand) =>
       subcommand
+        .setName("health")
+        .setDescription("Run a lightweight bot health check.")
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("reloadpresence")
+        .setDescription("Re-apply LionDen's Discord presence.")
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
         .setName("maintenance")
         .setDescription("Enable or disable maintenance mode.")
         .addBooleanOption((option) =>
@@ -88,6 +98,37 @@ export const botAdminCommand: SlashCommand = {
 
       await interaction.reply({
         content: formatBotAdminStatusMessage(config),
+        ephemeral: true
+      });
+      return;
+    }
+
+    if (subcommand === "health") {
+      const config = await ensureBotGuildConfig(prisma, {
+        guildId
+      });
+
+      await interaction.reply({
+        content: [
+          "LionDen health",
+          "Database: reachable",
+          `Maintenance mode: ${config.maintenanceMode ? "enabled" : "disabled"}`,
+          `Client ready: ${interaction.client.isReady() ? "yes" : "no"}`
+        ].join("\n"),
+        ephemeral: true
+      });
+      return;
+    }
+
+    if (subcommand === "reloadpresence") {
+      const config = await ensureBotGuildConfig(prisma, {
+        guildId
+      });
+
+      applyBotPresence(interaction.client, config);
+
+      await interaction.reply({
+        content: "Presence reloaded.",
         ephemeral: true
       });
       return;

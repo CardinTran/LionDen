@@ -318,6 +318,16 @@ else:
 This keeps most encounters approachable while still giving the server occasional
 high-level spawns worth reacting to.
 
+Level lures add their item `effectValue` to the generated level and clamp the
+result at level `50`.
+
+```text
+spawnLevel = clamp(baseGeneratedLevel + levelLureBonus, 1, 50)
+```
+
+Officer-forced event drops can also provide a temporary min/max level range for
+that one spawn.
+
 ### Species Catch Chance
 
 Catch chance is based on:
@@ -350,6 +360,21 @@ Only one active wild lion may exist in a channel at a time.
 
 If a channel already has an active spawn, a new one is not created there yet.
 
+Activity lures do not make the global scheduler fire immediately. They mark the
+channel as preferred when the next automated spawn is due. This keeps spawns
+conservative for the current small lion pool while giving users a meaningful way
+to spend coins together.
+
+Rare lures multiply species spawn weights by rarity:
+
+```text
+LEGENDARY: weight *= 1 + effectValue / 10
+EPIC:      weight *= 1 + effectValue / 20
+RARE:      weight *= 1 + effectValue / 30
+UNCOMMON:  weight *= 1 + effectValue / 60
+COMMON:    unchanged
+```
+
 ### Catch Consumption
 
 The current implementation consumes the selected ball item on attempt.
@@ -368,6 +393,20 @@ Current catch outcomes:
 - `not_a_ball`
 - `no_item`
 - `already_caught`
+
+## 8.5. Lion Item Effects
+
+Current fully implemented utility effects:
+
+- `CATCH_MODIFIER`: used by ball items during `~catch`
+- `SPAWN_BOOST`: makes a channel preferred for the next automated spawn while active
+- `RARITY_BOOST`: raises rare spawn weights in that channel while active
+- `LEVEL_BOOST`: raises generated wild encounter levels in that channel while active
+- `TRAINING_XP`: consumes the item and awards XP to one owned lion
+
+Channel effects expire by timestamp and are cleaned before reads. The same
+effect type cannot be activated twice in the same channel at the same time, so a
+user cannot accidentally waste a second lure while the first one is still active.
 
 ## 8. Lion Shop Math
 
@@ -641,6 +680,27 @@ If the same owned lion is still on battle XP cooldown, the battle can still reso
 ```text
 battleXpAvailableAt = lastBattledAt + 10 minutes
 ```
+
+### Team Battle Start Cooldown
+
+Team battles now also record a compact persistent battle summary. Before a new
+team battle starts, LionDen checks whether either participant has a recent battle
+record in the current guild.
+
+```text
+LION_USER_BATTLE_COOLDOWN_MS = 5 minutes
+
+if latestBattleForEitherUser.createdAt > now - 5 minutes:
+  block the new battle start
+```
+
+This cooldown limits public battle spam while keeping the current auto-resolved
+team battle flow simple.
+
+### Battle MVP
+
+The battle MVP is the participating lion with the highest total damage dealt.
+Ties are broken by owned-lion ID for deterministic output.
 
 ## 12. Lion Board Ranking Math
 

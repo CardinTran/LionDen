@@ -528,3 +528,43 @@ export const resolveAutoLionTeamBattle = (input: {
     }
   };
 };
+
+export const getLionBattleDamageByLion = (
+  rounds: Pick<LionBattleRound, "attackerLionId" | "damage">[]
+): Map<string, number> => {
+  const damageByLionId = new Map<string, number>();
+
+  for (const round of rounds) {
+    damageByLionId.set(
+      round.attackerLionId,
+      (damageByLionId.get(round.attackerLionId) ?? 0) + round.damage
+    );
+  }
+
+  return damageByLionId;
+};
+
+export const getLionBattleMvpLionId = (
+  result: Pick<LionTeamAutoBattleResult, "rounds" | "participantLionIds">
+): string | null => {
+  const damageByLionId = getLionBattleDamageByLion(result.rounds);
+  const participants = [
+    ...result.participantLionIds.first,
+    ...result.participantLionIds.second
+  ];
+
+  return (
+    participants
+      .map((lionId) => ({
+        lionId,
+        damage: damageByLionId.get(lionId) ?? 0
+      }))
+      .sort((first, second) => {
+        if (second.damage !== first.damage) {
+          return second.damage - first.damage;
+        }
+
+        return first.lionId.localeCompare(second.lionId);
+      })[0]?.lionId ?? null
+  );
+};

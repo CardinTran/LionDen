@@ -9,17 +9,26 @@ import {
 import {
   DEFAULT_LION_SPAWN_MAX_INTERVAL_MINUTES,
   DEFAULT_LION_SPAWN_MIN_INTERVAL_MINUTES,
+  clearActiveLionChannelEffects,
+  clearActiveWildLionSpawns,
   configureLionSpawnConfig,
   ensureLionSpawnConfig,
   generateNextLionSpawnAt,
   getLionSpawnConfig,
+  grantLionItem,
+  listActiveLionChannelEffects,
   listActiveWildLionSpawns,
+  setLionShopItemEnabled,
+  setLionSpeciesEnabled,
   setLionSpawnConfigEnabled,
   syncDefaultLionData,
+  tuneLionShopItem,
+  tuneLionSpecies,
   type LionSpawnConfigRecord
 } from "../../features/lions/lion-creature.service.js";
 import { postWildLionSpawnToChannel } from "../../features/lions/lion-spawn-scheduler.js";
 import { formatDiscordTimestamp } from "../../features/lions/lion-formatting.js";
+import type { LionRarityValue } from "../../features/lions/lion-seed-data.js";
 import { prisma } from "../../lib/prisma.js";
 import type { SlashCommand } from "./ping.js";
 
@@ -40,6 +49,7 @@ const requireManageGuild = async (
 const formatLionAdminStatusMessage = (input: {
   config: LionSpawnConfigRecord | null;
   activeSpawns: Awaited<ReturnType<typeof listActiveWildLionSpawns>>;
+  activeEffects: Awaited<ReturnType<typeof listActiveLionChannelEffects>>;
 }): string => {
   const lines = ["Lion creature admin status"];
 
@@ -68,6 +78,19 @@ const formatLionAdminStatusMessage = (input: {
         .map(
           (spawn) =>
             `Lv. ${spawn.level} ${spawn.species.name} \`${spawn.species.publicId}\` in <#${spawn.channelId}>`
+        )
+        .join(", ")}`
+    );
+  }
+
+  if (input.activeEffects.length === 0) {
+    lines.push("Active channel effects: none");
+  } else {
+    lines.push(
+      `Active channel effects: ${input.activeEffects
+        .map(
+          (effect) =>
+            `${effect.effectType} \`${effect.itemKey}\` in <#${effect.channelId}> until ${formatDiscordTimestamp(effect.expiresAt)}`
         )
         .join(", ")}`
     );
@@ -111,6 +134,164 @@ export const lionAdminCommand: SlashCommand = {
       subcommand
         .setName("dropnow")
         .setDescription("Force one wild lion spawn in this channel.")
+        .addStringOption((option) =>
+          option
+            .setName("species")
+            .setDescription("Optional species public ID, such as L001.")
+            .setMaxLength(16)
+        )
+        .addStringOption((option) =>
+          option
+            .setName("rarity")
+            .setDescription("Optional rarity for event drops.")
+            .addChoices(
+              { name: "Common", value: "COMMON" },
+              { name: "Uncommon", value: "UNCOMMON" },
+              { name: "Rare", value: "RARE" },
+              { name: "Epic", value: "EPIC" },
+              { name: "Legendary", value: "LEGENDARY" }
+            )
+        )
+        .addIntegerOption((option) =>
+          option
+            .setName("min_level")
+            .setDescription("Optional minimum encounter level.")
+            .setMinValue(1)
+            .setMaxValue(50)
+        )
+        .addIntegerOption((option) =>
+          option
+            .setName("max_level")
+            .setDescription("Optional maximum encounter level.")
+            .setMinValue(1)
+            .setMaxValue(50)
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("clearspawn")
+        .setDescription("Expire active wild lion spawns in this channel.")
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("cleareffects")
+        .setDescription("Clear active lion item effects in this channel.")
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("grantitem")
+        .setDescription("Grant a lion item to a member.")
+        .addUserOption((option) =>
+          option
+            .setName("user")
+            .setDescription("Member receiving the item.")
+            .setRequired(true)
+        )
+        .addStringOption((option) =>
+          option
+            .setName("item")
+            .setDescription("Lion item key, such as basic-ball.")
+            .setRequired(true)
+        )
+        .addIntegerOption((option) =>
+          option
+            .setName("quantity")
+            .setDescription("Quantity to grant.")
+            .setRequired(true)
+            .setMinValue(1)
+            .setMaxValue(99)
+        )
+    )
+    .addSubcommandGroup((group) =>
+      group
+        .setName("species")
+        .setDescription("Enable or tune lion species.")
+        .addSubcommand((subcommand) =>
+          subcommand
+            .setName("enable")
+            .setDescription("Enable or disable a lion species.")
+            .addStringOption((option) =>
+              option
+                .setName("species")
+                .setDescription("Species public ID or slug.")
+                .setRequired(true)
+            )
+            .addBooleanOption((option) =>
+              option
+                .setName("enabled")
+                .setDescription("Whether this species can spawn.")
+                .setRequired(true)
+            )
+        )
+        .addSubcommand((subcommand) =>
+          subcommand
+            .setName("tune")
+            .setDescription("Tune catch rate or spawn weight for a species.")
+            .addStringOption((option) =>
+              option
+                .setName("species")
+                .setDescription("Species public ID or slug.")
+                .setRequired(true)
+            )
+            .addIntegerOption((option) =>
+              option
+                .setName("spawn_weight")
+                .setDescription("Spawn weight, 0 disables natural selection.")
+                .setMinValue(0)
+            )
+            .addIntegerOption((option) =>
+              option
+                .setName("catch_rate")
+                .setDescription("Base catch rate from 5 to 95.")
+                .setMinValue(5)
+                .setMaxValue(95)
+            )
+        )
+    )
+    .addSubcommandGroup((group) =>
+      group
+        .setName("item")
+        .setDescription("Enable or tune lion shop items.")
+        .addSubcommand((subcommand) =>
+          subcommand
+            .setName("enable")
+            .setDescription("Enable or disable a lion shop item.")
+            .addStringOption((option) =>
+              option
+                .setName("item")
+                .setDescription("Item key.")
+                .setRequired(true)
+            )
+            .addBooleanOption((option) =>
+              option
+                .setName("enabled")
+                .setDescription("Whether members can buy or use the item.")
+                .setRequired(true)
+            )
+        )
+        .addSubcommand((subcommand) =>
+          subcommand
+            .setName("tune")
+            .setDescription("Tune price or effect value for an item.")
+            .addStringOption((option) =>
+              option
+                .setName("item")
+                .setDescription("Item key.")
+                .setRequired(true)
+            )
+            .addIntegerOption((option) =>
+              option
+                .setName("price")
+                .setDescription("Coin price.")
+                .setMinValue(0)
+            )
+            .addIntegerOption((option) =>
+              option
+                .setName("effect_value")
+                .setDescription("Item effect value.")
+                .setMinValue(0)
+            )
+        )
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -146,8 +327,85 @@ export const lionAdminCommand: SlashCommand = {
 
     await syncDefaultLionData(prisma);
 
+    const subcommandGroup = interaction.options.getSubcommandGroup(false);
     const subcommand = interaction.options.getSubcommand(true);
     const now = new Date();
+
+    if (subcommandGroup === "species") {
+      const species = interaction.options.getString("species", true);
+
+      if (subcommand === "enable") {
+        const enabled = interaction.options.getBoolean("enabled", true);
+        const result = await setLionSpeciesEnabled(prisma, {
+          publicIdOrSlug: species,
+          enabled
+        });
+
+        await interaction.reply({
+          content:
+            result.outcome === "updated" && result.record
+              ? `${result.record.name} \`${result.record.publicId}\` is now ${enabled ? "enabled" : "disabled"}.`
+              : `I could not find species \`${species}\`.`,
+          ephemeral: true
+        });
+        return;
+      }
+
+      if (subcommand === "tune") {
+        const result = await tuneLionSpecies(prisma, {
+          publicIdOrSlug: species,
+          spawnWeight: interaction.options.getInteger("spawn_weight"),
+          baseCatchRate: interaction.options.getInteger("catch_rate")
+        });
+
+        await interaction.reply({
+          content:
+            result.outcome === "updated" && result.record
+              ? `${result.record.name} \`${result.record.publicId}\` tuned. Spawn weight: ${result.record.spawnWeight}. Catch rate: ${result.record.baseCatchRate}.`
+              : result.error ?? `I could not find species \`${species}\`.`,
+          ephemeral: true
+        });
+        return;
+      }
+    }
+
+    if (subcommandGroup === "item") {
+      const item = interaction.options.getString("item", true);
+
+      if (subcommand === "enable") {
+        const enabled = interaction.options.getBoolean("enabled", true);
+        const result = await setLionShopItemEnabled(prisma, {
+          itemKey: item,
+          enabled
+        });
+
+        await interaction.reply({
+          content:
+            result.outcome === "updated" && result.record
+              ? `${result.record.name} \`${result.record.itemKey}\` is now ${enabled ? "enabled" : "disabled"}.`
+              : `I could not find item \`${item}\`.`,
+          ephemeral: true
+        });
+        return;
+      }
+
+      if (subcommand === "tune") {
+        const result = await tuneLionShopItem(prisma, {
+          itemKey: item,
+          priceCoins: interaction.options.getInteger("price"),
+          effectValue: interaction.options.getInteger("effect_value")
+        });
+
+        await interaction.reply({
+          content:
+            result.outcome === "updated" && result.record
+              ? `${result.record.name} \`${result.record.itemKey}\` tuned. Price: ${result.record.priceCoins}. Effect value: ${result.record.effectValue}.`
+              : result.error ?? `I could not find item \`${item}\`.`,
+          ephemeral: true
+        });
+        return;
+      }
+    }
 
     if (subcommand === "configure") {
       const currentConfig = await getLionSpawnConfig(prisma, guildId);
@@ -207,6 +465,8 @@ export const lionAdminCommand: SlashCommand = {
 
     if (subcommand === "dropnow") {
       const channel = interaction.channel;
+      const minLevel = interaction.options.getInteger("min_level");
+      const maxLevel = interaction.options.getInteger("max_level");
 
       if (
         !channel ||
@@ -245,7 +505,11 @@ export const lionAdminCommand: SlashCommand = {
       const spawn = await postWildLionSpawnToChannel(channel, {
         guildId,
         now,
-        random: Math.random
+        random: Math.random,
+        speciesPublicId: interaction.options.getString("species"),
+        rarity: interaction.options.getString("rarity") as LionRarityValue | null,
+        minLevel,
+        maxLevel
       });
 
       if (!spawn || spawn.channelId !== channel.id) {
@@ -262,10 +526,90 @@ export const lionAdminCommand: SlashCommand = {
       return;
     }
 
+    if (subcommand === "clearspawn") {
+      const channel = interaction.channel;
+
+      if (!channel || channel.type === ChannelType.DM) {
+        await interaction.reply({
+          content: "Use this command from the server channel to clear.",
+          ephemeral: true
+        });
+        return;
+      }
+
+      const clearedCount = await clearActiveWildLionSpawns(prisma, {
+        guildId,
+        channelId: channel.id
+      });
+
+      await interaction.reply({
+        content:
+          clearedCount === 0
+            ? "There were no active wild lion spawns to clear in this channel."
+            : `Cleared ${clearedCount} active wild lion spawn${clearedCount === 1 ? "" : "s"} in this channel.`,
+        ephemeral: true
+      });
+      return;
+    }
+
+    if (subcommand === "cleareffects") {
+      const channel = interaction.channel;
+
+      if (!channel || channel.type === ChannelType.DM) {
+        await interaction.reply({
+          content: "Use this command from the server channel to clear.",
+          ephemeral: true
+        });
+        return;
+      }
+
+      const clearedCount = await clearActiveLionChannelEffects(prisma, {
+        guildId,
+        channelId: channel.id,
+        now
+      });
+
+      await interaction.reply({
+        content:
+          clearedCount === 0
+            ? "There were no active lion item effects to clear in this channel."
+            : `Cleared ${clearedCount} active lion item effect${clearedCount === 1 ? "" : "s"} in this channel.`,
+        ephemeral: true
+      });
+      return;
+    }
+
+    if (subcommand === "grantitem") {
+      const user = interaction.options.getUser("user", true);
+      const member = interaction.guild?.members.cache.get(user.id);
+      const itemKey = interaction.options.getString("item", true);
+      const quantity = interaction.options.getInteger("quantity", true);
+      const result = await grantLionItem(prisma, {
+        guildId,
+        userId: user.id,
+        displayName: member?.displayName ?? user.username,
+        itemKey,
+        quantity
+      });
+
+      await interaction.reply({
+        content:
+          result.outcome === "granted" && result.item
+            ? `Granted ${quantity} ${result.item.name} to ${member?.displayName ?? user.username}.`
+            : `I could not find item \`${itemKey}\`.`,
+        ephemeral: true
+      });
+      return;
+    }
+
     if (subcommand === "status") {
-      const [config, activeSpawns] = await Promise.all([
+      const [config, activeSpawns, activeEffects] = await Promise.all([
         getLionSpawnConfig(prisma, guildId),
         listActiveWildLionSpawns(prisma, {
+          guildId,
+          now
+        }),
+        listActiveLionChannelEffects(prisma, {
           guildId,
           now
         })
@@ -274,7 +618,8 @@ export const lionAdminCommand: SlashCommand = {
       await interaction.reply({
         content: formatLionAdminStatusMessage({
           config,
-          activeSpawns
+          activeSpawns,
+          activeEffects
         }),
         ephemeral: true
       });

@@ -6,6 +6,8 @@ import {
 import {
   DEFAULT_LION_SHOP_ITEMS,
   DEFAULT_LION_SPECIES,
+  type LionItemEffectTypeValue,
+  type LionRarityValue,
   type LionShopItemSeed,
   type LionSpeciesSeed
 } from "./lion-seed-data.js";
@@ -119,13 +121,36 @@ export interface LionChannelEffectRecord {
     | "CATCH_MODIFIER"
     | "SPAWN_BOOST"
     | "RARITY_BOOST"
-    | "TYPE_ATTRACTOR";
+    | "TYPE_ATTRACTOR"
+    | "LEVEL_BOOST"
+    | "TRAINING_XP";
   effectValue: number;
   activatedByUserId: string;
   activatedAt: Date;
   expiresAt: Date;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface LionBattleRecord {
+  id: string;
+  guildId: string;
+  challengerUserId: string;
+  challengerDisplayName: string;
+  opponentUserId: string;
+  opponentDisplayName: string;
+  winnerUserId: string;
+  winnerDisplayName: string;
+  loserUserId: string;
+  loserDisplayName: string;
+  winnerSide: string;
+  challengerTeamLionIds: string;
+  opponentTeamLionIds: string;
+  participantLionIds: string;
+  mvpLionId: string | null;
+  mvpLionName: string | null;
+  roundsCount: number;
+  createdAt: Date;
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -138,6 +163,7 @@ interface LionCreatureStore {
   userLionTeamSlot: any;
   lionSpawnConfig: any;
   lionChannelEffect: any;
+  lionBattleRecord: any;
   userProfile: {
     upsert(args: {
       where: {
@@ -190,6 +216,12 @@ export interface PurchaseLionShopItemResult {
   profile: UserProfileRecord;
 }
 
+export interface ActivateLionChannelEffectResult {
+  outcome: "activated" | "no_item" | "already_active";
+  effect: LionChannelEffectRecord | null;
+  activeEffect: LionChannelEffectRecord | null;
+}
+
 export interface CreateWildLionSpawnResult {
   outcome: "spawned" | "active_spawn_exists" | "no_species";
   spawn: ActiveLionSpawnWithSpeciesRecord | null;
@@ -225,6 +257,18 @@ export interface TrainUserLionResult {
   cooldownEndsAt: Date | null;
 }
 
+export interface UseLionTrainingItemResult {
+  outcome:
+    | "used"
+    | "lion_not_found"
+    | "item_not_found"
+    | "not_training_item"
+    | "no_item";
+  item: LionShopItemRecord | null;
+  result: LionExperienceAwardResult | null;
+  failedQuery: string | null;
+}
+
 export interface AwardBattleLionExperienceResult {
   outcome: "awarded" | "on_cooldown";
   result: LionExperienceAwardResult | null;
@@ -249,6 +293,57 @@ export interface TopLionBoardEntry {
   score: number;
 }
 
+export interface SetUserLionNicknameResult {
+  outcome: "updated" | "cleared" | "lion_not_found" | "invalid";
+  lion: UserLionWithSpeciesRecord | null;
+  normalizedNickname: string | null;
+  error: string | null;
+}
+
+export interface RecentLionCatchEntry {
+  rank: number;
+  spawn: ActiveLionSpawnWithSpeciesRecord;
+  caughtByDisplayName: string;
+}
+
+export interface UserLionBattleCooldownResult {
+  allowed: boolean;
+  cooldownEndsAt: Date | null;
+  latestBattle: LionBattleRecord | null;
+}
+
+export interface RecordLionBattleInput {
+  guildId: string;
+  challengerUserId: string;
+  challengerDisplayName: string;
+  opponentUserId: string;
+  opponentDisplayName: string;
+  winnerUserId: string;
+  winnerDisplayName: string;
+  loserUserId: string;
+  loserDisplayName: string;
+  winnerSide: "first" | "second";
+  challengerTeamLionIds: string[];
+  opponentTeamLionIds: string[];
+  participantLionIds: string[];
+  mvpLionId?: string | null;
+  mvpLionName?: string | null;
+  roundsCount: number;
+  createdAt: Date;
+}
+
+export interface AdminLionMutationResult<T> {
+  outcome: "updated" | "not_found" | "invalid";
+  record: T | null;
+  error: string | null;
+}
+
+export interface GrantLionItemResult {
+  outcome: "granted" | "item_not_found";
+  item: LionShopItemRecord | null;
+  inventory: UserItemInventoryRecord | null;
+}
+
 export const LION_SPAWN_DURATION_MS = 10 * 60 * 1000;
 export const DEFAULT_LION_SPAWN_MIN_INTERVAL_MINUTES = 120;
 export const DEFAULT_LION_SPAWN_MAX_INTERVAL_MINUTES = 240;
@@ -257,7 +352,10 @@ export const LION_TRAINING_COOLDOWN_MS = 30 * 60 * 1000;
 export const LION_BATTLE_WIN_XP = 45;
 export const LION_BATTLE_LOSS_XP = 18;
 export const LION_BATTLE_COOLDOWN_MS = 10 * 60 * 1000;
+export const LION_USER_BATTLE_COOLDOWN_MS = 5 * 60 * 1000;
 export const MAX_LION_TEAM_SIZE = 3;
+export const MAX_LION_NICKNAME_LENGTH = 24;
+export const HIGH_LEVEL_WILD_LION_THRESHOLD = 25;
 export const WILD_LION_LEVEL_TIERS = [
   {
     maxRollExclusive: 0.75,
@@ -284,6 +382,52 @@ export const normalizeLionItemKey = (rawItemKey: string): string =>
 
 export const normalizeLionSearchQuery = (rawQuery: string): string =>
   normalizeLionItemKey(rawQuery).replace(/^#/, "");
+
+export const getOwnedLionShortReference = (
+  lion: Pick<UserLionRecord, "id">
+): string => `#${lion.id.slice(0, 8)}`;
+
+export const getOwnedLionDisplayName = (
+  lion: Pick<UserLionWithSpeciesRecord, "nickname" | "species">
+): string =>
+  lion.nickname?.trim()
+    ? `${lion.nickname.trim()} (${lion.species.name})`
+    : lion.species.name;
+
+export const validateLionNickname = (
+  rawNickname: string
+): {
+  nickname: string | null;
+  error: string | null;
+} => {
+  const nickname = rawNickname.trim().replace(/\s+/g, " ");
+
+  if (!nickname) {
+    return {
+      nickname: null,
+      error: null
+    };
+  }
+
+  if (nickname.length > MAX_LION_NICKNAME_LENGTH) {
+    return {
+      nickname: null,
+      error: `Nicknames can be at most ${MAX_LION_NICKNAME_LENGTH} characters.`
+    };
+  }
+
+  if (/[`@#\n\r]/.test(nickname)) {
+    return {
+      nickname: null,
+      error: "Nicknames cannot include mentions, tags, backticks, or line breaks."
+    };
+  }
+
+  return {
+    nickname,
+    error: null
+  };
+};
 
 export const findUserLionFromList = (
   lions: UserLionWithSpeciesRecord[],
@@ -363,13 +507,20 @@ export const chooseWeightedLionSpecies = (
 
 export const generateWildLionSpawnLevel = (input: {
   random: () => number;
+  levelBonus?: number;
+  minLevel?: number;
+  maxLevel?: number;
 }): number => {
   const tierRoll = input.random();
   const tier =
     WILD_LION_LEVEL_TIERS.find((entry) => tierRoll < entry.maxRollExclusive) ??
     WILD_LION_LEVEL_TIERS[0];
+  const minLevel = input.minLevel ?? tier.minLevel;
+  const maxLevel = input.maxLevel ?? tier.maxLevel;
+  const baseLevel = getRandomIntInclusive(minLevel, maxLevel, input.random);
+  const levelBonus = Math.max(0, Math.floor(input.levelBonus ?? 0));
 
-  return getRandomIntInclusive(tier.minLevel, tier.maxLevel, input.random);
+  return Math.min(50, Math.max(1, baseLevel + levelBonus));
 };
 
 const getRarityWeightBonus = (
@@ -413,8 +564,26 @@ export const syncDefaultLionData = async (
   store: Pick<LionCreatureStore, "lionSpecies" | "lionShopItemDefinition">
 ): Promise<void> => {
   await Promise.all(
-    DEFAULT_LION_SPECIES.map((species) =>
-      store.lionSpecies.upsert({
+    DEFAULT_LION_SPECIES.map((species) => {
+      const syncedSpeciesFields = {
+        publicId: species.publicId,
+        name: species.name,
+        imagePath: species.imagePath,
+        rarity: species.rarity,
+        baseValue: species.baseValue,
+        primaryType: species.primaryType,
+        secondaryType: species.secondaryType,
+        baseHp: species.baseHp,
+        baseAttack: species.baseAttack,
+        baseDefense: species.baseDefense,
+        baseSpeed: species.baseSpeed,
+        abilityKey: species.abilityKey,
+        abilityName: species.abilityName,
+        abilityDescription: species.abilityDescription,
+        description: species.description
+      };
+
+      return store.lionSpecies.upsert({
         where: {
           slug: species.slug
         },
@@ -423,16 +592,22 @@ export const syncDefaultLionData = async (
           isEnabled: true
         },
         update: {
-          ...species,
-          isEnabled: true
+          ...syncedSpeciesFields
         }
-      })
-    )
+      });
+    })
   );
 
   await Promise.all(
-    DEFAULT_LION_SHOP_ITEMS.map((item) =>
-      store.lionShopItemDefinition.upsert({
+    DEFAULT_LION_SHOP_ITEMS.map((item) => {
+      const syncedItemFields = {
+        name: item.name,
+        category: item.category,
+        effectType: item.effectType,
+        description: item.description
+      };
+
+      return store.lionShopItemDefinition.upsert({
         where: {
           itemKey: item.itemKey
         },
@@ -441,11 +616,10 @@ export const syncDefaultLionData = async (
           isEnabled: true
         },
         update: {
-          ...item,
-          isEnabled: true
+          ...syncedItemFields
         }
-      })
-    )
+      });
+    })
   );
 };
 
@@ -584,9 +758,39 @@ export const getActiveLionChannelEffect = async (
   return store.lionChannelEffect.findFirst({
     where: {
       guildId: input.guildId,
-      channelId: input.channelId
+      channelId: input.channelId,
+      expiresAt: {
+        gt: input.now
+      }
     },
     orderBy: [{ expiresAt: "desc" }]
+  });
+};
+
+export const listActiveLionChannelEffects = async (
+  store: Pick<LionCreatureStore, "lionChannelEffect">,
+  input: {
+    guildId: string;
+    channelId?: string;
+    effectType?: LionItemEffectTypeValue;
+    now: Date;
+  }
+): Promise<LionChannelEffectRecord[]> => {
+  await expireActiveLionChannelEffects(store, {
+    guildId: input.guildId,
+    now: input.now
+  });
+
+  return store.lionChannelEffect.findMany({
+    where: {
+      guildId: input.guildId,
+      channelId: input.channelId,
+      effectType: input.effectType,
+      expiresAt: {
+        gt: input.now
+      }
+    },
+    orderBy: [{ expiresAt: "desc" }, { activatedAt: "asc" }]
   });
 };
 
@@ -597,17 +801,33 @@ export const activateLionChannelEffect = async (
     channelId: string;
     userId: string;
     itemKey: string;
-    effectType:
-      | "CATCH_MODIFIER"
-      | "SPAWN_BOOST"
-      | "RARITY_BOOST"
-      | "TYPE_ATTRACTOR";
+    effectType: LionItemEffectTypeValue;
     effectValue: number;
     durationMinutes: number;
     now: Date;
   }
-): Promise<LionChannelEffectRecord | null> => {
+): Promise<ActivateLionChannelEffectResult> => {
   const itemKey = normalizeLionItemKey(input.itemKey);
+  const activeEffect = await store.lionChannelEffect.findFirst({
+    where: {
+      guildId: input.guildId,
+      channelId: input.channelId,
+      effectType: input.effectType,
+      expiresAt: {
+        gt: input.now
+      }
+    },
+    orderBy: [{ expiresAt: "desc" }]
+  });
+
+  if (activeEffect) {
+    return {
+      outcome: "already_active",
+      effect: null,
+      activeEffect
+    };
+  }
+
   const inventory = await store.userItemInventory.findUnique({
     where: {
       guildId_userId_itemKey: {
@@ -619,7 +839,11 @@ export const activateLionChannelEffect = async (
   });
 
   if (!inventory || inventory.quantity <= 0) {
-    return null;
+    return {
+      outcome: "no_item",
+      effect: null,
+      activeEffect: null
+    };
   }
 
   const inventoryUpdate = await store.userItemInventory.updateMany({
@@ -639,14 +863,18 @@ export const activateLionChannelEffect = async (
   });
 
   if (inventoryUpdate.count === 0) {
-    return null;
+    return {
+      outcome: "no_item",
+      effect: null,
+      activeEffect: null
+    };
   }
 
   const expiresAt = new Date(
     input.now.getTime() + input.durationMinutes * 60_000
   );
 
-  return store.lionChannelEffect.create({
+  const effect = await store.lionChannelEffect.create({
     data: {
       guildId: input.guildId,
       channelId: input.channelId,
@@ -658,6 +886,12 @@ export const activateLionChannelEffect = async (
       expiresAt
     }
   });
+
+  return {
+    outcome: "activated",
+    effect,
+    activeEffect: null
+  };
 };
 
 export const updateLionSpawnSchedule = async (
@@ -825,6 +1059,10 @@ export const createWildLionSpawn = async (
     channelId: string;
     now: Date;
     random: () => number;
+    speciesPublicId?: string | null;
+    rarity?: LionRarityValue | null;
+    minLevel?: number | null;
+    maxLevel?: number | null;
   }
 ): Promise<CreateWildLionSpawnResult> => {
   await expireActiveLionSpawns(store, {
@@ -852,30 +1090,39 @@ export const createWildLionSpawn = async (
 
   const species = await store.lionSpecies.findMany({
     where: {
-      isEnabled: true
+      isEnabled: true,
+      publicId: input.speciesPublicId?.trim().toUpperCase() || undefined,
+      rarity: input.rarity || undefined
     }
   });
 
-  const activeEffect = await store.lionChannelEffect.findFirst({
-    where: {
-      guildId: input.guildId,
-      channelId: input.channelId,
-      expiresAt: {
-        gt: input.now
-      }
-    },
-    orderBy: [{ expiresAt: "desc" }]
-  });
+  const activeEffects: LionChannelEffectRecord[] =
+    await store.lionChannelEffect.findMany({
+      where: {
+        guildId: input.guildId,
+        channelId: input.channelId,
+        expiresAt: {
+          gt: input.now
+        }
+      },
+      orderBy: [{ expiresAt: "desc" }]
+    });
+  const rarityBoost = activeEffects.find(
+    (effect) => effect.effectType === "RARITY_BOOST"
+  );
+  const levelBoost = activeEffects.find(
+    (effect) => effect.effectType === "LEVEL_BOOST"
+  );
 
   const weightedSpecies =
-    activeEffect?.effectType === "RARITY_BOOST"
+    rarityBoost
       ? species.map((entry: LionSpeciesRecord) => ({
           ...entry,
           spawnWeight: Math.max(
             1,
             Math.floor(
               entry.spawnWeight *
-                getRarityWeightBonus(entry.rarity, activeEffect.effectValue)
+                getRarityWeightBonus(entry.rarity, rarityBoost.effectValue)
             )
           )
         }))
@@ -899,7 +1146,10 @@ export const createWildLionSpawn = async (
       channelId: input.channelId,
       lionSpeciesId: selectedSpecies.id,
       level: generateWildLionSpawnLevel({
-        random: input.random
+        random: input.random,
+        levelBonus: levelBoost?.effectValue,
+        minLevel: input.minLevel ?? undefined,
+        maxLevel: input.maxLevel ?? undefined
       }),
       expiresAt: new Date(input.now.getTime() + LION_SPAWN_DURATION_MS)
     },
@@ -956,6 +1206,53 @@ export const listActiveWildLionSpawns = async (
     },
     orderBy: [{ expiresAt: "asc" }]
   });
+};
+
+export const listRecentNotableLionCatches = async (
+  store: Pick<LionCreatureStore, "activeLionSpawn">,
+  input: {
+    guildId: string;
+    limit?: number;
+  }
+): Promise<RecentLionCatchEntry[]> => {
+  const limit = Math.min(15, Math.max(1, input.limit ?? 10));
+  const spawns: ActiveLionSpawnWithSpeciesRecord[] =
+    await store.activeLionSpawn.findMany({
+      where: {
+        guildId: input.guildId,
+        status: "CAUGHT",
+        caughtAt: {
+          not: null
+        },
+        OR: [
+          {
+            level: {
+              gte: HIGH_LEVEL_WILD_LION_THRESHOLD
+            }
+          },
+          {
+            species: {
+              is: {
+                rarity: {
+                  in: ["RARE", "EPIC", "LEGENDARY"]
+                }
+              }
+            }
+          }
+        ]
+      },
+      include: {
+        species: true
+      },
+      orderBy: [{ caughtAt: "desc" }, { spawnedAt: "desc" }],
+      take: limit
+    });
+
+  return spawns.map((spawn, index) => ({
+    rank: index + 1,
+    spawn,
+    caughtByDisplayName: spawn.caughtByDisplayName ?? "Unknown member"
+  }));
 };
 
 export const attemptCatchWildLion = async (
@@ -1174,6 +1471,57 @@ export const listUserLions = async (
     orderBy: [{ acquiredAt: "asc" }],
     take: input.limit
   });
+};
+
+export const setUserLionNickname = async (
+  store: Pick<LionCreatureStore, "userLion">,
+  input: {
+    guildId: string;
+    userId: string;
+    query: string;
+    nickname: string;
+  }
+): Promise<SetUserLionNicknameResult> => {
+  const lion = await getUserLionByQuery(store, input);
+
+  if (!lion) {
+    return {
+      outcome: "lion_not_found",
+      lion: null,
+      normalizedNickname: null,
+      error: null
+    };
+  }
+
+  const validation = validateLionNickname(input.nickname);
+
+  if (validation.error) {
+    return {
+      outcome: "invalid",
+      lion: null,
+      normalizedNickname: null,
+      error: validation.error
+    };
+  }
+
+  const updatedLion = await store.userLion.update({
+    where: {
+      id: lion.id
+    },
+    data: {
+      nickname: validation.nickname
+    },
+    include: {
+      species: true
+    }
+  });
+
+  return {
+    outcome: validation.nickname ? "updated" : "cleared",
+    lion: updatedLion,
+    normalizedNickname: validation.nickname,
+    error: null
+  };
 };
 
 export const calculateTopLionScore = (
@@ -1532,6 +1880,96 @@ export const trainUserLion = async (
   };
 };
 
+export const useLionTrainingItem = async (
+  store: Pick<
+    LionCreatureStore,
+    "lionShopItemDefinition" | "userItemInventory" | "userLion"
+  >,
+  input: {
+    guildId: string;
+    userId: string;
+    itemKey: string;
+    lionQuery: string;
+  }
+): Promise<UseLionTrainingItemResult> => {
+  const itemKey = normalizeLionItemKey(input.itemKey);
+  const item = await store.lionShopItemDefinition.findUnique({
+    where: {
+      itemKey
+    }
+  });
+
+  if (!item || !item.isEnabled) {
+    return {
+      outcome: "item_not_found",
+      item: null,
+      result: null,
+      failedQuery: null
+    };
+  }
+
+  if (item.category !== "UTILITY" || item.effectType !== "TRAINING_XP") {
+    return {
+      outcome: "not_training_item",
+      item,
+      result: null,
+      failedQuery: null
+    };
+  }
+
+  const lion = await getUserLionByQuery(store, {
+    guildId: input.guildId,
+    userId: input.userId,
+    query: input.lionQuery
+  });
+
+  if (!lion) {
+    return {
+      outcome: "lion_not_found",
+      item,
+      result: null,
+      failedQuery: input.lionQuery
+    };
+  }
+
+  const inventoryUpdate = await store.userItemInventory.updateMany({
+    where: {
+      guildId: input.guildId,
+      userId: input.userId,
+      itemKey,
+      quantity: {
+        gt: 0
+      }
+    },
+    data: {
+      quantity: {
+        decrement: 1
+      }
+    }
+  });
+
+  if (inventoryUpdate.count === 0) {
+    return {
+      outcome: "no_item",
+      item,
+      result: null,
+      failedQuery: null
+    };
+  }
+
+  const result = await awardLionExperience(store, {
+    lion,
+    gainedExperience: item.effectValue
+  });
+
+  return {
+    outcome: "used",
+    item,
+    result,
+    failedQuery: null
+  };
+};
+
 export const awardBattleLionExperience = async (
   store: Pick<LionCreatureStore, "userLion">,
   input: {
@@ -1562,6 +2000,430 @@ export const awardBattleLionExperience = async (
     outcome: "awarded",
     result,
     cooldownEndsAt: new Date(input.now.getTime() + LION_BATTLE_COOLDOWN_MS)
+  };
+};
+
+export const getUserLionBattleCooldown = async (
+  store: Pick<LionCreatureStore, "lionBattleRecord">,
+  input: {
+    guildId: string;
+    challengerUserId: string;
+    opponentUserId: string;
+    now: Date;
+  }
+): Promise<UserLionBattleCooldownResult> => {
+  const cooldownStartedAfter = new Date(
+    input.now.getTime() - LION_USER_BATTLE_COOLDOWN_MS
+  );
+  const latestBattle: LionBattleRecord | null =
+    await store.lionBattleRecord.findFirst({
+      where: {
+        guildId: input.guildId,
+        createdAt: {
+          gt: cooldownStartedAfter
+        },
+        OR: [
+          {
+            challengerUserId: {
+              in: [input.challengerUserId, input.opponentUserId]
+            }
+          },
+          {
+            opponentUserId: {
+              in: [input.challengerUserId, input.opponentUserId]
+            }
+          }
+        ]
+      },
+      orderBy: [{ createdAt: "desc" }]
+    });
+
+  if (!latestBattle) {
+    return {
+      allowed: true,
+      cooldownEndsAt: null,
+      latestBattle: null
+    };
+  }
+
+  return {
+    allowed: false,
+    cooldownEndsAt: new Date(
+      latestBattle.createdAt.getTime() + LION_USER_BATTLE_COOLDOWN_MS
+    ),
+    latestBattle
+  };
+};
+
+export const recordLionBattle = async (
+  store: Pick<LionCreatureStore, "lionBattleRecord">,
+  input: RecordLionBattleInput
+): Promise<LionBattleRecord> => {
+  return store.lionBattleRecord.create({
+    data: {
+      guildId: input.guildId,
+      challengerUserId: input.challengerUserId,
+      challengerDisplayName: input.challengerDisplayName,
+      opponentUserId: input.opponentUserId,
+      opponentDisplayName: input.opponentDisplayName,
+      winnerUserId: input.winnerUserId,
+      winnerDisplayName: input.winnerDisplayName,
+      loserUserId: input.loserUserId,
+      loserDisplayName: input.loserDisplayName,
+      winnerSide: input.winnerSide,
+      challengerTeamLionIds: JSON.stringify(input.challengerTeamLionIds),
+      opponentTeamLionIds: JSON.stringify(input.opponentTeamLionIds),
+      participantLionIds: JSON.stringify(input.participantLionIds),
+      mvpLionId: input.mvpLionId,
+      mvpLionName: input.mvpLionName,
+      roundsCount: Math.max(0, Math.floor(input.roundsCount)),
+      createdAt: input.createdAt
+    }
+  });
+};
+
+export const listRecentLionBattles = async (
+  store: Pick<LionCreatureStore, "lionBattleRecord">,
+  input: {
+    guildId: string;
+    userId?: string;
+    limit?: number;
+  }
+): Promise<LionBattleRecord[]> => {
+  const limit = Math.min(10, Math.max(1, input.limit ?? 5));
+
+  return store.lionBattleRecord.findMany({
+    where: {
+      guildId: input.guildId,
+      OR: input.userId
+        ? [
+            {
+              challengerUserId: input.userId
+            },
+            {
+              opponentUserId: input.userId
+            }
+          ]
+        : undefined
+    },
+    orderBy: [{ createdAt: "desc" }],
+    take: limit
+  });
+};
+
+export const setLionSpeciesEnabled = async (
+  store: Pick<LionCreatureStore, "lionSpecies">,
+  input: {
+    publicIdOrSlug: string;
+    enabled: boolean;
+  }
+): Promise<AdminLionMutationResult<LionSpeciesRecord>> => {
+  const query = input.publicIdOrSlug.trim();
+  const normalizedQuery = normalizeLionSearchQuery(query);
+  const species: LionSpeciesRecord | null = await store.lionSpecies.findFirst({
+    where: {
+      OR: [
+        {
+          publicId: query.toUpperCase()
+        },
+        {
+          slug: normalizedQuery
+        }
+      ]
+    }
+  });
+
+  if (!species) {
+    return {
+      outcome: "not_found",
+      record: null,
+      error: null
+    };
+  }
+
+  const record = await store.lionSpecies.update({
+    where: {
+      id: species.id
+    },
+    data: {
+      isEnabled: input.enabled
+    }
+  });
+
+  return {
+    outcome: "updated",
+    record,
+    error: null
+  };
+};
+
+export const tuneLionSpecies = async (
+  store: Pick<LionCreatureStore, "lionSpecies">,
+  input: {
+    publicIdOrSlug: string;
+    spawnWeight?: number | null;
+    baseCatchRate?: number | null;
+  }
+): Promise<AdminLionMutationResult<LionSpeciesRecord>> => {
+  const query = input.publicIdOrSlug.trim();
+  const normalizedQuery = normalizeLionSearchQuery(query);
+  const species: LionSpeciesRecord | null = await store.lionSpecies.findFirst({
+    where: {
+      OR: [
+        {
+          publicId: query.toUpperCase()
+        },
+        {
+          slug: normalizedQuery
+        }
+      ]
+    }
+  });
+
+  if (!species) {
+    return {
+      outcome: "not_found",
+      record: null,
+      error: null
+    };
+  }
+
+  const data: {
+    spawnWeight?: number;
+    baseCatchRate?: number;
+  } = {};
+
+  if (input.spawnWeight !== null && input.spawnWeight !== undefined) {
+    data.spawnWeight = Math.max(0, Math.floor(input.spawnWeight));
+  }
+
+  if (input.baseCatchRate !== null && input.baseCatchRate !== undefined) {
+    data.baseCatchRate = Math.min(
+      95,
+      Math.max(5, Math.floor(input.baseCatchRate))
+    );
+  }
+
+  if (Object.keys(data).length === 0) {
+    return {
+      outcome: "invalid",
+      record: null,
+      error: "Choose at least one species field to tune."
+    };
+  }
+
+  const record = await store.lionSpecies.update({
+    where: {
+      id: species.id
+    },
+    data
+  });
+
+  return {
+    outcome: "updated",
+    record,
+    error: null
+  };
+};
+
+export const setLionShopItemEnabled = async (
+  store: Pick<LionCreatureStore, "lionShopItemDefinition">,
+  input: {
+    itemKey: string;
+    enabled: boolean;
+  }
+): Promise<AdminLionMutationResult<LionShopItemRecord>> => {
+  const itemKey = normalizeLionItemKey(input.itemKey);
+  const item = await store.lionShopItemDefinition.findUnique({
+    where: {
+      itemKey
+    }
+  });
+
+  if (!item) {
+    return {
+      outcome: "not_found",
+      record: null,
+      error: null
+    };
+  }
+
+  const record = await store.lionShopItemDefinition.update({
+    where: {
+      itemKey
+    },
+    data: {
+      isEnabled: input.enabled
+    }
+  });
+
+  return {
+    outcome: "updated",
+    record,
+    error: null
+  };
+};
+
+export const tuneLionShopItem = async (
+  store: Pick<LionCreatureStore, "lionShopItemDefinition">,
+  input: {
+    itemKey: string;
+    priceCoins?: number | null;
+    effectValue?: number | null;
+  }
+): Promise<AdminLionMutationResult<LionShopItemRecord>> => {
+  const itemKey = normalizeLionItemKey(input.itemKey);
+  const item = await store.lionShopItemDefinition.findUnique({
+    where: {
+      itemKey
+    }
+  });
+
+  if (!item) {
+    return {
+      outcome: "not_found",
+      record: null,
+      error: null
+    };
+  }
+
+  const data: {
+    priceCoins?: number;
+    effectValue?: number;
+  } = {};
+
+  if (input.priceCoins !== null && input.priceCoins !== undefined) {
+    data.priceCoins = Math.max(0, Math.floor(input.priceCoins));
+  }
+
+  if (input.effectValue !== null && input.effectValue !== undefined) {
+    data.effectValue = Math.max(0, Math.floor(input.effectValue));
+  }
+
+  if (Object.keys(data).length === 0) {
+    return {
+      outcome: "invalid",
+      record: null,
+      error: "Choose at least one item field to tune."
+    };
+  }
+
+  const record = await store.lionShopItemDefinition.update({
+    where: {
+      itemKey
+    },
+    data
+  });
+
+  return {
+    outcome: "updated",
+    record,
+    error: null
+  };
+};
+
+export const clearActiveWildLionSpawns = async (
+  store: Pick<LionCreatureStore, "activeLionSpawn">,
+  input: {
+    guildId: string;
+    channelId?: string;
+  }
+): Promise<number> => {
+  const result = await store.activeLionSpawn.updateMany({
+    where: {
+      guildId: input.guildId,
+      channelId: input.channelId,
+      status: "ACTIVE"
+    },
+    data: {
+      status: "EXPIRED"
+    }
+  });
+
+  return result.count;
+};
+
+export const clearActiveLionChannelEffects = async (
+  store: Pick<LionCreatureStore, "lionChannelEffect">,
+  input: {
+    guildId: string;
+    channelId?: string;
+    now: Date;
+  }
+): Promise<number> => {
+  const result = await store.lionChannelEffect.deleteMany({
+    where: {
+      guildId: input.guildId,
+      channelId: input.channelId,
+      expiresAt: {
+        gt: input.now
+      }
+    }
+  });
+
+  return result.count;
+};
+
+export const grantLionItem = async (
+  store: Pick<
+    LionCreatureStore,
+    "lionShopItemDefinition" | "userItemInventory" | "userProfile"
+  >,
+  input: {
+    guildId: string;
+    userId: string;
+    displayName: string;
+    itemKey: string;
+    quantity: number;
+  }
+): Promise<GrantLionItemResult> => {
+  const itemKey = normalizeLionItemKey(input.itemKey);
+  const quantity = Math.max(1, Math.floor(input.quantity));
+  const item = await store.lionShopItemDefinition.findUnique({
+    where: {
+      itemKey
+    }
+  });
+
+  if (!item) {
+    return {
+      outcome: "item_not_found",
+      item: null,
+      inventory: null
+    };
+  }
+
+  await getOrCreateProfile(store, {
+    guildId: input.guildId,
+    userId: input.userId,
+    displayName: input.displayName
+  });
+
+  const inventory = await store.userItemInventory.upsert({
+    where: {
+      guildId_userId_itemKey: {
+        guildId: input.guildId,
+        userId: input.userId,
+        itemKey
+      }
+    },
+    create: {
+      guildId: input.guildId,
+      userId: input.userId,
+      itemKey,
+      quantity
+    },
+    update: {
+      quantity: {
+        increment: quantity
+      }
+    }
+  });
+
+  return {
+    outcome: "granted",
+    item,
+    inventory
   };
 };
 

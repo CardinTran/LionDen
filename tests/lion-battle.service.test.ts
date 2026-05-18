@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   calculateLionMoveDamage,
   determineLionTurnOrder,
+  getLionBattleMvpLionId,
   getLionMoveSet,
   getTypeEffectiveness,
   resolveAutoLionBattle,
@@ -260,5 +261,35 @@ describe("lion battle service", () => {
     expect(result.finalHp["owned-a1"]).toBe(0);
     expect(result.finalHp["owned-a2"]).toBeGreaterThan(0);
     expect(result.finalHp["owned-b1"]).toBe(0);
+  });
+
+  it("selects a deterministic battle MVP from damage dealt", () => {
+    const result = resolveAutoLionTeamBattle({
+      firstTeam: [
+        buildOwnedLion({
+          id: "owned-a",
+          species: buildSpecies({
+            primaryType: "WATER",
+            baseAttack: 28,
+            baseSpeed: 18
+          })
+        })
+      ],
+      secondTeam: [
+        buildOwnedLion({
+          id: "owned-b",
+          userId: "user-b",
+          species: buildSpecies({
+            id: "species-b",
+            primaryType: "FIRE",
+            baseHp: 50,
+            baseDefense: 8
+          })
+        })
+      ],
+      random: () => 1
+    });
+
+    expect(getLionBattleMvpLionId(result)).toBe("owned-a");
   });
 });
