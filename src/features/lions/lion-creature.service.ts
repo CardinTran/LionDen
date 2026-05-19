@@ -300,6 +300,13 @@ export interface SetUserLionNicknameResult {
   error: string | null;
 }
 
+export interface ReleaseUserLionResult {
+  outcome: "released" | "lion_not_found";
+  lion: UserLionWithSpeciesRecord | null;
+  profile: UserProfileRecord | null;
+  coinsAwarded: number;
+}
+
 export interface RecentLionCatchEntry {
   rank: number;
   spawn: ActiveLionSpawnWithSpeciesRecord;
@@ -1539,6 +1546,14 @@ export const calculateTopLionScore = (
   );
 };
 
+export const calculateLionReleaseCoins = (
+  lion: UserLionWithSpeciesRecord
+): number =>
+  Math.max(
+    1,
+    Math.floor(lion.species.baseValue * 5 + Math.max(1, lion.level))
+  );
+
 const getStoredOwnerDisplayName = (
   lion: Pick<UserLionRecord, "ownerDisplayName" | "userId">,
   profileByUserId: Map<string, UserProfileRecord>
@@ -1783,6 +1798,76 @@ export const getUserLionByQuery = async (
   });
 
   return findUserLionFromList(lions, input.query);
+};
+
+export const releaseUserLion = async (
+  store: Pick<LionCreatureStore, "userLion" | "userProfile">,
+  input: {
+    guildId: string;
+    userId: string;
+    displayName: string;
+    query: string;
+  }
+): Promise<ReleaseUserLionResult> => {
+  const lion = await getUserLionByQuery(store, input);
+
+  if (!lion) {
+    return {
+      outcome: "lion_not_found",
+      lion: null,
+      profile: null,
+      coinsAwarded: 0
+    };
+  }
+
+  const coinsAwarded = calculateLionReleaseCoins(lion);
+
+  const writeRelease = async (
+    releaseStore: Pick<LionCreatureStore, "userLion" | "userProfile">
+  ): Promise<UserProfileRecord> => {
+    const profile = await getOrCreateProfile(releaseStore, {
+      guildId: input.guildId,
+      userId: input.userId,
+      displayName: input.displayName
+    });
+    const updatedProfile = await updateProfile(releaseStore, {
+      guildId: input.guildId,
+      userId: input.userId,
+      displayName: input.displayName,
+      xp: profile.xp,
+      level: profile.level,
+      coins: profile.coins + coinsAwarded,
+      lastMessageXpAt: profile.lastMessageXpAt,
+      lastDailyClaimAt: profile.lastDailyClaimAt
+    });
+
+    await releaseStore.userLion.delete({
+      where: {
+        id: lion.id
+      }
+    });
+
+    return updatedProfile;
+  };
+
+  const transactionalStore = store as typeof store & {
+    $transaction?: <T>(
+      callback: (
+        tx: Pick<LionCreatureStore, "userLion" | "userProfile">
+      ) => Promise<T>
+    ) => Promise<T>;
+  };
+  const profile =
+    typeof transactionalStore.$transaction === "function"
+      ? await transactionalStore.$transaction((tx) => writeRelease(tx))
+      : await writeRelease(store);
+
+  return {
+    outcome: "released",
+    lion,
+    profile,
+    coinsAwarded
+  };
 };
 
 export const awardLionExperience = async (

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   awardBattleLionExperience,
   activateLionChannelEffect,
+  calculateLionReleaseCoins,
   attemptCatchWildLion,
   calculateCatchChance,
   chooseWeightedLionSpecies,
@@ -19,6 +20,7 @@ import {
   LION_USER_BATTLE_COOLDOWN_MS,
   purchaseLionShopItem,
   recordLionBattle,
+  releaseUserLion,
   setUserLionNickname,
   setUserLionTeam,
   trainUserLion,
@@ -779,6 +781,102 @@ describe("lion creature service", () => {
     );
 
     expect(result.outcome).toBe("invalid");
+  });
+
+  it("calculates release coins from species value and lion level", () => {
+    expect(
+      calculateLionReleaseCoins(
+        buildOwnedLion({
+          level: 12,
+          species: buildSpecies({
+            baseValue: 8
+          })
+        })
+      )
+    ).toBe(52);
+  });
+
+  it("releases an owned lion, awards coins, and deletes the roster entry", async () => {
+    let profile = buildProfile({
+      coins: 20
+    });
+    const deleteLion = vi.fn().mockResolvedValue(buildOwnedLion());
+    const releasedLion = buildOwnedLion({
+      level: 5,
+      species: buildSpecies({
+        baseValue: 3
+      })
+    });
+
+    const result = await releaseUserLion(
+      {
+        userLion: {
+          findMany: vi.fn().mockResolvedValue([releasedLion]),
+          delete: deleteLion
+        },
+        userProfile: {
+          upsert: vi.fn(async ({ update }) => {
+            profile = {
+              ...profile,
+              displayName: update.displayName
+            };
+            return profile;
+          }),
+          update: vi.fn(async ({ data }) => {
+            profile = {
+              ...profile,
+              displayName: data.displayName,
+              coins: data.coins ?? profile.coins
+            };
+            return profile;
+          })
+        }
+      } as never,
+      {
+        guildId: "guild_123",
+        userId: "user_123",
+        displayName: "Cardin",
+        query: "L001"
+      }
+    );
+
+    expect(result.outcome).toBe("released");
+    expect(result.coinsAwarded).toBe(20);
+    expect(result.profile?.coins).toBe(40);
+    expect(deleteLion).toHaveBeenCalledWith({
+      where: {
+        id: releasedLion.id
+      }
+    });
+  });
+
+  it("does not award coins when a released lion cannot be found", async () => {
+    const updateProfile = vi.fn();
+    const deleteLion = vi.fn();
+
+    const result = await releaseUserLion(
+      {
+        userLion: {
+          findMany: vi.fn().mockResolvedValue([]),
+          delete: deleteLion
+        },
+        userProfile: {
+          upsert: vi.fn(),
+          update: updateProfile
+        }
+      } as never,
+      {
+        guildId: "guild_123",
+        userId: "user_123",
+        displayName: "Cardin",
+        query: "missing"
+      }
+    );
+
+    expect(result.outcome).toBe("lion_not_found");
+    expect(result.coinsAwarded).toBe(0);
+    expect(updateProfile).not.toHaveBeenCalled();
+    expect(deleteLion).not.toHaveBeenCalled();
   });
 
   it("uses training snack inventory to award lion XP without training cooldown", async () => {

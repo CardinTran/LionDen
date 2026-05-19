@@ -8,6 +8,7 @@ describe("lion formatting", () => {
 
     expect(message).toContain("~toplions");
     expect(message).toContain("~nickname");
+    expect(message).toContain("~release");
     expect(message).toContain("~battlehistory");
     expect(message).toContain("~rarecatches");
     expect(message).not.toContain("/lionadmin");

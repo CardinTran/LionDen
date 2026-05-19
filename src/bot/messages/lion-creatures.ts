@@ -27,11 +27,13 @@ import {
   normalizeLionItemKey,
   purchaseLionShopItem,
   recordLionBattle,
+  releaseUserLion,
   setUserLionNickname,
   setUserLionTeam,
   syncDefaultLionData,
   trainUserLion,
-  useLionTrainingItem
+  useLionTrainingItem,
+  calculateLionReleaseCoins
 } from "../../features/lions/lion-creature.service.js";
 import {
   formatClearUserLionTeamMessage,
@@ -41,6 +43,8 @@ import {
   formatLionShopMessage,
   formatOwnedLionMessage,
   formatRecentNotableLionCatchesMessage,
+  formatReleaseUserLionMessage,
+  formatReleaseUserLionPreviewMessage,
   formatSetUserLionNicknameMessage,
   formatSetUserLionTeamMessage,
   formatTeamBattleLionMessage,
@@ -109,6 +113,7 @@ export const handleLionCreatureMessage = async (
       "~catch",
       "~train",
       "~nickname",
+      "~release",
       "~team",
       "~battle",
       "~battlehistory",
@@ -385,6 +390,52 @@ export const handleLionCreatureMessage = async (
     });
 
     await message.reply(formatSetUserLionNicknameMessage(result));
+    return true;
+  }
+
+  if (normalizedCommand === "~release") {
+    const hasConfirmed = args.at(-1)?.toLowerCase() === "confirm";
+    const query = hasConfirmed ? args.slice(0, -1).join(" ") : args.join(" ");
+
+    if (!query) {
+      await message.reply(
+        "Use `~release <lion id> confirm` to release one owned lion for coins."
+      );
+      return true;
+    }
+
+    if (!hasConfirmed) {
+      const lions = await listUserLions(prisma, {
+        guildId: message.guildId,
+        userId: message.author.id,
+        limit: 100
+      });
+      const lion = findUserLionFromList(lions, query);
+
+      if (!lion) {
+        await message.reply(
+          "I could not find that lion in your roster. Try `~lions` to see your owned IDs."
+        );
+        return true;
+      }
+
+      await message.reply(
+        formatReleaseUserLionPreviewMessage({
+          lion,
+          coinsAwarded: calculateLionReleaseCoins(lion)
+        })
+      );
+      return true;
+    }
+
+    const result = await releaseUserLion(prisma, {
+      guildId: message.guildId,
+      userId: message.author.id,
+      displayName: getDisplayName(message),
+      query
+    });
+
+    await message.reply(formatReleaseUserLionMessage(result));
     return true;
   }
 

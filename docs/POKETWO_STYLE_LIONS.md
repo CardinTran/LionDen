@@ -599,6 +599,7 @@ Current implementation note:
 - level lures and rare lures now affect future channel spawns
 - training snacks now provide an item-based lion XP sink for coins
 - owned lions can be nicknamed with validated public display text
+- owned lions can be released for coins with `~release <lion> confirm`, giving duplicates an immediate baseline value
 - notable rare or high-level catches feed the `~rarecatches` board
 - `~toplions` gives the server a public top-10 status board using display names
 - full interactive battle menus, status effects, and raids are still future phases

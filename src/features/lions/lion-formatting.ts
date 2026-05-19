@@ -4,6 +4,7 @@ import type {
   LionBattleRecord,
   LionExperienceAwardResult,
   LionShopItemRecord,
+  ReleaseUserLionResult,
   RecentLionCatchEntry,
   SetUserLionTeamResult,
   SetUserLionNicknameResult,
@@ -93,6 +94,7 @@ export const formatLionHelpMessage = (): string =>
     "- `~catch <ball>` catch a wild lion",
     "- `~train <lion>` train one of your lions for XP",
     "- `~nickname <lion> <name>` nickname one of your lions",
+    "- `~release <lion> confirm` release one owned lion for coins",
     "- `~team` view your battle team",
     "- `~team set <lion1> <lion2> <lion3>` set up to 3 team slots",
     "- `~team clear` clear your battle team",
@@ -230,6 +232,33 @@ const formatExperienceAwardLine = (
   return result.leveledUp
     ? `+${result.gainedExperience} XP, leveled from ${result.previousLevel} to ${result.nextLevel}.`
     : `+${result.gainedExperience} XP, now level ${result.nextLevel}.`;
+};
+
+export const formatReleaseUserLionPreviewMessage = (input: {
+  lion: UserLionWithSpeciesRecord;
+  coinsAwarded: number;
+}): string =>
+  [
+    `Release preview: ${getOwnedLionDisplayName(input.lion)} \`${input.lion.species.publicId}\` would return ${input.coinsAwarded} coins.`,
+    `This permanently removes Lion ID \`${getOwnedLionShortReference(input.lion)}\` from your roster.`,
+    `Run \`~release ${getOwnedLionShortReference(input.lion)} confirm\` to release it.`
+  ].join("\n");
+
+export const formatReleaseUserLionMessage = (
+  result: ReleaseUserLionResult
+): string => {
+  if (result.outcome === "lion_not_found") {
+    return "I could not find that lion in your roster. Try `~lions` to see your owned IDs.";
+  }
+
+  if (!result.lion || !result.profile) {
+    return "That lion could not be released right now.";
+  }
+
+  return [
+    `${getOwnedLionDisplayName(result.lion)} \`${result.lion.species.publicId}\` was released.`,
+    `You received ${result.coinsAwarded} coins and now have ${result.profile.coins} coins.`
+  ].join("\n");
 };
 
 export const formatTrainLionMessage = (input: {
