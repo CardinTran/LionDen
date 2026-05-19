@@ -240,6 +240,26 @@ model LionBattleRecord {
   @@index([guildId, winnerUserId, createdAt])
 }
 
+model LionBattleChallenge {
+  id                     String                    @id @default(cuid())
+  guildId                String
+  channelId              String
+  challengerUserId       String
+  challengerDisplayName  String
+  opponentUserId         String
+  opponentDisplayName    String
+  status                 LionBattleChallengeStatus @default(PENDING)
+  battleRecordId         String?
+  createdAt              DateTime                  @default(now())
+  expiresAt              DateTime
+  respondedAt            DateTime?
+  updatedAt              DateTime                  @updatedAt
+
+  @@index([guildId, channelId, status, expiresAt])
+  @@index([guildId, challengerUserId, status, expiresAt])
+  @@index([guildId, opponentUserId, status, expiresAt])
+}
+
 model PracticeSession {
   id                    String                @id @default(cuid())
   guildId               String
@@ -360,4 +380,12 @@ enum LionItemCategory {
   BALL
   SPAWN_MODIFIER
   UTILITY
+}
+
+enum LionBattleChallengeStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  CANCELLED
 }

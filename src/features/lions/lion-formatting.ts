@@ -1,7 +1,9 @@
 import type {
   ActiveLionSpawnWithSpeciesRecord,
   AwardBattleLionExperienceResult,
+  CreateLionBattleChallengeResult,
   LionBattleRecord,
+  LionBattleChallengeRecord,
   LionExperienceAwardResult,
   LionShopItemRecord,
   ReleaseUserLionResult,
@@ -98,7 +100,9 @@ export const formatLionHelpMessage = (): string =>
     "- `~team` view your battle team",
     "- `~team set <lion1> <lion2> <lion3>` set up to 3 team slots",
     "- `~team clear` clear your battle team",
-    "- `~battle @user` battle using both saved teams",
+    "- `~battle @user` challenge someone using both saved teams",
+    "- `~battle accept` accept a pending battle challenge in this channel",
+    "- `~battle decline` decline a pending battle challenge in this channel",
     "- `~battlehistory [@user]` view recent team battles",
     "- `~toplions` view the strongest lions in this server",
     "- `~rarecatches` view recent rare or high-level catches",
@@ -398,6 +402,37 @@ const getTeamRemainingHp = (
   finalHp: Record<string, number>
 ): number =>
   team.reduce((total, lion) => total + Math.max(0, finalHp[lion.id] ?? 0), 0);
+
+export const formatCreateLionBattleChallengeMessage = (
+  result: CreateLionBattleChallengeResult
+): string => {
+  const challenge = result.challenge;
+
+  if (result.outcome === "already_pending") {
+    return [
+      `There is already a pending lion battle challenge between ${challenge.challengerDisplayName} and ${challenge.opponentDisplayName}.`,
+      `${challenge.opponentDisplayName} can use \`~battle accept\` or \`~battle decline\` before ${formatDiscordTimestamp(challenge.expiresAt)}.`
+    ].join("\n");
+  }
+
+  return [
+    `${challenge.challengerDisplayName} challenged ${challenge.opponentDisplayName} to a lion team battle.`,
+    `${challenge.opponentDisplayName}, use \`~battle accept\` or \`~battle decline\` in this channel before ${formatDiscordTimestamp(challenge.expiresAt)}.`
+  ].join("\n");
+};
+
+export const formatDeclineLionBattleChallengeMessage = (input: {
+  challenge: LionBattleChallengeRecord;
+}): string =>
+  `${input.challenge.opponentDisplayName} declined ${input.challenge.challengerDisplayName}'s lion battle challenge.`;
+
+export const formatCancelLionBattleChallengeMessage = (input: {
+  challenge: LionBattleChallengeRecord;
+}): string =>
+  `${input.challenge.challengerDisplayName} cancelled the lion battle challenge for ${input.challenge.opponentDisplayName}.`;
+
+export const formatNoPendingLionBattleChallengeMessage = (): string =>
+  "There is no pending lion battle challenge for you in this channel.";
 
 export const formatTeamBattleLionMessage = (input: {
   battle: LionTeamAutoBattleResult;

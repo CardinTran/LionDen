@@ -201,6 +201,8 @@ Possible version 1 commands:
 - `~team`
 - `~team set <lion1> <lion2> <lion3>`
 - `~battle @user`
+- `~battle accept`
+- `~battle decline`
 - `~toplions`
 
 Optional later:
@@ -590,7 +592,7 @@ Output:
 Current implementation note:
 
 - `~team`, `~team set`, and `~team clear` manage persistent battle teams
-- quick public team battles exist as an auto-resolved first slice
+- public team battles now use a challenge, accept, decline, and cancel flow before auto-resolution
 - quick team battles now create compact battle records for `~battlehistory`
 - a short per-user battle start cooldown reduces public battle spam
 - battle summaries call out an MVP based on damage dealt
