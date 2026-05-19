@@ -111,6 +111,31 @@ const parseItemAndQuantity = (
   };
 };
 
+const getBattleSubcommand = (
+  normalizedCommand: string,
+  args: string[]
+): "accept" | "decline" | null => {
+  if (normalizedCommand === "~accept") {
+    return "accept";
+  }
+
+  if (normalizedCommand === "~decline") {
+    return "decline";
+  }
+
+  if (normalizedCommand !== "~battle") {
+    return null;
+  }
+
+  const subcommand = args[0]?.toLowerCase();
+
+  if (subcommand === "accept" || subcommand === "decline") {
+    return subcommand;
+  }
+
+  return null;
+};
+
 const resolveAndRecordTeamBattle = async (input: {
   guildId: string;
   now: Date;
@@ -236,16 +261,18 @@ export const handleLionCreatureMessage = async (
       "~buy",
       "~bag",
       "~use",
-        "~catch",
-        "~train",
-        "~nickname",
-        "~release",
-        "~team",
-        "~battle",
-        "~cancelbattle",
-        "~battlehistory",
-        "~battlestats",
-        "~battleboard",
+      "~catch",
+      "~train",
+      "~nickname",
+      "~release",
+      "~team",
+      "~battle",
+      "~accept",
+      "~decline",
+      "~cancelbattle",
+      "~battlehistory",
+      "~battlestats",
+      "~battleboard",
       "~toplions",
       "~lionboard",
       "~rarecatches",
@@ -614,6 +641,112 @@ export const handleLionCreatureMessage = async (
   }
 
   if (normalizedCommand === "~battle") {
+    const battleSubcommand = getBattleSubcommand(normalizedCommand, args);
+
+    if (battleSubcommand === "accept" || battleSubcommand === "decline") {
+      const challenger = message.mentions.users.first();
+
+      if (battleSubcommand === "accept") {
+        const pendingChallenge = await findPendingLionBattleChallengeForOpponent(
+          prisma,
+          {
+            guildId: message.guildId,
+            opponentUserId: message.author.id,
+            challengerUserId: challenger?.id,
+            now: message.createdAt
+          }
+        );
+
+        if (!pendingChallenge) {
+          await message.reply("You do not have a pending lion battle challenge.");
+          return true;
+        }
+
+        const [challengerTeam, opponentTeam] = await Promise.all([
+          listUserLionTeam(prisma, {
+            guildId: message.guildId,
+            userId: pendingChallenge.challengerUserId
+          }),
+          listUserLionTeam(prisma, {
+            guildId: message.guildId,
+            userId: pendingChallenge.opponentUserId
+          })
+        ]);
+
+        if (challengerTeam.length === 0 || opponentTeam.length === 0) {
+          await message.reply(
+            "That challenge cannot resolve because one trainer no longer has a valid battle team."
+          );
+          return true;
+        }
+
+        const battleCooldown = await getUserLionBattleCooldown(prisma, {
+          guildId: message.guildId,
+          challengerUserId: pendingChallenge.challengerUserId,
+          opponentUserId: pendingChallenge.opponentUserId,
+          now: message.createdAt
+        });
+
+        if (!battleCooldown.allowed && battleCooldown.cooldownEndsAt) {
+          await message.reply(
+            `One of these trainers battled recently. Try another team battle <t:${Math.floor(battleCooldown.cooldownEndsAt.getTime() / 1000)}:R>.`
+          );
+          return true;
+        }
+
+        const accepted = await acceptLionBattleChallenge(prisma, {
+          guildId: message.guildId,
+          opponentUserId: message.author.id,
+          challengerUserId: pendingChallenge.challengerUserId,
+          now: message.createdAt
+        });
+
+        if (accepted.outcome !== "accepted" || !accepted.challenge) {
+          await message.reply(
+            "That lion battle challenge is no longer available."
+          );
+          return true;
+        }
+
+        const battleMessage = await resolveAndRecordTeamBattle({
+          guildId: message.guildId,
+          now: message.createdAt,
+          firstUserId: accepted.challenge.challengerUserId,
+          firstDisplayName: accepted.challenge.challengerDisplayName,
+          firstTeam: challengerTeam,
+          secondUserId: accepted.challenge.opponentUserId,
+          secondDisplayName: accepted.challenge.opponentDisplayName,
+          secondTeam: opponentTeam,
+          challengeId: accepted.challenge.id
+        });
+
+        await message.reply(
+          [
+            formatLionBattleChallengeAcceptedMessage(accepted.challenge),
+            battleMessage
+          ].join("\n")
+        );
+        return true;
+      }
+
+      const result = await declineLionBattleChallenge(prisma, {
+        guildId: message.guildId,
+        opponentUserId: message.author.id,
+        challengerUserId: challenger?.id,
+        now: message.createdAt
+      });
+
+      if (result.outcome !== "declined" || !result.challenge) {
+        await message.reply("You do not have a pending lion battle challenge.");
+        return true;
+      }
+
+      await message.reply(
+        formatLionBattleChallengeDeclinedMessage(result.challenge)
+      );
+      return true;
+    }
+
     if (args[0]?.toLowerCase() === "training") {
       const challengerTeam = await listUserLionTeam(prisma, {
         guildId: message.guildId,
@@ -746,102 +879,10 @@ export const handleLionCreatureMessage = async (
   }
 
   if (normalizedCommand === "~accept") {
-    const challenger = message.mentions.users.first();
-    const pendingChallenge = await findPendingLionBattleChallengeForOpponent(
-      prisma,
-      {
-        guildId: message.guildId,
-        opponentUserId: message.author.id,
-        challengerUserId: challenger?.id,
-        now: message.createdAt
-      }
-    );
-
-    if (!pendingChallenge) {
-      await message.reply("You do not have a pending lion battle challenge.");
-      return true;
-    }
-
-    const [challengerTeam, opponentTeam] = await Promise.all([
-      listUserLionTeam(prisma, {
-        guildId: message.guildId,
-        userId: pendingChallenge.challengerUserId
-      }),
-      listUserLionTeam(prisma, {
-        guildId: message.guildId,
-        userId: pendingChallenge.opponentUserId
-      })
-    ]);
-
-    if (challengerTeam.length === 0 || opponentTeam.length === 0) {
-      await message.reply(
-        "That challenge cannot resolve because one trainer no longer has a valid battle team."
-      );
-      return true;
-    }
-
-    const battleCooldown = await getUserLionBattleCooldown(prisma, {
-      guildId: message.guildId,
-      challengerUserId: pendingChallenge.challengerUserId,
-      opponentUserId: pendingChallenge.opponentUserId,
-      now: message.createdAt
-    });
-
-    if (!battleCooldown.allowed && battleCooldown.cooldownEndsAt) {
-      await message.reply(
-        `One of these trainers battled recently. Try another team battle <t:${Math.floor(battleCooldown.cooldownEndsAt.getTime() / 1000)}:R>.`
-      );
-      return true;
-    }
-
-    const accepted = await acceptLionBattleChallenge(prisma, {
-      guildId: message.guildId,
-      opponentUserId: message.author.id,
-      challengerUserId: pendingChallenge.challengerUserId,
-      now: message.createdAt
-    });
-
-    if (accepted.outcome !== "accepted" || !accepted.challenge) {
-      await message.reply("That lion battle challenge is no longer available.");
-      return true;
-    }
-
-    const battleMessage = await resolveAndRecordTeamBattle({
-      guildId: message.guildId,
-      now: message.createdAt,
-      firstUserId: accepted.challenge.challengerUserId,
-      firstDisplayName: accepted.challenge.challengerDisplayName,
-      firstTeam: challengerTeam,
-      secondUserId: accepted.challenge.opponentUserId,
-      secondDisplayName: accepted.challenge.opponentDisplayName,
-      secondTeam: opponentTeam,
-      challengeId: accepted.challenge.id
-    });
-
-    await message.reply(
-      [
-        formatLionBattleChallengeAcceptedMessage(accepted.challenge),
-        battleMessage
-      ].join("\n")
-    );
     return true;
   }
 
   if (normalizedCommand === "~decline") {
-    const challenger = message.mentions.users.first();
-    const result = await declineLionBattleChallenge(prisma, {
-      guildId: message.guildId,
-      opponentUserId: message.author.id,
-      challengerUserId: challenger?.id,
-      now: message.createdAt
-    });
-
-    if (result.outcome !== "declined" || !result.challenge) {
-      await message.reply("You do not have a pending lion battle challenge.");
-      return true;
-    }
-
-    await message.reply(formatLionBattleChallengeDeclinedMessage(result.challenge));
     return true;
   }
 

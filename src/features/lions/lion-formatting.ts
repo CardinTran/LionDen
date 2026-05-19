@@ -348,7 +348,7 @@ export const formatLionBattleChallengeMessage = (
 ): string =>
   [
     `${challenge.challengerDisplayName} challenged ${challenge.opponentDisplayName} to a lion team battle.`,
-    `${challenge.opponentDisplayName} can use \`~accept\` to battle or \`~decline\` to decline.`,
+    `${challenge.opponentDisplayName} can use \`~battle accept\` to battle or \`~battle decline\` to decline.`,
     `This challenge expires ${formatDiscordTimestamp(challenge.expiresAt)}.`
   ].join("\n");
 
