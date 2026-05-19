@@ -18,6 +18,12 @@ import {
 } from "./lion-progression.service.js";
 
 export type LionSpawnStatusValue = "ACTIVE" | "CAUGHT" | "EXPIRED";
+export type LionBattleChallengeStatusValue =
+  | "PENDING"
+  | "ACCEPTED"
+  | "DECLINED"
+  | "EXPIRED"
+  | "CANCELLED";
 
 export interface LionSpeciesRecord extends LionSpeciesSeed {
   id: string;
@@ -153,6 +159,22 @@ export interface LionBattleRecord {
   createdAt: Date;
 }
 
+export interface LionBattleChallengeRecord {
+  id: string;
+  guildId: string;
+  channelId: string;
+  challengerUserId: string;
+  challengerDisplayName: string;
+  opponentUserId: string;
+  opponentDisplayName: string;
+  status: LionBattleChallengeStatusValue;
+  battleRecordId: string | null;
+  createdAt: Date;
+  expiresAt: Date;
+  respondedAt: Date | null;
+  updatedAt: Date;
+}
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 interface LionCreatureStore {
   lionSpecies: any;
@@ -164,6 +186,7 @@ interface LionCreatureStore {
   lionSpawnConfig: any;
   lionChannelEffect: any;
   lionBattleRecord: any;
+  lionBattleChallenge: any;
   userProfile: {
     upsert(args: {
       where: {
@@ -319,6 +342,16 @@ export interface UserLionBattleCooldownResult {
   latestBattle: LionBattleRecord | null;
 }
 
+export interface CreateLionBattleChallengeResult {
+  outcome: "created" | "already_pending";
+  challenge: LionBattleChallengeRecord;
+}
+
+export interface RespondLionBattleChallengeResult {
+  outcome: "accepted" | "declined" | "cancelled" | "no_pending_challenge";
+  challenge: LionBattleChallengeRecord | null;
+}
+
 export interface RecordLionBattleInput {
   guildId: string;
   challengerUserId: string;
@@ -360,6 +393,7 @@ export const LION_BATTLE_WIN_XP = 45;
 export const LION_BATTLE_LOSS_XP = 18;
 export const LION_BATTLE_COOLDOWN_MS = 10 * 60 * 1000;
 export const LION_USER_BATTLE_COOLDOWN_MS = 5 * 60 * 1000;
+export const LION_BATTLE_CHALLENGE_DURATION_MS = 5 * 60 * 1000;
 export const MAX_LION_TEAM_SIZE = 3;
 export const MAX_LION_NICKNAME_LENGTH = 24;
 export const HIGH_LEVEL_WILD_LION_THRESHOLD = 25;
@@ -2138,6 +2172,273 @@ export const getUserLionBattleCooldown = async (
     ),
     latestBattle
   };
+};
+
+export const expirePendingLionBattleChallenges = async (
+  store: Pick<LionCreatureStore, "lionBattleChallenge">,
+  input: {
+    guildId: string;
+    now: Date;
+  }
+): Promise<number> => {
+  const result = await store.lionBattleChallenge.updateMany({
+    where: {
+      guildId: input.guildId,
+      status: "PENDING",
+      expiresAt: {
+        lte: input.now
+      }
+    },
+    data: {
+      status: "EXPIRED",
+      respondedAt: input.now
+    }
+  });
+
+  return result.count;
+};
+
+export const createLionBattleChallenge = async (
+  store: Pick<LionCreatureStore, "lionBattleChallenge">,
+  input: {
+    guildId: string;
+    channelId: string;
+    challengerUserId: string;
+    challengerDisplayName: string;
+    opponentUserId: string;
+    opponentDisplayName: string;
+    now: Date;
+  }
+): Promise<CreateLionBattleChallengeResult> => {
+  await expirePendingLionBattleChallenges(store, {
+    guildId: input.guildId,
+    now: input.now
+  });
+
+  const existingChallenge: LionBattleChallengeRecord | null =
+    await store.lionBattleChallenge.findFirst({
+      where: {
+        guildId: input.guildId,
+        channelId: input.channelId,
+        status: "PENDING",
+        expiresAt: {
+          gt: input.now
+        },
+        OR: [
+          {
+            challengerUserId: input.challengerUserId,
+            opponentUserId: input.opponentUserId
+          },
+          {
+            challengerUserId: input.opponentUserId,
+            opponentUserId: input.challengerUserId
+          }
+        ]
+      },
+      orderBy: [{ createdAt: "desc" }]
+    });
+
+  if (existingChallenge) {
+    return {
+      outcome: "already_pending",
+      challenge: existingChallenge
+    };
+  }
+
+  const challenge = await store.lionBattleChallenge.create({
+    data: {
+      guildId: input.guildId,
+      channelId: input.channelId,
+      challengerUserId: input.challengerUserId,
+      challengerDisplayName: input.challengerDisplayName,
+      opponentUserId: input.opponentUserId,
+      opponentDisplayName: input.opponentDisplayName,
+      expiresAt: new Date(
+        input.now.getTime() + LION_BATTLE_CHALLENGE_DURATION_MS
+      )
+    }
+  });
+
+  return {
+    outcome: "created",
+    challenge
+  };
+};
+
+export const findPendingLionBattleChallengeForOpponent = async (
+  store: Pick<LionCreatureStore, "lionBattleChallenge">,
+  input: {
+    guildId: string;
+    channelId: string;
+    opponentUserId: string;
+    challengerUserId?: string;
+    now: Date;
+  }
+): Promise<LionBattleChallengeRecord | null> => {
+  await expirePendingLionBattleChallenges(store, {
+    guildId: input.guildId,
+    now: input.now
+  });
+
+  return store.lionBattleChallenge.findFirst({
+    where: {
+      guildId: input.guildId,
+      channelId: input.channelId,
+      opponentUserId: input.opponentUserId,
+      challengerUserId: input.challengerUserId,
+      status: "PENDING",
+      expiresAt: {
+        gt: input.now
+      }
+    },
+    orderBy: [{ createdAt: "desc" }]
+  });
+};
+
+export const acceptLionBattleChallenge = async (
+  store: Pick<LionCreatureStore, "lionBattleChallenge">,
+  input: {
+    guildId: string;
+    channelId: string;
+    opponentUserId: string;
+    challengerUserId?: string;
+    now: Date;
+  }
+): Promise<RespondLionBattleChallengeResult> => {
+  const challenge = await findPendingLionBattleChallengeForOpponent(
+    store,
+    input
+  );
+
+  if (!challenge) {
+    return {
+      outcome: "no_pending_challenge",
+      challenge: null
+    };
+  }
+
+  const updatedChallenge = await store.lionBattleChallenge.update({
+    where: {
+      id: challenge.id
+    },
+    data: {
+      status: "ACCEPTED",
+      respondedAt: input.now
+    }
+  });
+
+  return {
+    outcome: "accepted",
+    challenge: updatedChallenge
+  };
+};
+
+export const declineLionBattleChallenge = async (
+  store: Pick<LionCreatureStore, "lionBattleChallenge">,
+  input: {
+    guildId: string;
+    channelId: string;
+    opponentUserId: string;
+    challengerUserId?: string;
+    now: Date;
+  }
+): Promise<RespondLionBattleChallengeResult> => {
+  const challenge = await findPendingLionBattleChallengeForOpponent(
+    store,
+    input
+  );
+
+  if (!challenge) {
+    return {
+      outcome: "no_pending_challenge",
+      challenge: null
+    };
+  }
+
+  const updatedChallenge = await store.lionBattleChallenge.update({
+    where: {
+      id: challenge.id
+    },
+    data: {
+      status: "DECLINED",
+      respondedAt: input.now
+    }
+  });
+
+  return {
+    outcome: "declined",
+    challenge: updatedChallenge
+  };
+};
+
+export const cancelLionBattleChallenge = async (
+  store: Pick<LionCreatureStore, "lionBattleChallenge">,
+  input: {
+    guildId: string;
+    channelId: string;
+    challengerUserId: string;
+    opponentUserId?: string;
+    now: Date;
+  }
+): Promise<RespondLionBattleChallengeResult> => {
+  await expirePendingLionBattleChallenges(store, {
+    guildId: input.guildId,
+    now: input.now
+  });
+
+  const challenge: LionBattleChallengeRecord | null =
+    await store.lionBattleChallenge.findFirst({
+      where: {
+        guildId: input.guildId,
+        channelId: input.channelId,
+        challengerUserId: input.challengerUserId,
+        opponentUserId: input.opponentUserId,
+        status: "PENDING",
+        expiresAt: {
+          gt: input.now
+        }
+      },
+      orderBy: [{ createdAt: "desc" }]
+    });
+
+  if (!challenge) {
+    return {
+      outcome: "no_pending_challenge",
+      challenge: null
+    };
+  }
+
+  const updatedChallenge = await store.lionBattleChallenge.update({
+    where: {
+      id: challenge.id
+    },
+    data: {
+      status: "CANCELLED",
+      respondedAt: input.now
+    }
+  });
+
+  return {
+    outcome: "cancelled",
+    challenge: updatedChallenge
+  };
+};
+
+export const attachLionBattleChallengeRecord = async (
+  store: Pick<LionCreatureStore, "lionBattleChallenge">,
+  input: {
+    challengeId: string;
+    battleRecordId: string;
+  }
+): Promise<LionBattleChallengeRecord> => {
+  return store.lionBattleChallenge.update({
+    where: {
+      id: input.challengeId
+    },
+    data: {
+      battleRecordId: input.battleRecordId
+    }
+  });
 };
 
 export const recordLionBattle = async (

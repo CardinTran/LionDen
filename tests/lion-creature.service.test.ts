@@ -8,7 +8,14 @@ import {
   calculateCatchChance,
   chooseWeightedLionSpecies,
   clearUserLionTeam,
+  acceptLionBattleChallenge,
+  attachLionBattleChallengeRecord,
+  cancelLionBattleChallenge,
+  createLionBattleChallenge,
   createWildLionSpawn,
+  declineLionBattleChallenge,
+  expirePendingLionBattleChallenges,
+  findPendingLionBattleChallengeForOpponent,
   generateWildLionSpawnLevel,
   getOwnedLionDisplayName,
   getUserLionBattleCooldown,
@@ -26,6 +33,7 @@ import {
   trainUserLion,
   useLionTrainingItem,
   type ActiveLionSpawnWithSpeciesRecord,
+  type LionBattleChallengeRecord,
   type LionBattleRecord,
   type LionChannelEffectRecord,
   type LionShopItemRecord,
@@ -212,6 +220,25 @@ const buildBattleRecord = (
   mvpLionName: "RDL Lion 001",
   roundsCount: 4,
   createdAt: now,
+  ...overrides
+});
+
+const buildBattleChallenge = (
+  overrides: Partial<LionBattleChallengeRecord> = {}
+): LionBattleChallengeRecord => ({
+  id: "challenge_123",
+  guildId: "guild_123",
+  channelId: "channel_123",
+  challengerUserId: "user_123",
+  challengerDisplayName: "Cardin",
+  opponentUserId: "user_456",
+  opponentDisplayName: "Mira",
+  status: "PENDING",
+  battleRecordId: null,
+  createdAt: now,
+  expiresAt: new Date(now.getTime() + 5 * 60_000),
+  respondedAt: null,
+  updatedAt: now,
   ...overrides
 });
 
@@ -1229,6 +1256,227 @@ describe("lion creature service", () => {
     expect(result.cooldownEndsAt?.getTime()).toBe(
       recentBattle.createdAt.getTime() + LION_USER_BATTLE_COOLDOWN_MS
     );
+  });
+
+  it("creates a pending lion battle challenge with an expiry", async () => {
+    const create = vi.fn().mockResolvedValue(buildBattleChallenge());
+    const updateMany = vi.fn().mockResolvedValue({ count: 0 });
+
+    const result = await createLionBattleChallenge(
+      {
+        lionBattleChallenge: {
+          updateMany,
+          findFirst: vi.fn().mockResolvedValue(null),
+          create
+        }
+      } as never,
+      {
+        guildId: "guild_123",
+        channelId: "channel_123",
+        challengerUserId: "user_123",
+        challengerDisplayName: "Cardin",
+        opponentUserId: "user_456",
+        opponentDisplayName: "Mira",
+        now
+      }
+    );
+
+    expect(result.outcome).toBe("created");
+    expect(updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: "PENDING"
+        }),
+        data: expect.objectContaining({
+          status: "EXPIRED"
+        })
+      })
+    );
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          challengerUserId: "user_123",
+          opponentUserId: "user_456",
+          expiresAt: new Date(now.getTime() + 5 * 60_000)
+        })
+      })
+    );
+  });
+
+  it("reuses an existing pending challenge between the same users", async () => {
+    const existingChallenge = buildBattleChallenge();
+    const create = vi.fn();
+
+    const result = await createLionBattleChallenge(
+      {
+        lionBattleChallenge: {
+          updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+          findFirst: vi.fn().mockResolvedValue(existingChallenge),
+          create
+        }
+      } as never,
+      {
+        guildId: "guild_123",
+        channelId: "channel_123",
+        challengerUserId: "user_123",
+        challengerDisplayName: "Cardin",
+        opponentUserId: "user_456",
+        opponentDisplayName: "Mira",
+        now
+      }
+    );
+
+    expect(result.outcome).toBe("already_pending");
+    expect(result.challenge).toBe(existingChallenge);
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("finds pending challenges for the challenged user after expiring stale ones", async () => {
+    const pendingChallenge = buildBattleChallenge();
+    const updateMany = vi.fn().mockResolvedValue({ count: 1 });
+    const findFirst = vi.fn().mockResolvedValue(pendingChallenge);
+
+    const result = await findPendingLionBattleChallengeForOpponent(
+      {
+        lionBattleChallenge: {
+          updateMany,
+          findFirst
+        }
+      } as never,
+      {
+        guildId: "guild_123",
+        channelId: "channel_123",
+        opponentUserId: "user_456",
+        now
+      }
+    );
+
+    expect(result).toBe(pendingChallenge);
+    expect(findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          opponentUserId: "user_456",
+          status: "PENDING"
+        })
+      })
+    );
+  });
+
+  it("accepts, declines, and cancels pending battle challenges", async () => {
+    const pendingChallenge = buildBattleChallenge();
+    const update = vi
+      .fn()
+      .mockResolvedValueOnce(
+        buildBattleChallenge({
+          status: "ACCEPTED",
+          respondedAt: now
+        })
+      )
+      .mockResolvedValueOnce(
+        buildBattleChallenge({
+          status: "DECLINED",
+          respondedAt: now
+        })
+      )
+      .mockResolvedValueOnce(
+        buildBattleChallenge({
+          status: "CANCELLED",
+          respondedAt: now
+        })
+      );
+    const store = {
+      lionBattleChallenge: {
+        updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+        findFirst: vi.fn().mockResolvedValue(pendingChallenge),
+        update
+      }
+    } as never;
+
+    await expect(
+      acceptLionBattleChallenge(store, {
+        guildId: "guild_123",
+        channelId: "channel_123",
+        opponentUserId: "user_456",
+        now
+      })
+    ).resolves.toMatchObject({
+      outcome: "accepted",
+      challenge: {
+        status: "ACCEPTED"
+      }
+    });
+    await expect(
+      declineLionBattleChallenge(store, {
+        guildId: "guild_123",
+        channelId: "channel_123",
+        opponentUserId: "user_456",
+        now
+      })
+    ).resolves.toMatchObject({
+      outcome: "declined",
+      challenge: {
+        status: "DECLINED"
+      }
+    });
+    await expect(
+      cancelLionBattleChallenge(store, {
+        guildId: "guild_123",
+        channelId: "channel_123",
+        challengerUserId: "user_123",
+        now
+      })
+    ).resolves.toMatchObject({
+      outcome: "cancelled",
+      challenge: {
+        status: "CANCELLED"
+      }
+    });
+    expect(update).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "ACCEPTED"
+        })
+      })
+    );
+  });
+
+  it("expires pending battle challenges and links accepted challenges to battle records", async () => {
+    const updateMany = vi.fn().mockResolvedValue({ count: 2 });
+    const update = vi.fn().mockResolvedValue(
+      buildBattleChallenge({
+        battleRecordId: "battle_123"
+      })
+    );
+
+    await expect(
+      expirePendingLionBattleChallenges(
+        {
+          lionBattleChallenge: {
+            updateMany
+          }
+        } as never,
+        {
+          guildId: "guild_123",
+          now
+        }
+      )
+    ).resolves.toBe(2);
+    await expect(
+      attachLionBattleChallengeRecord(
+        {
+          lionBattleChallenge: {
+            update
+          }
+        } as never,
+        {
+          challengeId: "challenge_123",
+          battleRecordId: "battle_123"
+        }
+      )
+    ).resolves.toMatchObject({
+      battleRecordId: "battle_123"
+    });
   });
 
   it("records team battle summaries for history boards", async () => {
