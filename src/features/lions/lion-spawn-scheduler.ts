@@ -5,7 +5,6 @@ import type { Client } from "discord.js";
 
 import { logger } from "../../lib/logger.js";
 import { prisma } from "../../lib/prisma.js";
-import { env } from "../../config/env.js";
 import { isMaintenanceModeEnabled } from "../admin/bot-config.service.js";
 import { listMostActiveChannels } from "../economy/channel-activity.service.js";
 import {
@@ -26,6 +25,7 @@ import type { LionRarityValue } from "./lion-seed-data.js";
 
 let schedulerTimer: ReturnType<typeof setInterval> | null = null;
 let runtimeInitialized = false;
+let guildIdPromise: Promise<string> | null = null;
 
 export const LION_SPAWN_MIN_ACTIVE_MESSAGES = 5;
 export const LION_SPAWN_ACTIVITY_WINDOW_MINUTES = 60;
@@ -40,9 +40,14 @@ const ensureLionRuntime = async (): Promise<void> => {
     return;
   }
 
+  if (!guildIdPromise) {
+    guildIdPromise = import("../../config/env.js").then(({ env }) => env.DISCORD_GUILD_ID);
+  }
+
+  const guildId = await guildIdPromise;
   await syncDefaultLionData(prisma);
   await ensureLionSpawnConfig(prisma, {
-    guildId: env.DISCORD_GUILD_ID,
+    guildId,
     now: new Date(),
     random: Math.random
   });
