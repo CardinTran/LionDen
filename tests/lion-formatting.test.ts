@@ -8,7 +8,9 @@ describe("lion formatting", () => {
 
     expect(message).toContain("~toplions");
     expect(message).toContain("~nickname");
-    expect(message).toContain("~accept");
+    expect(message).toContain("~release");
+    expect(message).toContain("~battle accept");
+    expect(message).toContain("~battle decline");
     expect(message).toContain("~battle training");
     expect(message).toContain("~battlehistory");
     expect(message).toContain("~battleboard");

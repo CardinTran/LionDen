@@ -38,6 +38,8 @@ import {
   purchaseLionShopItem,
   recordLionBattle,
   markLionBattleChallengeResolved,
+  calculateLionReleaseCoins,
+  releaseUserLion,
   setUserLionNickname,
   setUserLionTeam,
   syncDefaultLionData,
@@ -60,6 +62,8 @@ import {
   formatLionShopMessage,
   formatOwnedLionMessage,
   formatRecentNotableLionCatchesMessage,
+  formatReleaseUserLionMessage,
+  formatReleaseUserLionPreviewMessage,
   formatSetUserLionNicknameMessage,
   formatSetUserLionTeamMessage,
   formatTeamBattleLionMessage,
@@ -232,17 +236,16 @@ export const handleLionCreatureMessage = async (
       "~buy",
       "~bag",
       "~use",
-      "~catch",
-      "~train",
-      "~nickname",
-      "~team",
-      "~battle",
-      "~accept",
-      "~decline",
-      "~cancelbattle",
-      "~battlehistory",
-      "~battlestats",
-      "~battleboard",
+        "~catch",
+        "~train",
+        "~nickname",
+        "~release",
+        "~team",
+        "~battle",
+        "~cancelbattle",
+        "~battlehistory",
+        "~battlestats",
+        "~battleboard",
       "~toplions",
       "~lionboard",
       "~rarecatches",
@@ -516,6 +519,52 @@ export const handleLionCreatureMessage = async (
     });
 
     await message.reply(formatSetUserLionNicknameMessage(result));
+    return true;
+  }
+
+  if (normalizedCommand === "~release") {
+    const hasConfirmed = args.at(-1)?.toLowerCase() === "confirm";
+    const query = hasConfirmed ? args.slice(0, -1).join(" ") : args.join(" ");
+
+    if (!query) {
+      await message.reply(
+        "Use `~release <lion id> confirm` to release one owned lion for coins."
+      );
+      return true;
+    }
+
+    if (!hasConfirmed) {
+      const lions = await listUserLions(prisma, {
+        guildId: message.guildId,
+        userId: message.author.id,
+        limit: 100
+      });
+      const lion = findUserLionFromList(lions, query);
+
+      if (!lion) {
+        await message.reply(
+          "I could not find that lion in your roster. Try `~lions` to see your owned IDs."
+        );
+        return true;
+      }
+
+      await message.reply(
+        formatReleaseUserLionPreviewMessage({
+          lion,
+          coinsAwarded: calculateLionReleaseCoins(lion)
+        })
+      );
+      return true;
+    }
+
+    const result = await releaseUserLion(prisma, {
+      guildId: message.guildId,
+      userId: message.author.id,
+      displayName: getDisplayName(message),
+      query
+    });
+
+    await message.reply(formatReleaseUserLionMessage(result));
     return true;
   }
 

@@ -326,6 +326,13 @@ export interface SetUserLionNicknameResult {
   error: string | null;
 }
 
+export interface ReleaseUserLionResult {
+  outcome: "released" | "lion_not_found";
+  lion: UserLionWithSpeciesRecord | null;
+  profile: UserProfileRecord | null;
+  coinsAwarded: number;
+}
+
 export interface RecentLionCatchEntry {
   rank: number;
   spawn: ActiveLionSpawnWithSpeciesRecord;
@@ -1574,6 +1581,66 @@ export const setUserLionNickname = async (
     lion: updatedLion,
     normalizedNickname: validation.nickname,
     error: null
+  };
+};
+
+export const calculateLionReleaseCoins = (
+  lion: UserLionWithSpeciesRecord
+): number =>
+  Math.max(
+    1,
+    Math.floor(lion.species.baseValue * 5 + Math.max(1, lion.level))
+  );
+
+export const releaseUserLion = async (
+  store: Pick<LionCreatureStore, "userLion" | "userProfile">,
+  input: {
+    guildId: string;
+    userId: string;
+    displayName: string;
+    query: string;
+  }
+): Promise<ReleaseUserLionResult> => {
+  const lion = await getUserLionByQuery(store, input);
+
+  if (!lion) {
+    return {
+      outcome: "lion_not_found",
+      lion: null,
+      profile: null,
+      coinsAwarded: 0
+    };
+  }
+
+  const coinsAwarded = calculateLionReleaseCoins(lion);
+
+  const profile = await getOrCreateProfile(store, {
+    guildId: input.guildId,
+    userId: input.userId,
+    displayName: input.displayName
+  });
+  const updatedProfile = await updateProfile(store, {
+    guildId: input.guildId,
+    userId: input.userId,
+    displayName: input.displayName,
+    xp: profile.xp,
+    level: profile.level,
+    coins: profile.coins + coinsAwarded,
+    lastMessageXpAt: profile.lastMessageXpAt,
+    lastDailyClaimAt: profile.lastDailyClaimAt
+  });
+
+  await store.userLion.delete({
+    where: {
+      id: lion.id
+    }
+  });
+
+  return {
+    outcome: "released",
+    lion,
+    profile: updatedProfile,
+    coinsAwarded
   };
 };
 

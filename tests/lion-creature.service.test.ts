@@ -12,6 +12,7 @@ import {
   clearUserLionTeam,
   createLionBattleChallenge,
   createWildLionSpawn,
+  calculateLionReleaseCoins,
   generateWildLionSpawnLevel,
   getOwnedLionDisplayName,
   getUserLionBattleCooldown,
@@ -24,6 +25,7 @@ import {
   LION_USER_BATTLE_COOLDOWN_MS,
   purchaseLionShopItem,
   recordLionBattle,
+  releaseUserLion,
   setUserLionNickname,
   setUserLionTeam,
   trainUserLion,
@@ -805,6 +807,90 @@ describe("lion creature service", () => {
     );
 
     expect(result.outcome).toBe("invalid");
+  });
+
+  it("calculates lion release coins from base value and level", () => {
+    expect(
+      calculateLionReleaseCoins(
+        buildOwnedLion({
+          level: 3,
+          species: buildSpecies({
+            baseValue: 4
+          })
+        })
+      )
+    ).toBe(23);
+  });
+
+  it("releases owned lions for coins and removes them from the roster", async () => {
+    const lion = buildOwnedLion();
+    const profile = buildProfile({
+      coins: 100
+    });
+    const updatedProfile = buildProfile({
+      coins: 106
+    });
+    const deleteMock = vi.fn().mockResolvedValue(lion);
+    const updateMock = vi.fn().mockResolvedValue(updatedProfile);
+
+    const result = await releaseUserLion(
+      {
+        userLion: {
+          findMany: vi.fn().mockResolvedValue([lion]),
+          delete: deleteMock
+        },
+        userProfile: {
+          upsert: vi.fn().mockResolvedValue(profile),
+          update: updateMock
+        }
+      } as never,
+      {
+        guildId: "guild_123",
+        userId: "user_123",
+        displayName: "Cardin",
+        query: "L001"
+      }
+    );
+
+    expect(result.outcome).toBe("released");
+    expect(result.coinsAwarded).toBe(6);
+    expect(deleteMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: "owned_123"
+        }
+      })
+    );
+    expect(updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          coins: 106
+        })
+      })
+    );
+  });
+
+  it("does not release missing lions", async () => {
+    const result = await releaseUserLion(
+      {
+        userLion: {
+          findMany: vi.fn().mockResolvedValue([]),
+          delete: vi.fn()
+        },
+        userProfile: {
+          upsert: vi.fn(),
+          update: vi.fn()
+        }
+      } as never,
+      {
+        guildId: "guild_123",
+        userId: "user_123",
+        displayName: "Cardin",
+        query: "missing"
+      }
+    );
+
+    expect(result.outcome).toBe("lion_not_found");
   });
 
   it("uses training snack inventory to award lion XP without training cooldown", async () => {
