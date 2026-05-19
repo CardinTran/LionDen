@@ -5,8 +5,11 @@
 1. Copy `.env.example` to `.env`.
 2. Install dependencies with `npm install`.
 3. Run `npm run prisma:generate`.
-4. Register slash commands with `npm run discord:register`.
-5. Start the bot with `npm run dev`.
+4. Apply committed database migrations with `npm run prisma:migrate:deploy`.
+5. Register slash commands with `npm run discord:register`.
+6. Start the bot with `npm run dev`.
+
+When Prisma reports `P2021` or a missing table such as `main.LionBattleRecord`, the configured database is behind the checked-in migrations. Stop the bot, run `npm run prisma:migrate:deploy`, then start it again.
 
 ## MVP Deployment Goals
 

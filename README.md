@@ -50,6 +50,8 @@ Phase 0 foundation is in progress. This repo currently includes:
 6. Register commands in your test server with `npm run discord:register`.
 7. Start the bot with `npm run dev`.
 
+After pulling new migrations, run `npm run prisma:migrate:deploy` before starting the bot so the local SQLite database has every table used by the current code.
+
 ## Scripts
 
 - `npm run dev`: run the bot in watch mode
@@ -58,6 +60,7 @@ Phase 0 foundation is in progress. This repo currently includes:
 - `npm run typecheck`: run the TypeScript checker
 - `npm run test`: run unit tests
 - `npm run discord:register`: register slash commands to the test guild
+- `npm run prisma:migrate:deploy`: apply committed Prisma migrations to the configured database
 - `npm run prisma:studio`: open the local Prisma database viewer
 
 See [docs/PRODUCT_SPEC.md](/Users/cardintran/Documents/GitHub/LionDen/docs/PRODUCT_SPEC.md), [docs/COMMANDS.md](/Users/cardintran/Documents/GitHub/LionDen/docs/COMMANDS.md), and [docs/DEPLOYMENT.md](/Users/cardintran/Documents/GitHub/LionDen/docs/DEPLOYMENT.md) for the evolving product and operating notes.
