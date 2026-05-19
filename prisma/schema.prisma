@@ -241,19 +241,20 @@ model LionBattleRecord {
 }
 
 model LionBattleChallenge {
-  id                     String                    @id @default(cuid())
+  id                     String   @id @default(cuid())
   guildId                String
   channelId              String
   challengerUserId       String
   challengerDisplayName  String
   opponentUserId         String
   opponentDisplayName    String
-  status                 LionBattleChallengeStatus @default(PENDING)
-  battleRecordId         String?
-  createdAt              DateTime                  @default(now())
+  status                 String   @default("PENDING")
   expiresAt              DateTime
-  respondedAt            DateTime?
-  updatedAt              DateTime                  @updatedAt
+  acceptedAt             DateTime?
+  declinedAt             DateTime?
+  resolvedBattleRecordId String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 
   @@index([guildId, channelId, status, expiresAt])
   @@index([guildId, challengerUserId, status, expiresAt])
@@ -380,12 +381,4 @@ enum LionItemCategory {
   BALL
   SPAWN_MODIFIER
   UTILITY
-}
-
-enum LionBattleChallengeStatus {
-  PENDING
-  ACCEPTED
-  DECLINED
-  EXPIRED
-  CANCELLED
 }

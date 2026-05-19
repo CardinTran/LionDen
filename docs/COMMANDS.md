@@ -195,8 +195,14 @@ LionDen now has a first public lion-creature loop inspired by Poketwo-style wild
 - `~team` shows the caller's saved battle team.
 - `~team set <lion1> <lion2> <lion3>` saves up to 3 owned lions as the caller's battle team.
 - `~team clear` clears the caller's battle team.
-- `~battle @user` runs a quick auto-resolved team battle using both users' saved teams.
+- `~battle @user` challenges another member's saved team.
+- `~accept [@user]` accepts a pending lion battle challenge and resolves the battle.
+- `~decline [@user]` declines a pending lion battle challenge.
+- `~cancelbattle [@user]` cancels a pending challenge you sent.
+- `~battle training` runs a quick Training Hall PvE battle against a scaled bot team.
 - `~battlehistory [@user]` shows recent recorded team battles.
+- `~battlestats [@user]` shows win/loss stats for a trainer.
+- `~battleboard` shows the top lion battle trainers in the server.
 - `~toplions` or `~lionboard` shows the top 10 strongest owned lions in the server.
 - `~rarecatches` shows recent rare or high-level catches in the server.
 - `~lions` shows the caller's caught lion roster.
@@ -227,9 +233,12 @@ Current lion creature rules:
 - level lures raise wild encounter levels in the channel
 - battle teams are persistent per guild/user and can contain 1 to 3 owned lions
 - team battles send out team slot 1 first, then the next slot when a lion faints
+- public PvP battles use a short persisted challenge acceptance flow before resolving
 - quick battles use speed, move power, type matchups, derived stats, battle records, and battle XP cooldowns
 - team battle starts are cooldown-limited per recent participant pair to reduce spam
 - only lions that participate in a team battle receive battle XP
+- Training Hall battles use the same battle engine against a generated NPC team
+- battle stats and battle boards are guild-scoped and derived from recorded battle history
 - species have readable public codes such as `L001`, plus internal database IDs for persistence
 - owned lion inspection now shows nickname, acquisition source, type, ability, level, XP, and derived battle stats
 

@@ -18,12 +18,6 @@ import {
 } from "./lion-progression.service.js";
 
 export type LionSpawnStatusValue = "ACTIVE" | "CAUGHT" | "EXPIRED";
-export type LionBattleChallengeStatusValue =
-  | "PENDING"
-  | "ACCEPTED"
-  | "DECLINED"
-  | "EXPIRED"
-  | "CANCELLED";
 
 export interface LionSpeciesRecord extends LionSpeciesSeed {
   id: string;
@@ -159,6 +153,14 @@ export interface LionBattleRecord {
   createdAt: Date;
 }
 
+export type LionBattleChallengeStatusValue =
+  | "PENDING"
+  | "ACCEPTED"
+  | "DECLINED"
+  | "EXPIRED"
+  | "RESOLVED"
+  | "CANCELED";
+
 export interface LionBattleChallengeRecord {
   id: string;
   guildId: string;
@@ -168,10 +170,11 @@ export interface LionBattleChallengeRecord {
   opponentUserId: string;
   opponentDisplayName: string;
   status: LionBattleChallengeStatusValue;
-  battleRecordId: string | null;
-  createdAt: Date;
   expiresAt: Date;
-  respondedAt: Date | null;
+  acceptedAt: Date | null;
+  declinedAt: Date | null;
+  resolvedBattleRecordId: string | null;
+  createdAt: Date;
   updatedAt: Date;
 }
 
@@ -343,13 +346,27 @@ export interface UserLionBattleCooldownResult {
 }
 
 export interface CreateLionBattleChallengeResult {
-  outcome: "created" | "already_pending";
-  challenge: LionBattleChallengeRecord;
+  outcome: "created" | "existing_challenge";
+  challenge: LionBattleChallengeRecord | null;
+  existingChallenge: LionBattleChallengeRecord | null;
 }
 
-export interface RespondLionBattleChallengeResult {
-  outcome: "accepted" | "declined" | "cancelled" | "no_pending_challenge";
+export interface ResolveLionBattleChallengeResult {
+  outcome: "accepted" | "declined" | "canceled" | "not_found";
   challenge: LionBattleChallengeRecord | null;
+}
+
+export interface LionTrainerBattleStats {
+  userId: string;
+  displayName: string;
+  wins: number;
+  losses: number;
+  battles: number;
+  winRate: number;
+}
+
+export interface LionTrainerBattleStatsEntry extends LionTrainerBattleStats {
+  rank: number;
 }
 
 export interface RecordLionBattleInput {
@@ -393,7 +410,9 @@ export const LION_BATTLE_WIN_XP = 45;
 export const LION_BATTLE_LOSS_XP = 18;
 export const LION_BATTLE_COOLDOWN_MS = 10 * 60 * 1000;
 export const LION_USER_BATTLE_COOLDOWN_MS = 5 * 60 * 1000;
-export const LION_BATTLE_CHALLENGE_DURATION_MS = 5 * 60 * 1000;
+export const LION_BATTLE_CHALLENGE_DURATION_MS = 2 * 60 * 1000;
+export const LION_TRAINING_NPC_USER_ID = "lionden-training-npc";
+export const LION_TRAINING_NPC_DISPLAY_NAME = "Training Hall";
 export const MAX_LION_TEAM_SIZE = 3;
 export const MAX_LION_NICKNAME_LENGTH = 24;
 export const HIGH_LEVEL_WILD_LION_THRESHOLD = 25;
@@ -1565,6 +1584,66 @@ export const setUserLionNickname = async (
   };
 };
 
+export const calculateLionReleaseCoins = (
+  lion: UserLionWithSpeciesRecord
+): number =>
+  Math.max(
+    1,
+    Math.floor(lion.species.baseValue * 5 + Math.max(1, lion.level))
+  );
+
+export const releaseUserLion = async (
+  store: Pick<LionCreatureStore, "userLion" | "userProfile">,
+  input: {
+    guildId: string;
+    userId: string;
+    displayName: string;
+    query: string;
+  }
+): Promise<ReleaseUserLionResult> => {
+  const lion = await getUserLionByQuery(store, input);
+
+  if (!lion) {
+    return {
+      outcome: "lion_not_found",
+      lion: null,
+      profile: null,
+      coinsAwarded: 0
+    };
+  }
+
+  const coinsAwarded = calculateLionReleaseCoins(lion);
+
+  const profile = await getOrCreateProfile(store, {
+    guildId: input.guildId,
+    userId: input.userId,
+    displayName: input.displayName
+  });
+  const updatedProfile = await updateProfile(store, {
+    guildId: input.guildId,
+    userId: input.userId,
+    displayName: input.displayName,
+    xp: profile.xp,
+    level: profile.level,
+    coins: profile.coins + coinsAwarded,
+    lastMessageXpAt: profile.lastMessageXpAt,
+    lastDailyClaimAt: profile.lastDailyClaimAt
+  });
+
+  await store.userLion.delete({
+    where: {
+      id: lion.id
+    }
+  });
+
+  return {
+    outcome: "released",
+    lion,
+    profile: updatedProfile,
+    coinsAwarded
+  };
+};
+
 export const calculateTopLionScore = (
   lion: UserLionWithSpeciesRecord
 ): number => {
@@ -1579,14 +1658,6 @@ export const calculateTopLionScore = (
     stats.speed * 2
   );
 };
-
-export const calculateLionReleaseCoins = (
-  lion: UserLionWithSpeciesRecord
-): number =>
-  Math.max(
-    1,
-    Math.floor(lion.species.baseValue * 5 + Math.max(1, lion.level))
-  );
 
 const getStoredOwnerDisplayName = (
   lion: Pick<UserLionRecord, "ownerDisplayName" | "userId">,
@@ -1832,76 +1903,6 @@ export const getUserLionByQuery = async (
   });
 
   return findUserLionFromList(lions, input.query);
-};
-
-export const releaseUserLion = async (
-  store: Pick<LionCreatureStore, "userLion" | "userProfile">,
-  input: {
-    guildId: string;
-    userId: string;
-    displayName: string;
-    query: string;
-  }
-): Promise<ReleaseUserLionResult> => {
-  const lion = await getUserLionByQuery(store, input);
-
-  if (!lion) {
-    return {
-      outcome: "lion_not_found",
-      lion: null,
-      profile: null,
-      coinsAwarded: 0
-    };
-  }
-
-  const coinsAwarded = calculateLionReleaseCoins(lion);
-
-  const writeRelease = async (
-    releaseStore: Pick<LionCreatureStore, "userLion" | "userProfile">
-  ): Promise<UserProfileRecord> => {
-    const profile = await getOrCreateProfile(releaseStore, {
-      guildId: input.guildId,
-      userId: input.userId,
-      displayName: input.displayName
-    });
-    const updatedProfile = await updateProfile(releaseStore, {
-      guildId: input.guildId,
-      userId: input.userId,
-      displayName: input.displayName,
-      xp: profile.xp,
-      level: profile.level,
-      coins: profile.coins + coinsAwarded,
-      lastMessageXpAt: profile.lastMessageXpAt,
-      lastDailyClaimAt: profile.lastDailyClaimAt
-    });
-
-    await releaseStore.userLion.delete({
-      where: {
-        id: lion.id
-      }
-    });
-
-    return updatedProfile;
-  };
-
-  const transactionalStore = store as typeof store & {
-    $transaction?: <T>(
-      callback: (
-        tx: Pick<LionCreatureStore, "userLion" | "userProfile">
-      ) => Promise<T>
-    ) => Promise<T>;
-  };
-  const profile =
-    typeof transactionalStore.$transaction === "function"
-      ? await transactionalStore.$transaction((tx) => writeRelease(tx))
-      : await writeRelease(store);
-
-  return {
-    outcome: "released",
-    lion,
-    profile,
-    coinsAwarded
-  };
 };
 
 export const awardLionExperience = async (
@@ -2174,273 +2175,6 @@ export const getUserLionBattleCooldown = async (
   };
 };
 
-export const expirePendingLionBattleChallenges = async (
-  store: Pick<LionCreatureStore, "lionBattleChallenge">,
-  input: {
-    guildId: string;
-    now: Date;
-  }
-): Promise<number> => {
-  const result = await store.lionBattleChallenge.updateMany({
-    where: {
-      guildId: input.guildId,
-      status: "PENDING",
-      expiresAt: {
-        lte: input.now
-      }
-    },
-    data: {
-      status: "EXPIRED",
-      respondedAt: input.now
-    }
-  });
-
-  return result.count;
-};
-
-export const createLionBattleChallenge = async (
-  store: Pick<LionCreatureStore, "lionBattleChallenge">,
-  input: {
-    guildId: string;
-    channelId: string;
-    challengerUserId: string;
-    challengerDisplayName: string;
-    opponentUserId: string;
-    opponentDisplayName: string;
-    now: Date;
-  }
-): Promise<CreateLionBattleChallengeResult> => {
-  await expirePendingLionBattleChallenges(store, {
-    guildId: input.guildId,
-    now: input.now
-  });
-
-  const existingChallenge: LionBattleChallengeRecord | null =
-    await store.lionBattleChallenge.findFirst({
-      where: {
-        guildId: input.guildId,
-        channelId: input.channelId,
-        status: "PENDING",
-        expiresAt: {
-          gt: input.now
-        },
-        OR: [
-          {
-            challengerUserId: input.challengerUserId,
-            opponentUserId: input.opponentUserId
-          },
-          {
-            challengerUserId: input.opponentUserId,
-            opponentUserId: input.challengerUserId
-          }
-        ]
-      },
-      orderBy: [{ createdAt: "desc" }]
-    });
-
-  if (existingChallenge) {
-    return {
-      outcome: "already_pending",
-      challenge: existingChallenge
-    };
-  }
-
-  const challenge = await store.lionBattleChallenge.create({
-    data: {
-      guildId: input.guildId,
-      channelId: input.channelId,
-      challengerUserId: input.challengerUserId,
-      challengerDisplayName: input.challengerDisplayName,
-      opponentUserId: input.opponentUserId,
-      opponentDisplayName: input.opponentDisplayName,
-      expiresAt: new Date(
-        input.now.getTime() + LION_BATTLE_CHALLENGE_DURATION_MS
-      )
-    }
-  });
-
-  return {
-    outcome: "created",
-    challenge
-  };
-};
-
-export const findPendingLionBattleChallengeForOpponent = async (
-  store: Pick<LionCreatureStore, "lionBattleChallenge">,
-  input: {
-    guildId: string;
-    channelId: string;
-    opponentUserId: string;
-    challengerUserId?: string;
-    now: Date;
-  }
-): Promise<LionBattleChallengeRecord | null> => {
-  await expirePendingLionBattleChallenges(store, {
-    guildId: input.guildId,
-    now: input.now
-  });
-
-  return store.lionBattleChallenge.findFirst({
-    where: {
-      guildId: input.guildId,
-      channelId: input.channelId,
-      opponentUserId: input.opponentUserId,
-      challengerUserId: input.challengerUserId,
-      status: "PENDING",
-      expiresAt: {
-        gt: input.now
-      }
-    },
-    orderBy: [{ createdAt: "desc" }]
-  });
-};
-
-export const acceptLionBattleChallenge = async (
-  store: Pick<LionCreatureStore, "lionBattleChallenge">,
-  input: {
-    guildId: string;
-    channelId: string;
-    opponentUserId: string;
-    challengerUserId?: string;
-    now: Date;
-  }
-): Promise<RespondLionBattleChallengeResult> => {
-  const challenge = await findPendingLionBattleChallengeForOpponent(
-    store,
-    input
-  );
-
-  if (!challenge) {
-    return {
-      outcome: "no_pending_challenge",
-      challenge: null
-    };
-  }
-
-  const updatedChallenge = await store.lionBattleChallenge.update({
-    where: {
-      id: challenge.id
-    },
-    data: {
-      status: "ACCEPTED",
-      respondedAt: input.now
-    }
-  });
-
-  return {
-    outcome: "accepted",
-    challenge: updatedChallenge
-  };
-};
-
-export const declineLionBattleChallenge = async (
-  store: Pick<LionCreatureStore, "lionBattleChallenge">,
-  input: {
-    guildId: string;
-    channelId: string;
-    opponentUserId: string;
-    challengerUserId?: string;
-    now: Date;
-  }
-): Promise<RespondLionBattleChallengeResult> => {
-  const challenge = await findPendingLionBattleChallengeForOpponent(
-    store,
-    input
-  );
-
-  if (!challenge) {
-    return {
-      outcome: "no_pending_challenge",
-      challenge: null
-    };
-  }
-
-  const updatedChallenge = await store.lionBattleChallenge.update({
-    where: {
-      id: challenge.id
-    },
-    data: {
-      status: "DECLINED",
-      respondedAt: input.now
-    }
-  });
-
-  return {
-    outcome: "declined",
-    challenge: updatedChallenge
-  };
-};
-
-export const cancelLionBattleChallenge = async (
-  store: Pick<LionCreatureStore, "lionBattleChallenge">,
-  input: {
-    guildId: string;
-    channelId: string;
-    challengerUserId: string;
-    opponentUserId?: string;
-    now: Date;
-  }
-): Promise<RespondLionBattleChallengeResult> => {
-  await expirePendingLionBattleChallenges(store, {
-    guildId: input.guildId,
-    now: input.now
-  });
-
-  const challenge: LionBattleChallengeRecord | null =
-    await store.lionBattleChallenge.findFirst({
-      where: {
-        guildId: input.guildId,
-        channelId: input.channelId,
-        challengerUserId: input.challengerUserId,
-        opponentUserId: input.opponentUserId,
-        status: "PENDING",
-        expiresAt: {
-          gt: input.now
-        }
-      },
-      orderBy: [{ createdAt: "desc" }]
-    });
-
-  if (!challenge) {
-    return {
-      outcome: "no_pending_challenge",
-      challenge: null
-    };
-  }
-
-  const updatedChallenge = await store.lionBattleChallenge.update({
-    where: {
-      id: challenge.id
-    },
-    data: {
-      status: "CANCELLED",
-      respondedAt: input.now
-    }
-  });
-
-  return {
-    outcome: "cancelled",
-    challenge: updatedChallenge
-  };
-};
-
-export const attachLionBattleChallengeRecord = async (
-  store: Pick<LionCreatureStore, "lionBattleChallenge">,
-  input: {
-    challengeId: string;
-    battleRecordId: string;
-  }
-): Promise<LionBattleChallengeRecord> => {
-  return store.lionBattleChallenge.update({
-    where: {
-      id: input.challengeId
-    },
-    data: {
-      battleRecordId: input.battleRecordId
-    }
-  });
-};
-
 export const recordLionBattle = async (
   store: Pick<LionCreatureStore, "lionBattleRecord">,
   input: RecordLionBattleInput
@@ -2494,6 +2228,505 @@ export const listRecentLionBattles = async (
     },
     orderBy: [{ createdAt: "desc" }],
     take: limit
+  });
+};
+
+export const expirePendingLionBattleChallenges = async (
+  store: Pick<LionCreatureStore, "lionBattleChallenge">,
+  input: {
+    guildId: string;
+    now: Date;
+  }
+): Promise<number> => {
+  const result = await store.lionBattleChallenge.updateMany({
+    where: {
+      guildId: input.guildId,
+      status: "PENDING",
+      expiresAt: {
+        lte: input.now
+      }
+    },
+    data: {
+      status: "EXPIRED"
+    }
+  });
+
+  return result.count;
+};
+
+export const createLionBattleChallenge = async (
+  store: Pick<LionCreatureStore, "lionBattleChallenge">,
+  input: {
+    guildId: string;
+    channelId: string;
+    challengerUserId: string;
+    challengerDisplayName: string;
+    opponentUserId: string;
+    opponentDisplayName: string;
+    now: Date;
+  }
+): Promise<CreateLionBattleChallengeResult> => {
+  await expirePendingLionBattleChallenges(store, {
+    guildId: input.guildId,
+    now: input.now
+  });
+
+  const existingChallenge: LionBattleChallengeRecord | null =
+    await store.lionBattleChallenge.findFirst({
+      where: {
+        guildId: input.guildId,
+        status: "PENDING",
+        expiresAt: {
+          gt: input.now
+        },
+        OR: [
+          {
+            challengerUserId: input.challengerUserId,
+            opponentUserId: input.opponentUserId
+          },
+          {
+            challengerUserId: input.opponentUserId,
+            opponentUserId: input.challengerUserId
+          }
+        ]
+      },
+      orderBy: [{ createdAt: "desc" }]
+    });
+
+  if (existingChallenge) {
+    return {
+      outcome: "existing_challenge",
+      challenge: null,
+      existingChallenge
+    };
+  }
+
+  const challenge: LionBattleChallengeRecord =
+    await store.lionBattleChallenge.create({
+      data: {
+        guildId: input.guildId,
+        channelId: input.channelId,
+        challengerUserId: input.challengerUserId,
+        challengerDisplayName: input.challengerDisplayName,
+        opponentUserId: input.opponentUserId,
+        opponentDisplayName: input.opponentDisplayName,
+        expiresAt: new Date(
+          input.now.getTime() + LION_BATTLE_CHALLENGE_DURATION_MS
+        )
+      }
+    });
+
+  return {
+    outcome: "created",
+    challenge,
+    existingChallenge: null
+  };
+};
+
+export const findPendingLionBattleChallengeForOpponent = async (
+  store: Pick<LionCreatureStore, "lionBattleChallenge">,
+  input: {
+    guildId: string;
+    opponentUserId: string;
+    challengerUserId?: string | null;
+    now: Date;
+  }
+): Promise<LionBattleChallengeRecord | null> => {
+  await expirePendingLionBattleChallenges(store, {
+    guildId: input.guildId,
+    now: input.now
+  });
+
+  return store.lionBattleChallenge.findFirst({
+    where: {
+      guildId: input.guildId,
+      opponentUserId: input.opponentUserId,
+      challengerUserId: input.challengerUserId ?? undefined,
+      status: "PENDING",
+      expiresAt: {
+        gt: input.now
+      }
+    },
+    orderBy: [{ createdAt: "desc" }]
+  });
+};
+
+export const acceptLionBattleChallenge = async (
+  store: Pick<LionCreatureStore, "lionBattleChallenge">,
+  input: {
+    guildId: string;
+    opponentUserId: string;
+    challengerUserId?: string | null;
+    now: Date;
+  }
+): Promise<ResolveLionBattleChallengeResult> => {
+  await expirePendingLionBattleChallenges(store, {
+    guildId: input.guildId,
+    now: input.now
+  });
+
+  const challenge: LionBattleChallengeRecord | null =
+    await store.lionBattleChallenge.findFirst({
+      where: {
+        guildId: input.guildId,
+        opponentUserId: input.opponentUserId,
+        challengerUserId: input.challengerUserId ?? undefined,
+        status: "PENDING",
+        expiresAt: {
+          gt: input.now
+        }
+      },
+      orderBy: [{ createdAt: "desc" }]
+    });
+
+  if (!challenge) {
+    return {
+      outcome: "not_found",
+      challenge: null
+    };
+  }
+
+  const update = await store.lionBattleChallenge.updateMany({
+    where: {
+      id: challenge.id,
+      status: "PENDING",
+      expiresAt: {
+        gt: input.now
+      }
+    },
+    data: {
+      status: "ACCEPTED",
+      acceptedAt: input.now
+    }
+  });
+
+  if (update.count === 0) {
+    return {
+      outcome: "not_found",
+      challenge: null
+    };
+  }
+
+  const acceptedChallenge = await store.lionBattleChallenge.findUnique({
+    where: {
+      id: challenge.id
+    }
+  });
+
+  return {
+    outcome: "accepted",
+    challenge: acceptedChallenge
+  };
+};
+
+export const declineLionBattleChallenge = async (
+  store: Pick<LionCreatureStore, "lionBattleChallenge">,
+  input: {
+    guildId: string;
+    opponentUserId: string;
+    challengerUserId?: string | null;
+    now: Date;
+  }
+): Promise<ResolveLionBattleChallengeResult> => {
+  await expirePendingLionBattleChallenges(store, {
+    guildId: input.guildId,
+    now: input.now
+  });
+
+  const challenge: LionBattleChallengeRecord | null =
+    await store.lionBattleChallenge.findFirst({
+      where: {
+        guildId: input.guildId,
+        opponentUserId: input.opponentUserId,
+        challengerUserId: input.challengerUserId ?? undefined,
+        status: "PENDING",
+        expiresAt: {
+          gt: input.now
+        }
+      },
+      orderBy: [{ createdAt: "desc" }]
+    });
+
+  if (!challenge) {
+    return {
+      outcome: "not_found",
+      challenge: null
+    };
+  }
+
+  const updatedChallenge = await store.lionBattleChallenge.update({
+    where: {
+      id: challenge.id
+    },
+    data: {
+      status: "DECLINED",
+      declinedAt: input.now
+    }
+  });
+
+  return {
+    outcome: "declined",
+    challenge: updatedChallenge
+  };
+};
+
+export const cancelLionBattleChallenge = async (
+  store: Pick<LionCreatureStore, "lionBattleChallenge">,
+  input: {
+    guildId: string;
+    challengerUserId: string;
+    opponentUserId?: string | null;
+    now: Date;
+  }
+): Promise<ResolveLionBattleChallengeResult> => {
+  await expirePendingLionBattleChallenges(store, {
+    guildId: input.guildId,
+    now: input.now
+  });
+
+  const challenge: LionBattleChallengeRecord | null =
+    await store.lionBattleChallenge.findFirst({
+      where: {
+        guildId: input.guildId,
+        challengerUserId: input.challengerUserId,
+        opponentUserId: input.opponentUserId ?? undefined,
+        status: "PENDING",
+        expiresAt: {
+          gt: input.now
+        }
+      },
+      orderBy: [{ createdAt: "desc" }]
+    });
+
+  if (!challenge) {
+    return {
+      outcome: "not_found",
+      challenge: null
+    };
+  }
+
+  const updatedChallenge = await store.lionBattleChallenge.update({
+    where: {
+      id: challenge.id
+    },
+    data: {
+      status: "CANCELED"
+    }
+  });
+
+  return {
+    outcome: "canceled",
+    challenge: updatedChallenge
+  };
+};
+
+export const markLionBattleChallengeResolved = async (
+  store: Pick<LionCreatureStore, "lionBattleChallenge">,
+  input: {
+    challengeId: string;
+    battleRecordId: string;
+  }
+): Promise<LionBattleChallengeRecord> => {
+  return store.lionBattleChallenge.update({
+    where: {
+      id: input.challengeId
+    },
+    data: {
+      status: "RESOLVED",
+      resolvedBattleRecordId: input.battleRecordId
+    }
+  });
+};
+
+const shouldIncludeBattleUser = (userId: string): boolean =>
+  !userId.startsWith("lionden-");
+
+const addTrainerBattleStats = (
+  statsByUserId: Map<string, LionTrainerBattleStats>,
+  input: {
+    userId: string;
+    displayName: string;
+    won: boolean;
+  }
+): void => {
+  if (!shouldIncludeBattleUser(input.userId)) {
+    return;
+  }
+
+  const existing = statsByUserId.get(input.userId) ?? {
+    userId: input.userId,
+    displayName: input.displayName,
+    wins: 0,
+    losses: 0,
+    battles: 0,
+    winRate: 0
+  };
+
+  const wins = existing.wins + (input.won ? 1 : 0);
+  const losses = existing.losses + (input.won ? 0 : 1);
+  const battles = wins + losses;
+
+  statsByUserId.set(input.userId, {
+    ...existing,
+    displayName: input.displayName || existing.displayName,
+    wins,
+    losses,
+    battles,
+    winRate: battles > 0 ? wins / battles : 0
+  });
+};
+
+export const calculateLionTrainerBattleStats = (
+  battles: LionBattleRecord[]
+): LionTrainerBattleStats[] => {
+  const statsByUserId = new Map<string, LionTrainerBattleStats>();
+
+  for (const battle of battles) {
+    addTrainerBattleStats(statsByUserId, {
+      userId: battle.winnerUserId,
+      displayName: battle.winnerDisplayName,
+      won: true
+    });
+    addTrainerBattleStats(statsByUserId, {
+      userId: battle.loserUserId,
+      displayName: battle.loserDisplayName,
+      won: false
+    });
+  }
+
+  return [...statsByUserId.values()];
+};
+
+export const getLionTrainerBattleStats = async (
+  store: Pick<LionCreatureStore, "lionBattleRecord">,
+  input: {
+    guildId: string;
+    userId: string;
+    limit?: number;
+  }
+): Promise<LionTrainerBattleStats> => {
+  const battles: LionBattleRecord[] = await store.lionBattleRecord.findMany({
+    where: {
+      guildId: input.guildId,
+      OR: [
+        {
+          challengerUserId: input.userId
+        },
+        {
+          opponentUserId: input.userId
+        }
+      ]
+    },
+    orderBy: [{ createdAt: "desc" }],
+    take: Math.max(1, input.limit ?? 250)
+  });
+  const stats = calculateLionTrainerBattleStats(battles).find(
+    (entry) => entry.userId === input.userId
+  );
+
+  return (
+    stats ?? {
+      userId: input.userId,
+      displayName: "Unknown trainer",
+      wins: 0,
+      losses: 0,
+      battles: 0,
+      winRate: 0
+    }
+  );
+};
+
+export const listTopLionBattleTrainers = async (
+  store: Pick<LionCreatureStore, "lionBattleRecord">,
+  input: {
+    guildId: string;
+    limit?: number;
+  }
+): Promise<LionTrainerBattleStatsEntry[]> => {
+  const limit = Math.min(25, Math.max(1, input.limit ?? 10));
+  const battles: LionBattleRecord[] = await store.lionBattleRecord.findMany({
+    where: {
+      guildId: input.guildId
+    },
+    orderBy: [{ createdAt: "desc" }],
+    take: 500
+  });
+
+  return calculateLionTrainerBattleStats(battles)
+    .sort((first, second) => {
+      if (second.wins !== first.wins) {
+        return second.wins - first.wins;
+      }
+
+      if (second.winRate !== first.winRate) {
+        return second.winRate - first.winRate;
+      }
+
+      if (second.battles !== first.battles) {
+        return second.battles - first.battles;
+      }
+
+      return first.displayName.localeCompare(second.displayName);
+    })
+    .slice(0, limit)
+    .map((entry, index) => ({
+      ...entry,
+      rank: index + 1
+    }));
+};
+
+export const buildTrainingNpcLionTeam = async (
+  store: Pick<LionCreatureStore, "lionSpecies">,
+  input: {
+    guildId: string;
+    referenceTeam: UserLionWithSpeciesRecord[];
+    now: Date;
+    random: () => number;
+  }
+): Promise<UserLionWithSpeciesRecord[]> => {
+  const species: LionSpeciesRecord[] = await store.lionSpecies.findMany({
+    where: {
+      isEnabled: true
+    }
+  });
+
+  if (species.length === 0 || input.referenceTeam.length === 0) {
+    return [];
+  }
+
+  const teamSize = Math.min(MAX_LION_TEAM_SIZE, input.referenceTeam.length);
+  const averageLevel = Math.max(
+    1,
+    Math.round(
+      input.referenceTeam.reduce((total, lion) => total + lion.level, 0) /
+        input.referenceTeam.length
+    )
+  );
+
+  return Array.from({ length: teamSize }, (_, index) => {
+    const selectedSpecies =
+      chooseWeightedLionSpecies(species, input.random) ?? species[0];
+    const levelOffset = getRandomIntInclusive(-2, 2, input.random);
+    const level = Math.min(50, Math.max(1, averageLevel + levelOffset));
+
+    return {
+      id: `${LION_TRAINING_NPC_USER_ID}-${index + 1}-${selectedSpecies.publicId}`,
+      guildId: input.guildId,
+      userId: LION_TRAINING_NPC_USER_ID,
+      ownerDisplayName: LION_TRAINING_NPC_DISPLAY_NAME,
+      lionSpeciesId: selectedSpecies.id,
+      nickname: null,
+      level,
+      experience: 0,
+      sourceType: "NPC_TRAINING",
+      sourceReferenceId: null,
+      lastTrainedAt: null,
+      lastBattledAt: null,
+      acquiredAt: input.now,
+      createdAt: input.now,
+      updatedAt: input.now,
+      species: selectedSpecies
+    };
   });
 };
 

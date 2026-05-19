@@ -1,12 +1,13 @@
 import type {
   ActiveLionSpawnWithSpeciesRecord,
   AwardBattleLionExperienceResult,
-  CreateLionBattleChallengeResult,
-  LionBattleRecord,
   LionBattleChallengeRecord,
+  LionBattleRecord,
   LionExperienceAwardResult,
   LionShopItemRecord,
   ReleaseUserLionResult,
+  LionTrainerBattleStats,
+  LionTrainerBattleStatsEntry,
   RecentLionCatchEntry,
   SetUserLionTeamResult,
   SetUserLionNicknameResult,
@@ -103,7 +104,11 @@ export const formatLionHelpMessage = (): string =>
     "- `~battle @user` challenge someone using both saved teams",
     "- `~battle accept` accept a pending battle challenge in this channel",
     "- `~battle decline` decline a pending battle challenge in this channel",
+    "- `~cancelbattle [@user]` cancel your pending battle challenge",
+    "- `~battle training` battle a Training Hall team",
     "- `~battlehistory [@user]` view recent team battles",
+    "- `~battlestats [@user]` view trainer battle stats",
+    "- `~battleboard` view the top battle trainers",
     "- `~toplions` view the strongest lions in this server",
     "- `~rarecatches` view recent rare or high-level catches",
     "- `~lions` view your roster",
@@ -338,6 +343,35 @@ export const formatSetUserLionNicknameMessage = (
   return `${result.lion?.species.name ?? "That lion"} is now nicknamed ${result.normalizedNickname}.`;
 };
 
+export const formatLionBattleChallengeMessage = (
+  challenge: LionBattleChallengeRecord
+): string =>
+  [
+    `${challenge.challengerDisplayName} challenged ${challenge.opponentDisplayName} to a lion team battle.`,
+    `${challenge.opponentDisplayName} can use \`~accept\` to battle or \`~decline\` to decline.`,
+    `This challenge expires ${formatDiscordTimestamp(challenge.expiresAt)}.`
+  ].join("\n");
+
+export const formatExistingLionBattleChallengeMessage = (
+  challenge: LionBattleChallengeRecord
+): string =>
+  `${challenge.challengerDisplayName} already has a pending challenge with ${challenge.opponentDisplayName} until ${formatDiscordTimestamp(challenge.expiresAt)}.`;
+
+export const formatLionBattleChallengeAcceptedMessage = (
+  challenge: LionBattleChallengeRecord
+): string =>
+  `${challenge.opponentDisplayName} accepted ${challenge.challengerDisplayName}'s lion battle challenge.`;
+
+export const formatLionBattleChallengeDeclinedMessage = (
+  challenge: LionBattleChallengeRecord
+): string =>
+  `${challenge.opponentDisplayName} declined ${challenge.challengerDisplayName}'s lion battle challenge.`;
+
+export const formatLionBattleChallengeCanceledMessage = (
+  challenge: LionBattleChallengeRecord
+): string =>
+  `${challenge.challengerDisplayName} canceled the pending lion battle challenge with ${challenge.opponentDisplayName}.`;
+
 export const formatBattleLionMessage = (input: {
   battle: LionAutoBattleResult;
   winnerXp: AwardBattleLionExperienceResult;
@@ -402,37 +436,6 @@ const getTeamRemainingHp = (
   finalHp: Record<string, number>
 ): number =>
   team.reduce((total, lion) => total + Math.max(0, finalHp[lion.id] ?? 0), 0);
-
-export const formatCreateLionBattleChallengeMessage = (
-  result: CreateLionBattleChallengeResult
-): string => {
-  const challenge = result.challenge;
-
-  if (result.outcome === "already_pending") {
-    return [
-      `There is already a pending lion battle challenge between ${challenge.challengerDisplayName} and ${challenge.opponentDisplayName}.`,
-      `${challenge.opponentDisplayName} can use \`~battle accept\` or \`~battle decline\` before ${formatDiscordTimestamp(challenge.expiresAt)}.`
-    ].join("\n");
-  }
-
-  return [
-    `${challenge.challengerDisplayName} challenged ${challenge.opponentDisplayName} to a lion team battle.`,
-    `${challenge.opponentDisplayName}, use \`~battle accept\` or \`~battle decline\` in this channel before ${formatDiscordTimestamp(challenge.expiresAt)}.`
-  ].join("\n");
-};
-
-export const formatDeclineLionBattleChallengeMessage = (input: {
-  challenge: LionBattleChallengeRecord;
-}): string =>
-  `${input.challenge.opponentDisplayName} declined ${input.challenge.challengerDisplayName}'s lion battle challenge.`;
-
-export const formatCancelLionBattleChallengeMessage = (input: {
-  challenge: LionBattleChallengeRecord;
-}): string =>
-  `${input.challenge.challengerDisplayName} cancelled the lion battle challenge for ${input.challenge.opponentDisplayName}.`;
-
-export const formatNoPendingLionBattleChallengeMessage = (): string =>
-  "There is no pending lion battle challenge for you in this channel.";
 
 export const formatTeamBattleLionMessage = (input: {
   battle: LionTeamAutoBattleResult;
@@ -536,6 +539,37 @@ export const formatLionBattleHistoryMessage = (input: {
     ...input.battles.map(
       (battle, index) =>
         `${index + 1}. ${battle.winnerDisplayName} defeated ${battle.loserDisplayName} ${formatDiscordTimestamp(battle.createdAt)}${battle.mvpLionName ? ` | MVP: ${battle.mvpLionName}` : ""} | ${battle.roundsCount} rounds`
+    )
+  ].join("\n");
+};
+
+const formatWinRate = (winRate: number): string =>
+  `${Math.round(winRate * 100)}%`;
+
+export const formatLionTrainerBattleStatsMessage = (input: {
+  stats: LionTrainerBattleStats;
+  displayName: string;
+}): string =>
+  [
+    `${input.displayName}'s lion battle stats:`,
+    `Battles: ${input.stats.battles}`,
+    `Wins: ${input.stats.wins}`,
+    `Losses: ${input.stats.losses}`,
+    `Win rate: ${formatWinRate(input.stats.winRate)}`
+  ].join("\n");
+
+export const formatLionBattleBoardMessage = (input: {
+  entries: LionTrainerBattleStatsEntry[];
+}): string => {
+  if (input.entries.length === 0) {
+    return "No trainer battle wins have been recorded in this server yet.";
+  }
+
+  return [
+    "Top lion battle trainers:",
+    ...input.entries.map(
+      (entry) =>
+        `${entry.rank}. ${entry.displayName} - ${entry.wins}W/${entry.losses}L - ${formatWinRate(entry.winRate)} win rate`
     )
   ].join("\n");
 };

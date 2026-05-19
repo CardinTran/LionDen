@@ -201,8 +201,6 @@ Possible version 1 commands:
 - `~team`
 - `~team set <lion1> <lion2> <lion3>`
 - `~battle @user`
-- `~battle accept`
-- `~battle decline`
 - `~toplions`
 
 Optional later:
@@ -583,7 +581,7 @@ Tasks:
 - support `~battle @user` using both users' saved teams
 - auto-resolve a first team battle format
 - use speed, moves, type matchups, and derived stats
-- keep richer challenge acceptance and turn menus for later
+- keep full turn menus for later
 
 Output:
 
@@ -592,8 +590,10 @@ Output:
 Current implementation note:
 
 - `~team`, `~team set`, and `~team clear` manage persistent battle teams
-- public team battles now use a challenge, accept, decline, and cancel flow before auto-resolution
+- public PvP team battles now use persisted challenge acceptance before resolving
+- `~battle training` provides a lightweight PvE Training Hall battle
 - quick team battles now create compact battle records for `~battlehistory`
+- `~battlestats` and `~battleboard` turn battle records into social trainer boards
 - a short per-user battle start cooldown reduces public battle spam
 - battle summaries call out an MVP based on damage dealt
 - participating lions receive battle XP, with winners receiving more than the other team
@@ -601,7 +601,6 @@ Current implementation note:
 - level lures and rare lures now affect future channel spawns
 - training snacks now provide an item-based lion XP sink for coins
 - owned lions can be nicknamed with validated public display text
-- owned lions can be released for coins with `~release <lion> confirm`, giving duplicates an immediate baseline value
 - notable rare or high-level catches feed the `~rarecatches` board
 - `~toplions` gives the server a public top-10 status board using display names
 - full interactive battle menus, status effects, and raids are still future phases

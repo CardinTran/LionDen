@@ -11,7 +11,9 @@ describe("lion formatting", () => {
     expect(message).toContain("~release");
     expect(message).toContain("~battle accept");
     expect(message).toContain("~battle decline");
+    expect(message).toContain("~battle training");
     expect(message).toContain("~battlehistory");
+    expect(message).toContain("~battleboard");
     expect(message).toContain("~rarecatches");
     expect(message).not.toContain("/lionadmin");
     expect(message).not.toContain("Admin command");

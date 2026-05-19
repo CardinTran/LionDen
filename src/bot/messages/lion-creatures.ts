@@ -6,21 +6,25 @@ import {
   resolveAutoLionTeamBattle
 } from "../../features/lions/lion-battle.service.js";
 import {
-  activateLionChannelEffect,
   acceptLionBattleChallenge,
-  attachLionBattleChallengeRecord,
+  activateLionChannelEffect,
   awardBattleLionExperience,
-  calculateLionReleaseCoins,
+  attemptCatchWildLion,
+  buildTrainingNpcLionTeam,
   cancelLionBattleChallenge,
+  clearUserLionTeam,
   createLionBattleChallenge,
   declineLionBattleChallenge,
-  attemptCatchWildLion,
-  clearUserLionTeam,
   findUserLionFromList,
+  findPendingLionBattleChallengeForOpponent,
+  getLionTrainerBattleStats,
   LION_BATTLE_LOSS_XP,
   LION_BATTLE_WIN_XP,
+  LION_TRAINING_NPC_DISPLAY_NAME,
+  LION_TRAINING_NPC_USER_ID,
   listLionShopItems,
   listTopOwnedLions,
+  listTopLionBattleTrainers,
   listRecentLionBattles,
   listRecentNotableLionCatches,
   listUserItemInventory,
@@ -33,20 +37,25 @@ import {
   normalizeLionItemKey,
   purchaseLionShopItem,
   recordLionBattle,
+  markLionBattleChallengeResolved,
+  calculateLionReleaseCoins,
   releaseUserLion,
   setUserLionNickname,
   setUserLionTeam,
   syncDefaultLionData,
   trainUserLion,
   useLionTrainingItem,
-  type LionBattleChallengeRecord,
-  type UserLionTeamSlotWithLionRecord
+  type UserLionTeamSlotWithLionRecord,
+  type UserLionWithSpeciesRecord
 } from "../../features/lions/lion-creature.service.js";
 import {
-  formatCancelLionBattleChallengeMessage,
   formatClearUserLionTeamMessage,
-  formatCreateLionBattleChallengeMessage,
-  formatDeclineLionBattleChallengeMessage,
+  formatExistingLionBattleChallengeMessage,
+  formatLionBattleBoardMessage,
+  formatLionBattleChallengeAcceptedMessage,
+  formatLionBattleChallengeCanceledMessage,
+  formatLionBattleChallengeDeclinedMessage,
+  formatLionBattleChallengeMessage,
   formatLionHelpMessage,
   formatLionBattleHistoryMessage,
   formatLionInventoryMessage,
@@ -57,8 +66,8 @@ import {
   formatReleaseUserLionPreviewMessage,
   formatSetUserLionNicknameMessage,
   formatSetUserLionTeamMessage,
-  formatNoPendingLionBattleChallengeMessage,
   formatTeamBattleLionMessage,
+  formatLionTrainerBattleStatsMessage,
   formatTopLionsMessage,
   formatTrainLionMessage,
   formatUseLionTrainingItemMessage,
@@ -102,56 +111,45 @@ const parseItemAndQuantity = (
   };
 };
 
-const resolveLionTeamBattle = async (
-  message: Message,
-  input: {
-    challengerUserId: string;
-    challengerDisplayName: string;
-    challengerTeam: UserLionTeamSlotWithLionRecord[];
-    opponentUserId: string;
-    opponentDisplayName: string;
-    opponentTeam: UserLionTeamSlotWithLionRecord[];
-    challenge?: LionBattleChallengeRecord | null;
-  }
-): Promise<boolean> => {
-  const battleCooldown = await getUserLionBattleCooldown(prisma, {
-    guildId: message.guildId ?? "",
-    challengerUserId: input.challengerUserId,
-    opponentUserId: input.opponentUserId,
-    now: message.createdAt
-  });
-
-  if (!battleCooldown.allowed && battleCooldown.cooldownEndsAt) {
-    await message.reply(
-      `One of these trainers battled recently. Try another team battle <t:${Math.floor(battleCooldown.cooldownEndsAt.getTime() / 1000)}:R>.`
-    );
-    return false;
-  }
-
+const resolveAndRecordTeamBattle = async (input: {
+  guildId: string;
+  now: Date;
+  firstUserId: string;
+  firstDisplayName: string;
+  firstTeam: UserLionTeamSlotWithLionRecord[];
+  secondUserId: string;
+  secondDisplayName: string;
+  secondTeam: UserLionWithSpeciesRecord[] | UserLionTeamSlotWithLionRecord[];
+  challengeId?: string | null;
+}): Promise<string> => {
+  const firstTeamLions = input.firstTeam.map((slot) => slot.lion);
+  const secondTeamLions = input.secondTeam.map((entry) =>
+    "lion" in entry ? entry.lion : entry
+  );
   const battle = resolveAutoLionTeamBattle({
-    firstTeam: input.challengerTeam.map((slot) => slot.lion),
-    secondTeam: input.opponentTeam.map((slot) => slot.lion),
+    firstTeam: firstTeamLions,
+    secondTeam: secondTeamLions,
     random: Math.random
   });
   const lionById = new Map(
-    [...input.challengerTeam, ...input.opponentTeam].map((slot) => [
-      slot.lion.id,
-      slot.lion
-    ])
+    [...firstTeamLions, ...secondTeamLions].map((lion) => [lion.id, lion])
   );
-  const winnerLions = battle.participantLionIds[battle.winnerSide]
-    .map((lionId) => lionById.get(lionId))
-    .filter((lion): lion is NonNullable<typeof lion> => Boolean(lion));
-  const loserLions = battle.participantLionIds[battle.loserSide]
-    .map((lionId) => lionById.get(lionId))
-    .filter((lion): lion is NonNullable<typeof lion> => Boolean(lion));
+  const getRewardLions = (
+    side: "first" | "second"
+  ): UserLionWithSpeciesRecord[] =>
+    battle.participantLionIds[side]
+      .map((lionId) => lionById.get(lionId))
+      .filter((lion): lion is UserLionWithSpeciesRecord => Boolean(lion))
+      .filter((lion) => lion.userId !== LION_TRAINING_NPC_USER_ID);
+  const winnerLions = getRewardLions(battle.winnerSide);
+  const loserLions = getRewardLions(battle.loserSide);
   const [winnerRewards, loserRewards] = await Promise.all([
     Promise.all(
       winnerLions.map((lion) =>
         awardBattleLionExperience(prisma, {
           lion,
           gainedExperience: LION_BATTLE_WIN_XP,
-          now: message.createdAt
+          now: input.now
         })
       )
     ),
@@ -160,41 +158,38 @@ const resolveLionTeamBattle = async (
         awardBattleLionExperience(prisma, {
           lion,
           gainedExperience: LION_BATTLE_LOSS_XP,
-          now: message.createdAt
+          now: input.now
         })
       )
     )
   ]);
   const mvpLionId = getLionBattleMvpLionId(battle);
   const mvpLion = mvpLionId ? (lionById.get(mvpLionId) ?? null) : null;
+  const winnerUserId =
+    battle.winnerSide === "first" ? input.firstUserId : input.secondUserId;
+  const loserUserId =
+    battle.loserSide === "first" ? input.firstUserId : input.secondUserId;
   const winnerDisplayName =
     battle.winnerSide === "first"
-      ? input.challengerDisplayName
-      : input.opponentDisplayName;
+      ? input.firstDisplayName
+      : input.secondDisplayName;
   const loserDisplayName =
     battle.loserSide === "first"
-      ? input.challengerDisplayName
-      : input.opponentDisplayName;
-
+      ? input.firstDisplayName
+      : input.secondDisplayName;
   const battleRecord = await recordLionBattle(prisma, {
-    guildId: message.guildId ?? "",
-    challengerUserId: input.challengerUserId,
-    challengerDisplayName: input.challengerDisplayName,
-    opponentUserId: input.opponentUserId,
-    opponentDisplayName: input.opponentDisplayName,
-    winnerUserId:
-      battle.winnerSide === "first"
-        ? input.challengerUserId
-        : input.opponentUserId,
+    guildId: input.guildId,
+    challengerUserId: input.firstUserId,
+    challengerDisplayName: input.firstDisplayName,
+    opponentUserId: input.secondUserId,
+    opponentDisplayName: input.secondDisplayName,
+    winnerUserId,
     winnerDisplayName,
-    loserUserId:
-      battle.loserSide === "first"
-        ? input.challengerUserId
-        : input.opponentUserId,
+    loserUserId,
     loserDisplayName,
     winnerSide: battle.winnerSide,
-    challengerTeamLionIds: input.challengerTeam.map((slot) => slot.lion.id),
-    opponentTeamLionIds: input.opponentTeam.map((slot) => slot.lion.id),
+    challengerTeamLionIds: firstTeamLions.map((lion) => lion.id),
+    opponentTeamLionIds: secondTeamLions.map((lion) => lion.id),
     participantLionIds: [
       ...battle.participantLionIds.first,
       ...battle.participantLionIds.second
@@ -202,28 +197,24 @@ const resolveLionTeamBattle = async (
     mvpLionId,
     mvpLionName: mvpLion ? getOwnedLionDisplayName(mvpLion) : null,
     roundsCount: battle.rounds.length,
-    createdAt: message.createdAt
+    createdAt: input.now
   });
 
-  if (input.challenge) {
-    await attachLionBattleChallengeRecord(prisma as never, {
-      challengeId: input.challenge.id,
+  if (input.challengeId) {
+    await markLionBattleChallengeResolved(prisma, {
+      challengeId: input.challengeId,
       battleRecordId: battleRecord.id
     });
   }
 
-  await message.reply(
-    formatTeamBattleLionMessage({
-      battle,
-      firstDisplayName: input.challengerDisplayName,
-      secondDisplayName: input.opponentDisplayName,
-      winnerRewards,
-      loserRewards,
-      mvpLion
-    })
-  );
-
-  return true;
+  return formatTeamBattleLionMessage({
+    battle,
+    firstDisplayName: input.firstDisplayName,
+    secondDisplayName: input.secondDisplayName,
+    winnerRewards,
+    loserRewards,
+    mvpLion
+  });
 };
 
 export const handleLionCreatureMessage = async (
@@ -245,13 +236,16 @@ export const handleLionCreatureMessage = async (
       "~buy",
       "~bag",
       "~use",
-      "~catch",
-      "~train",
-      "~nickname",
-      "~release",
-      "~team",
-      "~battle",
-      "~battlehistory",
+        "~catch",
+        "~train",
+        "~nickname",
+        "~release",
+        "~team",
+        "~battle",
+        "~cancelbattle",
+        "~battlehistory",
+        "~battlestats",
+        "~battleboard",
       "~toplions",
       "~lionboard",
       "~rarecatches",
@@ -620,101 +614,57 @@ export const handleLionCreatureMessage = async (
   }
 
   if (normalizedCommand === "~battle") {
-    const battleAction = args[0]?.toLowerCase();
-    const mentionedUser = message.mentions.users.first();
-
-    if (battleAction === "accept") {
-      const response = await acceptLionBattleChallenge(prisma as never, {
+    if (args[0]?.toLowerCase() === "training") {
+      const challengerTeam = await listUserLionTeam(prisma, {
         guildId: message.guildId,
-        channelId: message.channelId,
-        opponentUserId: message.author.id,
-        challengerUserId: mentionedUser?.id,
-        now: message.createdAt
+        userId: message.author.id
       });
-
-      if (response.outcome === "no_pending_challenge" || !response.challenge) {
-        await message.reply(formatNoPendingLionBattleChallengeMessage());
-        return true;
-      }
-
-      const [challengerTeam, opponentTeam] = await Promise.all([
-        listUserLionTeam(prisma, {
-          guildId: message.guildId,
-          userId: response.challenge.challengerUserId
-        }),
-        listUserLionTeam(prisma, {
-          guildId: message.guildId,
-          userId: response.challenge.opponentUserId
-        })
-      ]);
 
       if (challengerTeam.length === 0) {
         await message.reply(
-          `${response.challenge.challengerDisplayName} no longer has a battle team set.`
+          "You need a battle team first. Use `~team set <lion1> <lion2> <lion3>`."
         );
         return true;
       }
 
-      if (opponentTeam.length === 0) {
-        await message.reply(
-          `${response.challenge.opponentDisplayName} no longer has a battle team set.`
-        );
-        return true;
-      }
-
-      await resolveLionTeamBattle(message, {
-        challengerUserId: response.challenge.challengerUserId,
-        challengerDisplayName: response.challenge.challengerDisplayName,
-        challengerTeam,
-        opponentUserId: response.challenge.opponentUserId,
-        opponentDisplayName: response.challenge.opponentDisplayName,
-        opponentTeam,
-        challenge: response.challenge
-      });
-      return true;
-    }
-
-    if (battleAction === "decline") {
-      const response = await declineLionBattleChallenge(prisma as never, {
+      const battleCooldown = await getUserLionBattleCooldown(prisma, {
         guildId: message.guildId,
-        channelId: message.channelId,
-        opponentUserId: message.author.id,
-        challengerUserId: mentionedUser?.id,
-        now: message.createdAt
-      });
-
-      if (response.outcome === "no_pending_challenge" || !response.challenge) {
-        await message.reply(formatNoPendingLionBattleChallengeMessage());
-        return true;
-      }
-
-      await message.reply(
-        formatDeclineLionBattleChallengeMessage({
-          challenge: response.challenge
-        })
-      );
-      return true;
-    }
-
-    if (battleAction === "cancel") {
-      const response = await cancelLionBattleChallenge(prisma as never, {
-        guildId: message.guildId,
-        channelId: message.channelId,
         challengerUserId: message.author.id,
-        opponentUserId: mentionedUser?.id,
+        opponentUserId: LION_TRAINING_NPC_USER_ID,
         now: message.createdAt
       });
 
-      if (response.outcome === "no_pending_challenge" || !response.challenge) {
+      if (!battleCooldown.allowed && battleCooldown.cooldownEndsAt) {
         await message.reply(
-          "You do not have a pending lion battle challenge in this channel."
+          `Your team trained recently. Try another Training Hall battle <t:${Math.floor(battleCooldown.cooldownEndsAt.getTime() / 1000)}:R>.`
+        );
+        return true;
+      }
+
+      const npcTeam = await buildTrainingNpcLionTeam(prisma, {
+        guildId: message.guildId,
+        referenceTeam: challengerTeam.map((slot) => slot.lion),
+        now: message.createdAt,
+        random: Math.random
+      });
+
+      if (npcTeam.length === 0) {
+        await message.reply(
+          "The Training Hall could not prepare a team right now."
         );
         return true;
       }
 
       await message.reply(
-        formatCancelLionBattleChallengeMessage({
-          challenge: response.challenge
+        await resolveAndRecordTeamBattle({
+          guildId: message.guildId,
+          now: message.createdAt,
+          firstUserId: message.author.id,
+          firstDisplayName: getDisplayName(message),
+          firstTeam: challengerTeam,
+          secondUserId: LION_TRAINING_NPC_USER_ID,
+          secondDisplayName: LION_TRAINING_NPC_DISPLAY_NAME,
+          secondTeam: npcTeam
         })
       );
       return true;
@@ -724,7 +674,7 @@ export const handleLionCreatureMessage = async (
 
     if (!opponent || opponent.bot || opponent.id === message.author.id) {
       await message.reply(
-        "Use `~battle @user`, `~battle accept`, `~battle decline`, or `~battle cancel`."
+        "Use `~battle @user` to challenge another team, or `~battle training` for a Training Hall battle."
       );
       return true;
     }
@@ -768,21 +718,148 @@ export const handleLionCreatureMessage = async (
       return true;
     }
 
-    const firstDisplayName = getDisplayName(message);
     const secondDisplayName =
       message.mentions.members?.first()?.displayName ?? opponent.username;
-
-    const challenge = await createLionBattleChallenge(prisma as never, {
+    const challengeResult = await createLionBattleChallenge(prisma, {
       guildId: message.guildId,
-      channelId: message.channelId,
       challengerUserId: message.author.id,
-      challengerDisplayName: firstDisplayName,
+      challengerDisplayName: getDisplayName(message),
       opponentUserId: opponent.id,
       opponentDisplayName: secondDisplayName,
+      channelId: message.channelId,
       now: message.createdAt
     });
 
-    await message.reply(formatCreateLionBattleChallengeMessage(challenge));
+    if (challengeResult.outcome === "existing_challenge") {
+      await message.reply(
+        formatExistingLionBattleChallengeMessage(
+          challengeResult.existingChallenge!
+        )
+      );
+      return true;
+    }
+
+    await message.reply(
+      formatLionBattleChallengeMessage(challengeResult.challenge!)
+    );
+    return true;
+  }
+
+  if (normalizedCommand === "~accept") {
+    const challenger = message.mentions.users.first();
+    const pendingChallenge = await findPendingLionBattleChallengeForOpponent(
+      prisma,
+      {
+        guildId: message.guildId,
+        opponentUserId: message.author.id,
+        challengerUserId: challenger?.id,
+        now: message.createdAt
+      }
+    );
+
+    if (!pendingChallenge) {
+      await message.reply("You do not have a pending lion battle challenge.");
+      return true;
+    }
+
+    const [challengerTeam, opponentTeam] = await Promise.all([
+      listUserLionTeam(prisma, {
+        guildId: message.guildId,
+        userId: pendingChallenge.challengerUserId
+      }),
+      listUserLionTeam(prisma, {
+        guildId: message.guildId,
+        userId: pendingChallenge.opponentUserId
+      })
+    ]);
+
+    if (challengerTeam.length === 0 || opponentTeam.length === 0) {
+      await message.reply(
+        "That challenge cannot resolve because one trainer no longer has a valid battle team."
+      );
+      return true;
+    }
+
+    const battleCooldown = await getUserLionBattleCooldown(prisma, {
+      guildId: message.guildId,
+      challengerUserId: pendingChallenge.challengerUserId,
+      opponentUserId: pendingChallenge.opponentUserId,
+      now: message.createdAt
+    });
+
+    if (!battleCooldown.allowed && battleCooldown.cooldownEndsAt) {
+      await message.reply(
+        `One of these trainers battled recently. Try another team battle <t:${Math.floor(battleCooldown.cooldownEndsAt.getTime() / 1000)}:R>.`
+      );
+      return true;
+    }
+
+    const accepted = await acceptLionBattleChallenge(prisma, {
+      guildId: message.guildId,
+      opponentUserId: message.author.id,
+      challengerUserId: pendingChallenge.challengerUserId,
+      now: message.createdAt
+    });
+
+    if (accepted.outcome !== "accepted" || !accepted.challenge) {
+      await message.reply("That lion battle challenge is no longer available.");
+      return true;
+    }
+
+    const battleMessage = await resolveAndRecordTeamBattle({
+      guildId: message.guildId,
+      now: message.createdAt,
+      firstUserId: accepted.challenge.challengerUserId,
+      firstDisplayName: accepted.challenge.challengerDisplayName,
+      firstTeam: challengerTeam,
+      secondUserId: accepted.challenge.opponentUserId,
+      secondDisplayName: accepted.challenge.opponentDisplayName,
+      secondTeam: opponentTeam,
+      challengeId: accepted.challenge.id
+    });
+
+    await message.reply(
+      [
+        formatLionBattleChallengeAcceptedMessage(accepted.challenge),
+        battleMessage
+      ].join("\n")
+    );
+    return true;
+  }
+
+  if (normalizedCommand === "~decline") {
+    const challenger = message.mentions.users.first();
+    const result = await declineLionBattleChallenge(prisma, {
+      guildId: message.guildId,
+      opponentUserId: message.author.id,
+      challengerUserId: challenger?.id,
+      now: message.createdAt
+    });
+
+    if (result.outcome !== "declined" || !result.challenge) {
+      await message.reply("You do not have a pending lion battle challenge.");
+      return true;
+    }
+
+    await message.reply(formatLionBattleChallengeDeclinedMessage(result.challenge));
+    return true;
+  }
+
+  if (normalizedCommand === "~cancelbattle") {
+    const opponent = message.mentions.users.first();
+    const result = await cancelLionBattleChallenge(prisma, {
+      guildId: message.guildId,
+      challengerUserId: message.author.id,
+      opponentUserId: opponent?.id,
+      now: message.createdAt
+    });
+
+    if (result.outcome !== "canceled" || !result.challenge) {
+      await message.reply("You do not have a pending lion battle challenge to cancel.");
+      return true;
+    }
+
+    await message.reply(formatLionBattleChallengeCanceledMessage(result.challenge));
     return true;
   }
 
@@ -802,6 +879,39 @@ export const handleLionCreatureMessage = async (
           : undefined
       })
     );
+    return true;
+  }
+
+  if (normalizedCommand === "~battlestats") {
+    const target = message.mentions.users.first() ?? message.author;
+    const displayName =
+      target.id === message.author.id
+        ? getDisplayName(message)
+        : (message.mentions.members?.first()?.displayName ?? target.username);
+    const stats = await getLionTrainerBattleStats(prisma, {
+      guildId: message.guildId,
+      userId: target.id
+    });
+
+    await message.reply(
+      formatLionTrainerBattleStatsMessage({
+        stats: {
+          ...stats,
+          displayName
+        },
+        displayName
+      })
+    );
+    return true;
+  }
+
+  if (normalizedCommand === "~battleboard") {
+    const entries = await listTopLionBattleTrainers(prisma, {
+      guildId: message.guildId,
+      limit: 10
+    });
+
+    await message.reply(formatLionBattleBoardMessage({ entries }));
     return true;
   }
 
