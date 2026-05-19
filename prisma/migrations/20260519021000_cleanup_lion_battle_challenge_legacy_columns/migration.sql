@@ -1,5 +1,7 @@
--- CreateTable
-CREATE TABLE "LionBattleChallenge" (
+PRAGMA defer_foreign_keys=ON;
+PRAGMA foreign_keys=OFF;
+
+CREATE TABLE "new_LionBattleChallenge" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "guildId" TEXT NOT NULL,
     "channelId" TEXT NOT NULL,
@@ -16,11 +18,48 @@ CREATE TABLE "LionBattleChallenge" (
     "updatedAt" DATETIME NOT NULL
 );
 
--- CreateIndex
+INSERT INTO "new_LionBattleChallenge" (
+    "id",
+    "guildId",
+    "channelId",
+    "challengerUserId",
+    "challengerDisplayName",
+    "opponentUserId",
+    "opponentDisplayName",
+    "status",
+    "expiresAt",
+    "acceptedAt",
+    "declinedAt",
+    "resolvedBattleRecordId",
+    "createdAt",
+    "updatedAt"
+)
+SELECT
+    "id",
+    "guildId",
+    "channelId",
+    "challengerUserId",
+    "challengerDisplayName",
+    "opponentUserId",
+    "opponentDisplayName",
+    "status",
+    "expiresAt",
+    "acceptedAt",
+    "declinedAt",
+    "resolvedBattleRecordId",
+    "createdAt",
+    "updatedAt"
+FROM "LionBattleChallenge";
+
+DROP TABLE "LionBattleChallenge";
+
+ALTER TABLE "new_LionBattleChallenge" RENAME TO "LionBattleChallenge";
+
 CREATE INDEX "LionBattleChallenge_guildId_channelId_status_expiresAt_idx" ON "LionBattleChallenge"("guildId", "channelId", "status", "expiresAt");
 
--- CreateIndex
 CREATE INDEX "LionBattleChallenge_guildId_challengerUserId_status_expiresAt_idx" ON "LionBattleChallenge"("guildId", "challengerUserId", "status", "expiresAt");
 
--- CreateIndex
 CREATE INDEX "LionBattleChallenge_guildId_opponentUserId_status_expiresAt_idx" ON "LionBattleChallenge"("guildId", "opponentUserId", "status", "expiresAt");
+
+PRAGMA foreign_keys=ON;
+PRAGMA defer_foreign_keys=OFF;
