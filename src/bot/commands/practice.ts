@@ -21,7 +21,7 @@ import {
   upsertPracticeSchedule
 } from "../../features/practice/practice.service.js";
 import { prisma } from "../../lib/prisma.js";
-import type { SlashCommand } from "./ping.js";
+import type { SlashCommand } from "./types.js";
 
 const PRACTICE_RSVP_PREFIX = "practice:rsvp:";
 const PRACTICE_ATTENDANCE_PREFIX = "practice:attendance:";

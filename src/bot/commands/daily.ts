@@ -10,7 +10,7 @@ import {
   claimDaily
 } from "../../features/economy/daily-claim.service.js";
 import { prisma } from "../../lib/prisma.js";
-import type { SlashCommand } from "./ping.js";
+import type { SlashCommand } from "./types.js";
 
 export const formatDailySuccessMessage = (input: {
   displayName: string;

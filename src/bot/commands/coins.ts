@@ -7,7 +7,7 @@ import {
 
 import { adjustCoins } from "../../features/economy/coin-balance.service.js";
 import { prisma } from "../../lib/prisma.js";
-import type { SlashCommand } from "./ping.js";
+import type { SlashCommand } from "./types.js";
 
 export const formatCoinAdjustmentMessage = (input: {
   actorName: string;

@@ -30,7 +30,7 @@ import { postWildLionSpawnToChannel } from "../../features/lions/lion-spawn-sche
 import { formatDiscordTimestamp } from "../../features/lions/lion-formatting.js";
 import type { LionRarityValue } from "../../features/lions/lion-seed-data.js";
 import { prisma } from "../../lib/prisma.js";
-import type { SlashCommand } from "./ping.js";
+import type { SlashCommand } from "./types.js";
 
 const requireManageGuild = async (
   interaction: ChatInputCommandInteraction

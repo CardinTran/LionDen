@@ -14,7 +14,7 @@ import {
 } from "../../features/admin/bot-config.service.js";
 import { prisma } from "../../lib/prisma.js";
 import { applyBotPresence } from "../presence.js";
-import type { SlashCommand } from "./ping.js";
+import type { SlashCommand } from "./types.js";
 
 const requireManageGuild = async (
   interaction: ChatInputCommandInteraction

@@ -22,7 +22,7 @@ import {
 } from "../../features/economy/red-envelope.service.js";
 import { postConfiguredRedEnvelopeDrop } from "../../features/economy/red-envelope-scheduler.js";
 import { prisma } from "../../lib/prisma.js";
-import type { SlashCommand } from "./ping.js";
+import type { SlashCommand } from "./types.js";
 
 export const RED_ENVELOPE_GRAB_COMMAND = "~grab";
 

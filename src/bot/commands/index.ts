@@ -8,7 +8,8 @@ import { lionAdminCommand } from "./lionadmin.js";
 import { practiceCommand } from "./practice.js";
 import { profileCommand } from "./profile.js";
 import { redEnvelopeCommand } from "./redenvelope.js";
-import { pingCommand, type SlashCommand } from "./ping.js";
+import { pingCommand } from "./ping.js";
+import type { SlashCommand } from "./types.js";
 import { xpCommand } from "./xp.js";
 
 export const commands = [

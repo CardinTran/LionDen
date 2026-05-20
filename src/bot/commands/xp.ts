@@ -7,7 +7,7 @@ import {
 
 import { adjustXp } from "../../features/progression/xp-adjustment.service.js";
 import { prisma } from "../../lib/prisma.js";
-import type { SlashCommand } from "./ping.js";
+import type { SlashCommand } from "./types.js";
 
 const formatXpAdjustmentMessage = (input: {
   actorName: string;

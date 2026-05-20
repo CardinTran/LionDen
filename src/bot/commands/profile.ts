@@ -7,7 +7,7 @@ import {
 import { getLevelProgressFromXp } from "../../features/progression/leveling.js";
 import { getOrCreateProfile } from "../../features/profiles/profile.service.js";
 import { prisma } from "../../lib/prisma.js";
-import type { SlashCommand } from "./ping.js";
+import type { SlashCommand } from "./types.js";
 
 const formatProfileMessage = (profile: {
   displayName: string;

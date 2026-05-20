@@ -1,13 +1,9 @@
 import {
-  ChatInputCommandInteraction,
   SlashCommandBuilder,
   type RESTPostAPIChatInputApplicationCommandsJSONBody
 } from "discord.js";
 
-export interface SlashCommand {
-  data: SlashCommandBuilder;
-  execute(interaction: ChatInputCommandInteraction): Promise<void>;
-}
+import type { SlashCommand } from "./types.js";
 
 export const pingCommand: SlashCommand = {
   data: new SlashCommandBuilder()

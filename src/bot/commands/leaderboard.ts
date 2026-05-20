@@ -7,7 +7,7 @@ import {
 import { getLevelFromXp } from "../../features/progression/leveling.js";
 import { listTopProfiles } from "../../features/profiles/profile.service.js";
 import { prisma } from "../../lib/prisma.js";
-import type { SlashCommand } from "./ping.js";
+import type { SlashCommand } from "./types.js";
 
 interface LeaderboardEntry {
   displayName: string;
