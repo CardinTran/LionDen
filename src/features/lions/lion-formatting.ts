@@ -25,7 +25,13 @@ import {
 } from "./lion-creature.service.js";
 import type {
   LionAutoBattleResult,
+  LionBattleRound,
   LionTeamAutoBattleResult
+} from "./lion-battle.service.js";
+import {
+  getLionBattleEffectivenessLabel,
+  getLionBattleOutcomeSummary,
+  getLionTeamBattleOutcomeSummary
 } from "./lion-battle.service.js";
 import {
   deriveLionStats,
@@ -109,6 +115,7 @@ export const formatLionHelpMessage = (): string =>
     "- `~battlehistory [@user]` view recent team battles",
     "- `~battlestats [@user]` view trainer battle stats",
     "- `~battleboard` view the top battle trainers",
+    "Battle note: battles currently resolve automatically with round-by-round logs. Turn-based duels are planned later.",
     "- `~toplions` view the strongest lions in this server",
     "- `~rarecatches` view recent rare or high-level catches",
     "- `~lions` view your roster",
@@ -372,23 +379,35 @@ export const formatLionBattleChallengeCanceledMessage = (
 ): string =>
   `${challenge.challengerDisplayName} canceled the pending lion battle challenge with ${challenge.opponentDisplayName}.`;
 
+const formatEffectivenessMultiplier = (effectiveness: number): string => {
+  if (effectiveness === 1) {
+    return "";
+  }
+
+  return ` x${Number(effectiveness.toFixed(2))}`;
+};
+
+const formatBattleRoundMessage = (round: LionBattleRound): string => {
+  const effectivenessLabel = getLionBattleEffectivenessLabel(
+    round.effectiveness
+  );
+  const effectiveness =
+    effectivenessLabel === "neutral matchup"
+      ? effectivenessLabel
+      : `${effectivenessLabel}${formatEffectivenessMultiplier(round.effectiveness)}`;
+
+  return `- Round ${round.round}: ${round.attackerName} used ${round.move.name} [${round.move.type}], dealing ${round.damage} damage to ${round.defenderName} (${effectiveness}). ${round.defenderName} HP: ${round.defenderHpAfter}.`;
+};
+
 export const formatBattleLionMessage = (input: {
   battle: LionAutoBattleResult;
   winnerXp: AwardBattleLionExperienceResult;
   loserXp: AwardBattleLionExperienceResult;
 }): string => {
-  const notableRounds = input.battle.rounds.slice(0, 6).map((round) => {
-    const effectiveness =
-      round.effectiveness > 1
-        ? "super effective"
-        : round.effectiveness < 1
-          ? "not very effective"
-          : "normal";
-
-    return `- R${round.round}: ${round.attackerName} used ${round.move.name} for ${round.damage} damage (${effectiveness}). ${round.defenderName}: ${round.defenderHpAfter} HP`;
-  });
-  const winnerHp = input.battle.finalHp[input.battle.winner.id] ?? 0;
-  const loserHp = input.battle.finalHp[input.battle.loser.id] ?? 0;
+  const summary = getLionBattleOutcomeSummary(input.battle);
+  const notableRounds = input.battle.rounds
+    .slice(0, 6)
+    .map(formatBattleRoundMessage);
   const winnerXpLine =
     input.winnerXp.outcome === "awarded"
       ? formatExperienceAwardLine(input.winnerXp.result)
@@ -400,7 +419,8 @@ export const formatBattleLionMessage = (input: {
 
   return [
     `${input.battle.winner.species.name} \`${input.battle.winner.species.publicId}\` won the battle.`,
-    `Final HP: winner ${winnerHp}, loser ${loserHp}.`,
+    `Final HP: winner ${summary.winnerRemainingHp}, loser ${summary.loserRemainingHp}.`,
+    `Why ${input.battle.winner.species.name} won: it kept ${summary.winnerRemainingHp} HP and dealt ${summary.winnerDamageDealt} total damage.`,
     ...notableRounds,
     `Winner XP: ${winnerXpLine}`,
     `Participation XP: ${loserXpLine}`
@@ -431,12 +451,6 @@ const formatBattleXpSummary = (
     .join(" | ");
 };
 
-const getTeamRemainingHp = (
-  team: UserLionWithSpeciesRecord[],
-  finalHp: Record<string, number>
-): number =>
-  team.reduce((total, lion) => total + Math.max(0, finalHp[lion.id] ?? 0), 0);
-
 export const formatTeamBattleLionMessage = (input: {
   battle: LionTeamAutoBattleResult;
   firstDisplayName: string;
@@ -453,29 +467,16 @@ export const formatTeamBattleLionMessage = (input: {
     input.battle.loserSide === "first"
       ? input.firstDisplayName
       : input.secondDisplayName;
-  const firstHp = getTeamRemainingHp(
-    input.battle.firstTeam,
-    input.battle.finalHp
-  );
-  const secondHp = getTeamRemainingHp(
-    input.battle.secondTeam,
-    input.battle.finalHp
-  );
-  const notableRounds = input.battle.rounds.slice(0, 8).map((round) => {
-    const effectiveness =
-      round.effectiveness > 1
-        ? "super effective"
-        : round.effectiveness < 1
-          ? "not very effective"
-          : "normal";
-
-    return `- R${round.round}: ${round.attackerName} used ${round.move.name} for ${round.damage} damage (${effectiveness}). ${round.defenderName}: ${round.defenderHpAfter} HP`;
-  });
+  const summary = getLionTeamBattleOutcomeSummary(input.battle);
+  const notableRounds = input.battle.rounds
+    .slice(0, 8)
+    .map(formatBattleRoundMessage);
   const hiddenRounds = input.battle.rounds.length - notableRounds.length;
 
   return [
     `${winnerName}'s team defeated ${loserName}'s team.`,
-    `Team HP remaining: ${input.firstDisplayName} ${firstHp}, ${input.secondDisplayName} ${secondHp}.`,
+    `Team HP remaining: winner ${summary.winnerRemainingHp}, opponent ${summary.loserRemainingHp}.`,
+    `Why ${winnerName} won: their team dealt ${summary.winnerDamageDealt} total damage, kept ${summary.winnerRemainingHp} team HP, and knocked out ${summary.loserFaintedCount}/${summary.loserTeamSize} opposing lions.`,
     ...notableRounds,
     hiddenRounds > 0
       ? `- ${hiddenRounds} more battle action${hiddenRounds === 1 ? "" : "s"} resolved.`
