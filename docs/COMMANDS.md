@@ -196,6 +196,8 @@ LionDen now has a first public lion-creature loop inspired by Poketwo-style wild
 - `~team set <lion1> <lion2> <lion3>` saves up to 3 owned lions as the caller's battle team.
 - `~team clear` clears the caller's battle team.
 - `~battle @user` challenges another member's saved team.
+- `~battle accept [@user]` accepts a pending lion battle challenge and resolves the battle.
+- `~battle decline [@user]` declines a pending lion battle challenge.
 - `~accept [@user]` accepts a pending lion battle challenge and resolves the battle.
 - `~decline [@user]` declines a pending lion battle challenge.
 - `~cancelbattle [@user]` cancels a pending challenge you sent.
@@ -234,6 +236,9 @@ Current lion creature rules:
 - battle teams are persistent per guild/user and can contain 1 to 3 owned lions
 - team battles send out team slot 1 first, then the next slot when a lion faints
 - public PvP battles use a short persisted challenge acceptance flow before resolving
+- current battles are automatic; players do not choose turns or moves yet
+- battle results show round logs, move names, damage, type matchup notes, XP results, and a short winner summary
+- interactive 1v1 turn-based duels are planned later
 - quick battles use speed, move power, type matchups, derived stats, battle records, and battle XP cooldowns
 - team battle starts are cooldown-limited per recent participant pair to reduce spam
 - only lions that participate in a team battle receive battle XP
