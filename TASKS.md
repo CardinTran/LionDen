@@ -14,5 +14,7 @@
 ## Next Useful Follow-Ups
 
 - [ ] Add tests around Discord event registration and routing seams
+- [ ] Add event-routing tests for `ready`, `interactionCreate`, and `messageCreate`
 - [ ] Document the lion text-command surface separately from slash commands
+- [ ] Decompose `src/bot/messages/lion-creatures.ts` into smaller routing modules without changing command behavior
 - [ ] Add a short contributor guide for introducing a new command or scheduler
