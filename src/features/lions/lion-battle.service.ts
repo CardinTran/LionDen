@@ -62,6 +62,26 @@ export interface LionTeamAutoBattleResult {
   };
 }
 
+export type LionBattleEffectivenessLabel =
+  | "type advantage"
+  | "type disadvantage"
+  | "neutral matchup";
+
+export interface LionBattleOutcomeSummary {
+  winnerRemainingHp: number;
+  loserRemainingHp: number;
+  winnerDamageDealt: number;
+  loserDamageDealt: number;
+}
+
+export interface LionTeamBattleOutcomeSummary
+  extends LionBattleOutcomeSummary {
+  winnerFaintedCount: number;
+  loserFaintedCount: number;
+  winnerTeamSize: number;
+  loserTeamSize: number;
+}
+
 export const DEFAULT_LION_MOVE: LionBattleMove = {
   key: "pounce",
   name: "Pounce",
@@ -204,6 +224,20 @@ export const getTypeEffectiveness = (input: {
       defenderType: input.defenderSecondaryType
     })
   );
+};
+
+export const getLionBattleEffectivenessLabel = (
+  effectiveness: number
+): LionBattleEffectivenessLabel => {
+  if (effectiveness > 1) {
+    return "type advantage";
+  }
+
+  if (effectiveness < 1) {
+    return "type disadvantage";
+  }
+
+  return "neutral matchup";
 };
 
 export const calculateLionMoveDamage = (input: LionDamageInput): number => {
@@ -542,6 +576,64 @@ export const getLionBattleDamageByLion = (
   }
 
   return damageByLionId;
+};
+
+const getTotalRemainingHp = (
+  lions: Pick<UserLionWithSpeciesRecord, "id">[],
+  finalHp: Record<string, number>
+): number =>
+  lions.reduce((total, lion) => total + Math.max(0, finalHp[lion.id] ?? 0), 0);
+
+const getFaintedCount = (
+  lions: Pick<UserLionWithSpeciesRecord, "id">[],
+  finalHp: Record<string, number>
+): number =>
+  lions.filter((lion) => (finalHp[lion.id] ?? 0) <= 0).length;
+
+const getDamageForLions = (
+  lions: Pick<UserLionWithSpeciesRecord, "id">[],
+  damageByLionId: Map<string, number>
+): number =>
+  lions.reduce((total, lion) => total + (damageByLionId.get(lion.id) ?? 0), 0);
+
+export const getLionBattleOutcomeSummary = (
+  result: Pick<
+    LionAutoBattleResult,
+    "winner" | "loser" | "rounds" | "finalHp"
+  >
+): LionBattleOutcomeSummary => {
+  const damageByLionId = getLionBattleDamageByLion(result.rounds);
+
+  return {
+    winnerRemainingHp: Math.max(0, result.finalHp[result.winner.id] ?? 0),
+    loserRemainingHp: Math.max(0, result.finalHp[result.loser.id] ?? 0),
+    winnerDamageDealt: damageByLionId.get(result.winner.id) ?? 0,
+    loserDamageDealt: damageByLionId.get(result.loser.id) ?? 0
+  };
+};
+
+export const getLionTeamBattleOutcomeSummary = (
+  result: Pick<
+    LionTeamAutoBattleResult,
+    "firstTeam" | "secondTeam" | "winnerSide" | "loserSide" | "rounds" | "finalHp"
+  >
+): LionTeamBattleOutcomeSummary => {
+  const winnerTeam =
+    result.winnerSide === "first" ? result.firstTeam : result.secondTeam;
+  const loserTeam =
+    result.loserSide === "first" ? result.firstTeam : result.secondTeam;
+  const damageByLionId = getLionBattleDamageByLion(result.rounds);
+
+  return {
+    winnerRemainingHp: getTotalRemainingHp(winnerTeam, result.finalHp),
+    loserRemainingHp: getTotalRemainingHp(loserTeam, result.finalHp),
+    winnerDamageDealt: getDamageForLions(winnerTeam, damageByLionId),
+    loserDamageDealt: getDamageForLions(loserTeam, damageByLionId),
+    winnerFaintedCount: getFaintedCount(winnerTeam, result.finalHp),
+    loserFaintedCount: getFaintedCount(loserTeam, result.finalHp),
+    winnerTeamSize: winnerTeam.length,
+    loserTeamSize: loserTeam.length
+  };
 };
 
 export const getLionBattleMvpLionId = (

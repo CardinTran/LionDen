@@ -16,3 +16,4 @@
 - [ ] Add tests around Discord event registration and routing seams
 - [ ] Document the lion text-command surface separately from slash commands
 - [ ] Add a short contributor guide for introducing a new command or scheduler
+- [ ] Prototype interactive 1v1 turn-based lion duels without changing existing automatic team battles
