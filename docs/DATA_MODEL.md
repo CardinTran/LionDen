@@ -4,7 +4,9 @@
 
 LionDen uses Prisma with SQLite. Most records are scoped by `guildId`, and many user-owned resources are additionally scoped by `userId`.
 
-## Core Entities
+This document describes current Prisma models from `prisma/schema.prisma` only.
+
+## Current Models
 
 ### User and Progression
 
@@ -20,7 +22,7 @@ LionDen uses Prisma with SQLite. Most records are scoped by `guildId`, and many 
 - `RedEnvelopeDropConfig`
   - Guild-level configuration for random red envelope drops
 - `UserItemInventory`
-  - Stores item quantities per guild, user, and item key
+  - Stores current item quantities per guild, user, and item key
 
 ### Bot Configuration
 
@@ -56,6 +58,10 @@ LionDen uses Prisma with SQLite. Most records are scoped by `guildId`, and many 
   - RSVP and attendance state per user per session
 - `PracticeSchedule`
   - Guild-level weekly practice posting configuration
+
+## Planned Models
+
+No planned or future-only Prisma models are documented here today.
 
 ## Relationship Summary
 
