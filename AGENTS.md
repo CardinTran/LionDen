@@ -58,3 +58,51 @@ LionDen is a Discord bot for a lion dance team. The repository is organized arou
 2. Trace the feature into the matching Prisma model when data is involved.
 3. Prefer moving code over rewriting code when reorganizing.
 4. Run typecheck and tests after changes.
+
+## GitHub Workflow
+
+Use a professional branch-based workflow for development tasks.
+
+- Do not commit directly to `main` or `develop`.
+- Create a new branch for each task from `develop`.
+- Use short, descriptive branch names:
+  - `feat/profile-command`
+  - `fix/daily-cooldown`
+  - `refactor/event-handlers`
+  - `docs/agent-guidance`
+  - `test/practice-service`
+
+During development:
+
+- Commit changes iteratively at logical checkpoints.
+- Keep commits focused on one purpose.
+- Use clear conventional commit messages:
+  - `feat: add profile command`
+  - `fix: correct daily reward cooldown`
+  - `refactor: split message event handling`
+  - `docs: update data model notes`
+  - `test: add practice service coverage`
+
+Before opening a pull request:
+
+- Run relevant checks:
+  - `npm run typecheck`
+  - `npm run lint`
+  - `npm run test`
+  - `npm run build`
+- Review `git status` and confirm only intended files are included.
+- Do not commit `.env`, secrets, `node_modules/`, generated database files, or unrelated changes.
+
+Pull requests:
+
+- Open PRs into `develop` unless explicitly told otherwise.
+- Use a clear PR title following the main change type:
+  - `feat: add profile command`
+  - `fix: repair red envelope claim flow`
+  - `refactor: split Discord event handlers`
+- Include a concise PR summary with:
+  - what changed
+  - why it changed
+  - tests/checks run
+  - follow-up work, if any
+- Do not merge the PR unless explicitly instructed.
