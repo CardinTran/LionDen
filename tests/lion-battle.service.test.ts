@@ -3,7 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   calculateLionMoveDamage,
   determineLionTurnOrder,
+  getLionBattleEffectivenessLabel,
+  getLionBattleOutcomeSummary,
   getLionBattleMvpLionId,
+  getLionTeamBattleOutcomeSummary,
   getLionMoveSet,
   getTypeEffectiveness,
   resolveAutoLionBattle,
@@ -84,6 +87,12 @@ const buildOwnedLion = (
 });
 
 describe("lion battle service", () => {
+  it("labels type effectiveness for battle logs", () => {
+    expect(getLionBattleEffectivenessLabel(2)).toBe("type advantage");
+    expect(getLionBattleEffectivenessLabel(0.5)).toBe("type disadvantage");
+    expect(getLionBattleEffectivenessLabel(1)).toBe("neutral matchup");
+  });
+
   it("calculates single and dual type effectiveness", () => {
     expect(
       getTypeEffectiveness({
@@ -208,6 +217,38 @@ describe("lion battle service", () => {
     expect(result.finalHp["owned-b"]).toBe(0);
   });
 
+  it("summarizes a resolved quick auto battle", () => {
+    const result = resolveAutoLionBattle({
+      firstLion: buildOwnedLion({
+        id: "owned-a",
+        species: buildSpecies({
+          name: "Fire Lion",
+          primaryType: "FIRE",
+          baseAttack: 20,
+          baseSpeed: 14
+        })
+      }),
+      secondLion: buildOwnedLion({
+        id: "owned-b",
+        userId: "user-b",
+        species: buildSpecies({
+          id: "species-b",
+          name: "Nature Lion",
+          primaryType: "NATURE",
+          baseDefense: 8,
+          baseSpeed: 8
+        })
+      }),
+      random: () => 1
+    });
+    const summary = getLionBattleOutcomeSummary(result);
+
+    expect(summary.winnerRemainingHp).toBeGreaterThan(0);
+    expect(summary.loserRemainingHp).toBe(0);
+    expect(summary.winnerDamageDealt).toBeGreaterThan(0);
+    expect(summary.loserDamageDealt).toBeGreaterThanOrEqual(0);
+  });
+
   it("resolves a team battle by sending in the next team lion after a faint", () => {
     const result = resolveAutoLionTeamBattle({
       firstTeam: [
@@ -291,5 +332,40 @@ describe("lion battle service", () => {
     });
 
     expect(getLionBattleMvpLionId(result)).toBe("owned-a");
+  });
+
+  it("summarizes a resolved team battle", () => {
+    const result = resolveAutoLionTeamBattle({
+      firstTeam: [
+        buildOwnedLion({
+          id: "owned-a",
+          species: buildSpecies({
+            primaryType: "WATER",
+            baseAttack: 28,
+            baseSpeed: 18
+          })
+        })
+      ],
+      secondTeam: [
+        buildOwnedLion({
+          id: "owned-b",
+          userId: "user-b",
+          species: buildSpecies({
+            id: "species-b",
+            primaryType: "FIRE",
+            baseHp: 50,
+            baseDefense: 8
+          })
+        })
+      ],
+      random: () => 1
+    });
+    const summary = getLionTeamBattleOutcomeSummary(result);
+
+    expect(summary.winnerRemainingHp).toBeGreaterThan(0);
+    expect(summary.loserRemainingHp).toBe(0);
+    expect(summary.winnerDamageDealt).toBeGreaterThan(0);
+    expect(summary.loserFaintedCount).toBe(1);
+    expect(summary.loserTeamSize).toBe(1);
   });
 });
