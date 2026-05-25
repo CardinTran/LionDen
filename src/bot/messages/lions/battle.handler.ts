@@ -22,6 +22,7 @@ import {
   type UserLionTeamSlotWithLionRecord,
   type UserLionWithSpeciesRecord
 } from "../../../features/lions/lion-creature.service.js";
+import { recordWeeklyChallengeProgressSafely } from "../../../features/challenges/weekly-challenge-hooks.js";
 import {
   formatExistingLionBattleChallengeMessage,
   formatLionBattleChallengeAcceptedMessage,
@@ -341,18 +342,26 @@ export const handleBattleLionMessage: LionMessageCommandHandler = async ({
       return true;
     }
 
-    await message.reply(
-      await resolveAndRecordTeamBattle({
-        guildId,
-        now: message.createdAt,
-        firstUserId: message.author.id,
-        firstDisplayName: getDisplayName(message),
-        firstTeam: challengerTeam,
-        secondUserId: LION_TRAINING_NPC_USER_ID,
-        secondDisplayName: LION_TRAINING_NPC_DISPLAY_NAME,
-        secondTeam: npcTeam
-      })
-    );
+    const battleMessage = await resolveAndRecordTeamBattle({
+      guildId,
+      now: message.createdAt,
+      firstUserId: message.author.id,
+      firstDisplayName: getDisplayName(message),
+      firstTeam: challengerTeam,
+      secondUserId: LION_TRAINING_NPC_USER_ID,
+      secondDisplayName: LION_TRAINING_NPC_DISPLAY_NAME,
+      secondTeam: npcTeam
+    });
+
+    await recordWeeklyChallengeProgressSafely(prisma, {
+      guildId,
+      userId: message.author.id,
+      displayName: getDisplayName(message),
+      activityType: "TRAINING_HALL_BATTLE",
+      occurredAt: message.createdAt
+    });
+
+    await message.reply(battleMessage);
     return true;
   }
 

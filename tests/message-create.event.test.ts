@@ -8,6 +8,7 @@ const mockClaimRedEnvelope = vi.fn();
 const mockRecordChannelActivity = vi.fn();
 const mockAwardMessageXp = vi.fn();
 const mockHandleLionCreatureMessage = vi.fn();
+const mockRecordWeeklyChallengeProgressSafely = vi.fn();
 const mockLoggerError = vi.fn();
 
 vi.mock("../src/features/admin/bot-config.service.js", () => ({
@@ -30,6 +31,10 @@ vi.mock("../src/features/progression/message-xp.service.js", () => ({
 
 vi.mock("../src/bot/messages/lion-creatures.js", () => ({
   handleLionCreatureMessage: mockHandleLionCreatureMessage
+}));
+
+vi.mock("../src/features/challenges/weekly-challenge-hooks.js", () => ({
+  recordWeeklyChallengeProgressSafely: mockRecordWeeklyChallengeProgressSafely
 }));
 
 vi.mock("../src/bot/commands/redenvelope.js", () => ({
@@ -130,6 +135,7 @@ describe("messageCreate event routing", () => {
       outcome: "claimed",
       envelope: null
     });
+    mockRecordWeeklyChallengeProgressSafely.mockResolvedValue(undefined);
     mockAwardMessageXp.mockResolvedValue(undefined);
     mockHandleLionCreatureMessage.mockResolvedValue(false);
   });
@@ -215,6 +221,16 @@ describe("messageCreate event routing", () => {
         userId: "user_123",
         displayName: "Mira",
         claimedAt: createdAt
+      }
+    );
+    expect(mockRecordWeeklyChallengeProgressSafely).toHaveBeenCalledWith(
+      {},
+      {
+        guildId: "guild_123",
+        userId: "user_123",
+        displayName: "Mira",
+        activityType: "RED_ENVELOPE_CLAIM",
+        occurredAt: createdAt
       }
     );
     expect(message.channel.send).toHaveBeenCalledWith("Envelope claimed.");

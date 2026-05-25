@@ -15,6 +15,7 @@ import {
 } from "../../features/economy/red-envelope.service.js";
 import { recordChannelActivity } from "../../features/economy/channel-activity.service.js";
 import { awardMessageXp } from "../../features/progression/message-xp.service.js";
+import { recordWeeklyChallengeProgressSafely } from "../../features/challenges/weekly-challenge-hooks.js";
 import { logger } from "../../lib/logger.js";
 import { prisma } from "../../lib/prisma.js";
 import { handleLionCreatureMessage } from "../messages/lion-creatures.js";
@@ -73,6 +74,14 @@ export const registerMessageCreateEvent = (client: Client): void => {
           );
           return;
         }
+
+        await recordWeeklyChallengeProgressSafely(prisma, {
+          guildId: message.guildId,
+          userId: message.author.id,
+          displayName: message.member?.user.username ?? message.author.username,
+          activityType: "RED_ENVELOPE_CLAIM",
+          occurredAt: message.createdAt
+        });
 
         if (message.channel.isTextBased() && "send" in message.channel) {
           await message.channel.send(

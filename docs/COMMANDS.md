@@ -8,6 +8,8 @@
 - `/profile`: show the caller's level, XP, coins, and progress
 - `/leaderboard`: show top server members by XP
 - `/daily`: claim the fixed daily coin reward
+- `/weekly challenges`: show the caller's current weekly challenge progress
+- `/weekly badges`: show the caller's earned LionDen badges
 
 ### Officer and Admin
 
