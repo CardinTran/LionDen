@@ -261,6 +261,58 @@ model LionBattleChallenge {
   @@index([guildId, opponentUserId, status, expiresAt])
 }
 
+model WeeklyChallengeDefinition {
+  id            String                      @id @default(cuid())
+  challengeKey  String                      @unique
+  title         String
+  description   String
+  activityType  WeeklyChallengeActivityType
+  targetCount   Int
+  rewardXp      Int                         @default(0)
+  rewardCoins   Int                         @default(0)
+  isEnabled     Boolean                     @default(true)
+  createdAt     DateTime                    @default(now())
+  updatedAt     DateTime                    @updatedAt
+}
+
+model UserWeeklyChallengeProgress {
+  id            String    @id @default(cuid())
+  guildId       String
+  userId        String
+  challengeKey  String
+  weekKey       String
+  progressCount Int       @default(0)
+  completedAt   DateTime?
+  rewardedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([guildId, userId, challengeKey, weekKey])
+  @@index([guildId, userId, weekKey])
+  @@index([guildId, weekKey])
+}
+
+model BadgeDefinition {
+  id          String   @id @default(cuid())
+  badgeKey    String   @unique
+  title       String
+  description String
+  isEnabled   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model UserBadge {
+  id        String   @id @default(cuid())
+  guildId   String
+  userId    String
+  badgeKey  String
+  awardedAt DateTime @default(now())
+
+  @@unique([guildId, userId, badgeKey])
+  @@index([guildId, userId])
+}
+
 model PracticeSession {
   id                    String                @id @default(cuid())
   guildId               String
@@ -381,4 +433,12 @@ enum LionItemCategory {
   BALL
   SPAWN_MODIFIER
   UTILITY
+}
+
+enum WeeklyChallengeActivityType {
+  PRACTICE_ATTENDANCE
+  LION_CATCH
+  LION_TRAIN
+  RED_ENVELOPE_CLAIM
+  TRAINING_HALL_BATTLE
 }

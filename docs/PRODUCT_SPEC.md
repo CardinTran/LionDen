@@ -127,6 +127,16 @@ Current practice attendance rule:
 - `NOT_HERE`, or no attendance response, does not earn practice XP
 - each practice participant can only be rewarded once per session
 
+Current weekly challenge and badge foundation rule:
+
+- `/weekly challenges` shows the caller's current weekly challenge progress
+- `/weekly badges` shows the caller's earned LionDen badges
+- default weekly challenges currently track practice attendance, wild lion catches, lion training, red envelope claims, and Training Hall battles
+- challenge week keys use ISO-style UTC week labels such as `2026-W22`
+- challenge completion can award small XP and coin rewards through the existing profile systems
+- completing at least one weekly challenge awards the `Weekly Starter` badge
+- progress hooks are best-effort; challenge tracking failures should log a warning without blocking the original practice, red envelope, or lion action
+
 ## Roadmap
 
 1. Phase 0: repo foundation, toolchain, CI, `/ping`

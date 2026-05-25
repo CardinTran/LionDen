@@ -4,6 +4,7 @@ import {
   HIGH_LEVEL_WILD_LION_THRESHOLD,
   normalizeLionItemKey
 } from "../../../features/lions/lion-creature.service.js";
+import { recordWeeklyChallengeProgressSafely } from "../../../features/challenges/weekly-challenge-hooks.js";
 import { prisma } from "../../../lib/prisma.js";
 import { getDisplayName } from "./data.js";
 import type { LionMessageCommandHandler } from "./types.js";
@@ -79,6 +80,14 @@ export const handleCatchLionMessage: LionMessageCommandHandler = async ({
       result.ownedLion?.species.rarity ?? result.spawn?.species.rarity ?? ""
     );
   const catchPrefix = notableCatch ? "Notable catch! " : "";
+
+  await recordWeeklyChallengeProgressSafely(prisma, {
+    guildId,
+    userId: message.author.id,
+    displayName: getDisplayName(message),
+    activityType: "LION_CATCH",
+    occurredAt: message.createdAt
+  });
 
   await message.reply(
     `${catchPrefix}${getDisplayName(message)} caught Lv. ${result.ownedLion?.level ?? result.spawn?.level ?? 1} ${result.ownedLion ? getOwnedLionDisplayName(result.ownedLion) : (result.spawn?.species.name ?? "a wild lion")} ${result.ownedLion?.species.publicId ? `\`${result.ownedLion.species.publicId}\`` : ""} with ${result.item?.name ?? "a ball"}.`

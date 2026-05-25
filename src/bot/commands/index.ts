@@ -10,6 +10,7 @@ import { profileCommand } from "./profile.js";
 import { redEnvelopeCommand } from "./redenvelope.js";
 import { pingCommand } from "./ping.js";
 import type { SlashCommand } from "./types.js";
+import { weeklyCommand } from "./weekly.js";
 import { xpCommand } from "./xp.js";
 
 export const commands = [
@@ -21,6 +22,7 @@ export const commands = [
   redEnvelopeCommand,
   lionAdminCommand,
   leaderboardCommand,
+  weeklyCommand,
   xpCommand,
   practiceCommand
 ];

@@ -20,6 +20,7 @@ import {
   startPracticeSession,
   upsertPracticeSchedule
 } from "../../features/practice/practice.service.js";
+import { recordWeeklyChallengeProgressSafely } from "../../features/challenges/weekly-challenge-hooks.js";
 import { prisma } from "../../lib/prisma.js";
 import type { SlashCommand } from "./types.js";
 
@@ -363,6 +364,16 @@ export const handlePracticeButton = async (
       ephemeral: true
     });
     return;
+  }
+
+  if (state === "HERE") {
+    await recordWeeklyChallengeProgressSafely(prisma, {
+      guildId,
+      userId: interaction.user.id,
+      displayName,
+      activityType: "PRACTICE_ATTENDANCE",
+      occurredAt: new Date()
+    });
   }
 
   await interaction.reply({

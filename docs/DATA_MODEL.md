@@ -59,6 +59,19 @@ This document describes current Prisma models from `prisma/schema.prisma` only.
 - `PracticeSchedule`
   - Guild-level weekly practice posting configuration
 
+### Weekly Challenges and Badges
+
+- `WeeklyChallengeDefinition`
+  - Seeded challenge definitions keyed by `challengeKey`
+  - Stores title, description, activity type, target count, reward XP, reward coins, and enabled state
+- `UserWeeklyChallengeProgress`
+  - Per-guild, per-user weekly progress for one challenge definition and `weekKey`
+  - Tracks progress count, completion time, and reward application time
+- `BadgeDefinition`
+  - Seeded badge definitions keyed by `badgeKey`
+- `UserBadge`
+  - Per-guild, per-user awarded badges
+
 ## Planned Models
 
 No planned or future-only Prisma models are documented here today.
@@ -69,6 +82,7 @@ No planned or future-only Prisma models are documented here today.
 - `UserLion` has many `UserLionTeamSlot`
 - `PracticeSession` has many `PracticeCheckIn`
 - `UserProfile` is the central per-user record for XP and coins
+- Weekly challenge progress and badges are scoped by `guildId` + `userId`
 
 ## Indexing Patterns
 
@@ -86,6 +100,7 @@ No planned or future-only Prisma models are documented here today.
   - lion spawns
   - lion battle cooldowns
   - practice lifecycle posts
+  - weekly challenge week keys
 
 ## Change Guidance
 
