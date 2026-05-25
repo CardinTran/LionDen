@@ -54,6 +54,12 @@
 - Message-router coverage lives in `tests/lion-creatures.message.test.ts`.
 - Service tests live beside their domain name in `tests/`.
 
+### Finishing a Task
+
+- Mark completed work clearly in the final notes.
+- Add follow-ups only after thinking through the best next move for the touched area.
+- Prefer one focused follow-up over a long wishlist, especially when it protects a likely future refactor or fills a real validation gap.
+
 ## Safe Lion Router Decomposition Plan
 
 Do not change runtime behavior during decomposition. Extract in small steps:
