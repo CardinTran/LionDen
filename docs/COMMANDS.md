@@ -12,7 +12,7 @@
 ### Officer and Admin
 
 - `/botadmin status`: show maintenance-mode state
-- `/botadmin health`: check database and client health
+- `/botadmin health`: show an ephemeral development checklist for Discord readiness, database access, maintenance mode, practice, red envelopes, and lion spawns
 - `/botadmin reloadpresence`: reapply presence from current state
 - `/botadmin maintenance`: enable or disable maintenance mode and update the message
 - `/coins add`: add coins to a member
