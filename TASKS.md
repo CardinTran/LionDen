@@ -19,8 +19,8 @@
 - [x] Add focused tests for separated non-battle lion message handlers
 - [x] Add focused tests for read-only lion message handlers
 - [x] Add weekly challenges and badges foundation
-- [ ] Document the lion text-command surface separately from slash commands
-- [ ] Add a short contributor guide for introducing a new command or scheduler
-- [ ] Document operational conventions such as scheduler timing, maintenance-mode expectations, and admin-only workflows
+- [x] Document the lion text-command surface separately from slash commands
+- [x] Add a short contributor guide for introducing a new command or scheduler
+- [x] Document operational conventions such as scheduler timing, maintenance-mode expectations, and admin-only workflows
 - [ ] Add deeper weekly challenge lifecycle tests after real server usage settles the first defaults
 - [ ] Prototype interactive 1v1 turn-based lion duels without changing existing automatic team battles

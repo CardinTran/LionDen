@@ -52,8 +52,10 @@ LionDen is a Discord bot for a lion dance team. The repository is organized arou
 ## Documentation Rules
 
 - Update `docs/COMMANDS.md` when command behavior, names, permissions, or output changes.
+- Update `docs/LION_TEXT_COMMANDS.md` when public `~` text-command behavior changes.
+- Update `docs/CONTRIBUTING_COMMANDS.md` when command or scheduler contribution workflow changes.
 - Update `docs/DATA_MODEL.md` when Prisma models or relationships change.
-- Update `docs/DEPLOYMENT.md` or `docs/DEV_CHECKLIST.md` when setup, migration, or debugging steps change.
+- Update `docs/OPERATIONS.md`, `docs/DEPLOYMENT.md`, or `docs/DEV_CHECKLIST.md` when setup, scheduler, maintenance, migration, or debugging steps change.
 - Update this file when the repo workflow expectations change.
 
 ## Common Commands
