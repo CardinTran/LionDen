@@ -6,12 +6,18 @@ import {
 } from "discord.js";
 
 import {
+  formatBotHealthReport,
+  getBotHealthReport,
+  getFailedBotHealthChecks
+} from "../../features/admin/bot-health.service.js";
+import {
   ensureBotGuildConfig,
   formatMaintenanceNotice,
   getBotGuildConfig,
   setMaintenanceMode,
   type BotGuildConfigRecord
 } from "../../features/admin/bot-config.service.js";
+import { logger } from "../../lib/logger.js";
 import { prisma } from "../../lib/prisma.js";
 import { applyBotPresence } from "../presence.js";
 import type { SlashCommand } from "./types.js";
@@ -104,17 +110,24 @@ export const botAdminCommand: SlashCommand = {
     }
 
     if (subcommand === "health") {
-      const config = await ensureBotGuildConfig(prisma, {
-        guildId
+      const report = await getBotHealthReport(prisma, {
+        guildId,
+        clientReady: interaction.client.isReady(),
+        clientTag: interaction.client.user?.tag ?? null,
+        now: new Date()
       });
 
+      for (const failedCheck of getFailedBotHealthChecks(report)) {
+        logger.error("Bot health check failed", {
+          guildId,
+          section: failedCheck.section,
+          check: failedCheck.check.label,
+          error: failedCheck.check.error
+        });
+      }
+
       await interaction.reply({
-        content: [
-          "LionDen health",
-          "Database: reachable",
-          `Maintenance mode: ${config.maintenanceMode ? "enabled" : "disabled"}`,
-          `Client ready: ${interaction.client.isReady() ? "yes" : "no"}`
-        ].join("\n"),
+        content: formatBotHealthReport(report),
         ephemeral: true
       });
       return;
