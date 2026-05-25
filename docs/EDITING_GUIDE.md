@@ -1,50 +1,69 @@
 # Editing Guide
 
-## Slash Commands
+## Common Edits
 
-- Slash command files live in `src/bot/commands/`.
+### Slash Commands
+
+- Command files live in `src/bot/commands/`.
+- Register commands in `src/bot/commands/index.ts`.
 - Shared command typing lives in `src/bot/commands/types.ts`.
-- The slash command registry lives in `src/bot/commands/index.ts`.
-- Slash command routing starts in `src/bot/events/interactionCreate.ts`.
+- Slash command dispatch happens in `src/bot/events/interactionCreate.ts`.
 
-## `~` Lion Text Commands
+### Message Commands
 
-- Public lion text commands live in `src/bot/messages/lion-creatures.ts`.
+- Lion `~` text commands live in `src/bot/messages/lion-creatures.ts`.
 - Message routing starts in `src/bot/events/messageCreate.ts`.
-- Keep Discord `Message` handling in `src/bot/` and lion feature logic in `src/features/lions/`.
+- `~grab` is defined in `src/bot/commands/redenvelope.ts` and handled from the message-create event.
 
-## Battle Logic
+### Lion Features
 
-- Battle resolution, move selection, damage, and turn order live in `src/features/lions/lion-battle.service.ts`.
-- Battle persistence, rewards, cooldowns, and challenge lifecycle live in `src/features/lions/lion-creature.service.ts`.
-- Battle help and result formatting live in `src/features/lions/lion-formatting.ts`.
+- Main lion logic lives in `src/features/lions/`.
+- Admin lion slash controls live in `src/bot/commands/lionadmin.ts`.
+- Public lion text commands live in `src/bot/messages/lion-creatures.ts`.
 
-## Practice Logic
+### Practice Features
 
 - Practice service logic lives in `src/features/practice/practice.service.ts`.
 - Scheduled practice posting lives in `src/features/practice/practice-scheduler.ts`.
 - Slash command and button adapters live in `src/bot/commands/practice.ts`.
 
-## Economy and Red Envelopes
+### Economy Features
 
 - Economy services live in `src/features/economy/`.
 - Daily and coin slash commands live in `src/bot/commands/daily.ts` and `src/bot/commands/coins.ts`.
 - Red envelope slash commands live in `src/bot/commands/redenvelope.ts`.
-- Public `~grab` handling starts in `src/bot/events/messageCreate.ts`.
+- Public envelope claims are routed from `src/bot/events/messageCreate.ts`.
 
-## Schedulers
-
-- Scheduler startup is wired in `src/bot/events/ready.ts`.
-- Scheduler implementations live in `src/features/practice/practice-scheduler.ts`, `src/features/economy/red-envelope-scheduler.ts`, and `src/features/lions/lion-spawn-scheduler.ts`.
-
-## Prisma Models
+### Prisma Models
 
 - Current schema lives in `prisma/schema.prisma`.
 - Migrations live in `prisma/migrations/`.
-- Keep `docs/DATA_MODEL.md` aligned with the current schema.
+- Keep `docs/DATA_MODEL.md` aligned with the current schema only.
 
-## Tests
+### Schedulers
+
+- Scheduler startup is wired in `src/bot/events/ready.ts`.
+- Scheduler implementations live in:
+  - `src/features/practice/practice-scheduler.ts`
+  - `src/features/economy/red-envelope-scheduler.ts`
+  - `src/features/lions/lion-spawn-scheduler.ts`
+
+### Tests
 
 - Command tests live in `tests/*.command.test.ts`.
 - Message-router coverage lives in `tests/lion-creatures.message.test.ts`.
-- Service tests live in `tests/` under the matching domain name.
+- Service tests live beside their domain name in `tests/`.
+
+## Safe Lion Router Decomposition Plan
+
+Do not change runtime behavior during decomposition. Extract in small steps:
+
+1. Move command-name constants and shared parsing helpers out of `src/bot/messages/lion-creatures.ts`.
+2. Split handlers by concern while keeping one top-level router:
+   - shop and inventory
+   - capture and training
+   - roster and team management
+   - battles and challenges
+   - read-only status and leaderboard commands
+3. Keep Discord `Message` handling in the router layer and keep lion business logic in `src/features/lions/`.
+4. Add routing tests around each extraction step before changing command flow.
