@@ -14,7 +14,7 @@ LionDen is a Discord bot for a lion dance team. The MVP focuses on meaningful pa
 
 ## Current Phase
 
-Phase 0 foundation is in progress. This repo currently includes:
+Active development happens on `develop`. This repo currently includes:
 
 - project tooling and scripts
 - environment validation
@@ -46,7 +46,7 @@ Phase 0 foundation is in progress. This repo currently includes:
 2. Fill in your Discord application values.
 3. Install dependencies with `npm install`.
 4. Generate Prisma client with `npm run prisma:generate`.
-5. Create the SQLite database schema with `npm run prisma:migrate:dev -- --name init`.
+5. Apply committed database migrations with `npm run prisma:migrate:deploy`.
 6. Register commands in your test server with `npm run discord:register`.
 7. Start the bot with `npm run dev`.
 
@@ -63,4 +63,12 @@ After pulling new migrations, run `npm run prisma:migrate:deploy` before startin
 - `npm run prisma:migrate:deploy`: apply committed Prisma migrations to the configured database
 - `npm run prisma:studio`: open the local Prisma database viewer
 
-See [docs/PRODUCT_SPEC.md](/Users/cardintran/Documents/GitHub/LionDen/docs/PRODUCT_SPEC.md), [docs/COMMANDS.md](/Users/cardintran/Documents/GitHub/LionDen/docs/COMMANDS.md), and [docs/DEPLOYMENT.md](/Users/cardintran/Documents/GitHub/LionDen/docs/DEPLOYMENT.md) for the evolving product and operating notes.
+## Docs
+
+- [Product spec](docs/PRODUCT_SPEC.md)
+- [Command reference](docs/COMMANDS.md)
+- [Data model](docs/DATA_MODEL.md)
+- [Deployment notes](docs/DEPLOYMENT.md)
+- [Development checklist](docs/DEV_CHECKLIST.md)
+- [Editing guide](docs/EDITING_GUIDE.md)
+- [Agent guidance](AGENTS.md)
