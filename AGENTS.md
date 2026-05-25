@@ -6,11 +6,15 @@ LionDen is a Discord bot for a lion dance team. The repository is organized arou
 
 ## Working Rules
 
+- Work from `develop` unless a task explicitly says otherwise.
+- Do not merge into `main` unless a task explicitly asks for a release or merge.
 - Preserve existing runtime behavior unless a task explicitly asks for a change.
 - Prefer small, direct edits over broad rewrites.
 - Keep Discord-specific code in `src/bot/`.
 - Keep business logic and data access in `src/features/`.
 - Keep persistence shape in `prisma/schema.prisma`.
+- Do not overbuild deployment or hosting infrastructure unless the task asks for it.
+- Do not log tokens, secrets, or full environment values.
 - Follow the existing TypeScript style:
   - ESM imports with `.js` extensions
   - named exports
@@ -43,6 +47,14 @@ LionDen is a Discord bot for a lion dance team. The repository is organized arou
 - SQLite is the current database provider.
 - Prisma models cover profiles, coins, daily claims, red envelopes, practice sessions, lion ownership, lion battles, shop inventory, and guild-level configuration.
 - New persistence changes should update both `prisma/schema.prisma` and the related docs in `docs/DATA_MODEL.md`.
+- When migrations are added, keep local development instructions aligned with the migration workflow.
+
+## Documentation Rules
+
+- Update `docs/COMMANDS.md` when command behavior, names, permissions, or output changes.
+- Update `docs/DATA_MODEL.md` when Prisma models or relationships change.
+- Update `docs/DEPLOYMENT.md` or `docs/DEV_CHECKLIST.md` when setup, migration, or debugging steps change.
+- Update this file when the repo workflow expectations change.
 
 ## Common Commands
 
@@ -51,10 +63,14 @@ LionDen is a Discord bot for a lion dance team. The repository is organized arou
 - `npm run typecheck`
 - `npm run test`
 - `npm run discord:register`
+- `npm run prisma:migrate:deploy`
+- `npm run prisma:generate`
 
 ## Safe Change Strategy
 
 1. Read the relevant command/event/service files first.
 2. Trace the feature into the matching Prisma model when data is involved.
 3. Prefer moving code over rewriting code when reorganizing.
-4. Run typecheck and tests after changes.
+4. Keep changes focused and PR-sized.
+5. Run lint, typecheck, tests, build, and Prisma validation before finishing when practical.
+6. Document any validation command that cannot be run or fails for a pre-existing reason.
