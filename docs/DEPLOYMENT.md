@@ -13,6 +13,8 @@ LionDen is still in development. Active development happens on `develop`; do not
 
 For a fuller local workflow, see [DEV_CHECKLIST.md](DEV_CHECKLIST.md).
 
+For scheduler timing, maintenance mode, admin recovery workflows, migrations, and health checks, see [OPERATIONS.md](OPERATIONS.md).
+
 ## Database Readiness
 
 When Prisma reports `P2021` or a missing table such as `main.LionBattleRecord`, the configured database is behind the checked-in migrations. Stop the bot, run `npm run prisma:migrate:deploy`, then start it again.

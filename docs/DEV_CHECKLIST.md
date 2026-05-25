@@ -72,8 +72,10 @@ npx prisma validate
 Also verify docs when relevant:
 
 - Update `docs/COMMANDS.md` when command names, behavior, permissions, or output changes.
+- Update `docs/LION_TEXT_COMMANDS.md` when public `~` text-command behavior changes.
+- Update `docs/CONTRIBUTING_COMMANDS.md` when command or scheduler contribution workflow changes.
 - Update `docs/DATA_MODEL.md` when Prisma models or relationships change.
-- Update `docs/DEPLOYMENT.md` or this checklist when setup or migration steps change.
+- Update `docs/OPERATIONS.md`, `docs/DEPLOYMENT.md`, or this checklist when setup, scheduler, maintenance, migration, or debugging steps change.
 - Update `AGENTS.md` when repo workflow expectations change.
 
 ## Debugging Checklist
@@ -93,6 +95,8 @@ When the bot behaves unexpectedly:
 8. Stop the bot and Prisma Studio before retrying migrations if SQLite reports a lock.
 
 ## Health Check Expectations
+
+Operational conventions for health checks, maintenance mode, schedulers, and migrations live in [OPERATIONS.md](OPERATIONS.md).
 
 `/botadmin health` should help developers quickly inspect:
 

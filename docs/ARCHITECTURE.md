@@ -26,7 +26,8 @@ Runtime flow:
 - `src/bot/events/interactionCreate.ts`: slash commands and practice buttons
 - `src/bot/events/messageCreate.ts`: maintenance checks, `~grab`, lion text commands, activity, XP
 - `src/bot/commands/`: slash command adapters
-- `src/bot/messages/lion-creatures.ts`: lion text-command router
+- `src/bot/messages/lion-creatures.ts`: compatibility export for the lion text-command router
+- `src/bot/messages/lions/`: active lion text-command router, parser, and handlers
 - `src/bot/presence.ts`: bot presence updates
 
 ### Domain Services
@@ -78,6 +79,8 @@ Runtime flow:
 - Shared command typing lives in `src/bot/commands/types.ts`.
 - The registry is built in `src/bot/commands/index.ts`.
 - Individual command files are adapters that validate Discord input and call services.
+- Public lion text commands are documented in `docs/LION_TEXT_COMMANDS.md`.
+- Command and scheduler contribution workflow is documented in `docs/CONTRIBUTING_COMMANDS.md`.
 
 ## Persistence Boundary
 

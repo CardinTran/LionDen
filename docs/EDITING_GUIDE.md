@@ -8,18 +8,23 @@
 - Register commands in `src/bot/commands/index.ts`.
 - Shared command typing lives in `src/bot/commands/types.ts`.
 - Slash command dispatch happens in `src/bot/events/interactionCreate.ts`.
+- Use [CONTRIBUTING_COMMANDS.md](CONTRIBUTING_COMMANDS.md) when adding or changing slash commands.
 
 ### Message Commands
 
-- Lion `~` text commands live in `src/bot/messages/lion-creatures.ts`.
+- Lion `~` text commands are exported through `src/bot/messages/lion-creatures.ts`.
+- The active lion text-command router lives in `src/bot/messages/lions/index.ts`.
+- The lion text-command allow-list and parser live in `src/bot/messages/lions/parsing.ts`.
+- Focused lion handlers live in `src/bot/messages/lions/*.handler.ts`.
 - Message routing starts in `src/bot/events/messageCreate.ts`.
 - `~grab` is defined in `src/bot/commands/redenvelope.ts` and handled from the message-create event.
+- Public text commands are documented in [LION_TEXT_COMMANDS.md](LION_TEXT_COMMANDS.md).
 
 ### Lion Features
 
 - Main lion logic lives in `src/features/lions/`.
 - Admin lion slash controls live in `src/bot/commands/lionadmin.ts`.
-- Public lion text commands live in `src/bot/messages/lion-creatures.ts`.
+- Public lion text commands live under `src/bot/messages/lions/`.
 
 ### Practice Features
 
@@ -47,6 +52,7 @@
   - `src/features/practice/practice-scheduler.ts`
   - `src/features/economy/red-envelope-scheduler.ts`
   - `src/features/lions/lion-spawn-scheduler.ts`
+- Scheduler timing and maintenance-mode expectations are documented in [OPERATIONS.md](OPERATIONS.md).
 
 ### Tests
 
@@ -60,16 +66,7 @@
 - Add follow-ups only after thinking through the best next move for the touched area.
 - Prefer one focused follow-up over a long wishlist, especially when it protects a likely future refactor or fills a real validation gap.
 
-## Safe Lion Router Decomposition Plan
+## Contributor Guides
 
-Do not change runtime behavior during decomposition. Extract in small steps:
-
-1. Move command-name constants and shared parsing helpers out of `src/bot/messages/lion-creatures.ts`.
-2. Split handlers by concern while keeping one top-level router:
-   - shop and inventory
-   - capture and training
-   - roster and team management
-   - battles and challenges
-   - read-only status and leaderboard commands
-3. Keep Discord `Message` handling in the router layer and keep lion business logic in `src/features/lions/`.
-4. Add routing tests around each extraction step before changing command flow.
+- Use [CONTRIBUTING_COMMANDS.md](CONTRIBUTING_COMMANDS.md) for adding slash commands, lion text commands, or schedulers.
+- Use [OPERATIONS.md](OPERATIONS.md) for local/dev operations, scheduler timing, maintenance mode, admin workflows, migrations, and health checks.
