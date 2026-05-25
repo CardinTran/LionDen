@@ -151,6 +151,10 @@ const maybePostScheduledRsvp = async (
 
   for (const schedule of schedules) {
     if (await isMaintenanceModeEnabled(prisma, schedule.guildId)) {
+      logger.info("Practice scheduler skipped guild in maintenance", {
+        guildId: schedule.guildId,
+        postType: "rsvp"
+      });
       continue;
     }
 
@@ -182,6 +186,11 @@ const maybePostScheduledRsvp = async (
     const channel = await fetchConfiguredChannel(client, schedule.channelId);
 
     if (!channel) {
+      logger.warn("Practice scheduler could not fetch configured channel", {
+        guildId: schedule.guildId,
+        channelId: schedule.channelId,
+        postType: "rsvp"
+      });
       continue;
     }
 
@@ -195,6 +204,12 @@ const maybePostScheduledRsvp = async (
     await attachPracticeRsvpMessage(prisma, {
       sessionId: session.id,
       rsvpMessageId: message.id
+    });
+    logger.info("Practice scheduler posted RSVP", {
+      guildId: schedule.guildId,
+      channelId: schedule.channelId,
+      sessionId: session.id,
+      scheduledDateKey
     });
   }
 };
@@ -218,6 +233,10 @@ const maybePostScheduledAttendance = async (
 
   for (const schedule of schedules) {
     if (await isMaintenanceModeEnabled(prisma, schedule.guildId)) {
+      logger.info("Practice scheduler skipped guild in maintenance", {
+        guildId: schedule.guildId,
+        postType: "attendance"
+      });
       continue;
     }
 
@@ -249,6 +268,11 @@ const maybePostScheduledAttendance = async (
     const channel = await fetchConfiguredChannel(client, schedule.channelId);
 
     if (!channel) {
+      logger.warn("Practice scheduler could not fetch configured channel", {
+        guildId: schedule.guildId,
+        channelId: schedule.channelId,
+        postType: "attendance"
+      });
       continue;
     }
 
@@ -264,6 +288,12 @@ const maybePostScheduledAttendance = async (
       attendanceMessageId: message.id,
       activate: true
     });
+    logger.info("Practice scheduler posted attendance", {
+      guildId: schedule.guildId,
+      channelId: schedule.channelId,
+      sessionId: session.id,
+      scheduledDateKey
+    });
   }
 };
 
@@ -278,8 +308,13 @@ export const runPracticeSchedulerTick = async (
 
 export const startPracticeScheduler = (client: Client): void => {
   if (schedulerTimer) {
+    logger.warn("Practice scheduler already running");
     return;
   }
+
+  logger.info("Starting practice scheduler", {
+    intervalMs: 60_000
+  });
 
   void runPracticeSchedulerTick(client).catch((error) => {
     logger.error("Initial practice scheduler tick failed", { error });

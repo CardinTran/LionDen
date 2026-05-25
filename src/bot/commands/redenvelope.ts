@@ -21,6 +21,7 @@ import {
   type RedEnvelopeRecord
 } from "../../features/economy/red-envelope.service.js";
 import { postConfiguredRedEnvelopeDrop } from "../../features/economy/red-envelope-scheduler.js";
+import { logger } from "../../lib/logger.js";
 import { prisma } from "../../lib/prisma.js";
 import type { SlashCommand } from "./types.js";
 
@@ -238,6 +239,16 @@ export const redEnvelopeCommand: SlashCommand = {
         nextDropAt
       });
 
+      logger.warn("Red envelope drops configured", {
+        guildId,
+        channelId: channel.id,
+        actorUserId: interaction.user.id,
+        minAmount,
+        maxAmount,
+        minIntervalMinutes,
+        maxIntervalMinutes
+      });
+
       await interaction.reply({
         content: `Random red envelope drops are enabled. LionDen will target the most active eligible channel, using <#${channel.id}> as the fallback channel. Range: ${Math.min(minAmount, maxAmount)}-${Math.max(minAmount, maxAmount)} coins, every ${Math.min(minIntervalMinutes, maxIntervalMinutes)}-${Math.max(minIntervalMinutes, maxIntervalMinutes)} minutes.`,
         ephemeral: true
@@ -260,6 +271,11 @@ export const redEnvelopeCommand: SlashCommand = {
       await setRedEnvelopeDropConfigEnabled(prisma, {
         guildId,
         enabled: false
+      });
+
+      logger.warn("Red envelope drops paused", {
+        guildId,
+        actorUserId: interaction.user.id
       });
 
       await interaction.reply({
@@ -304,12 +320,23 @@ export const redEnvelopeCommand: SlashCommand = {
       });
 
       if (!postedDrop) {
+        logger.warn("Forced red envelope drop failed", {
+          guildId,
+          actorUserId: interaction.user.id
+        });
         await interaction.editReply({
           content:
             "LionDen could not find an eligible channel for the drop. Make sure the fallback channel still exists and LionDen can post there.",
         });
         return;
       }
+
+      logger.warn("Forced red envelope drop posted", {
+        guildId,
+        channelId: postedDrop.channelId,
+        amount: postedDrop.amount,
+        actorUserId: interaction.user.id
+      });
 
       await interaction.editReply({
         content: `Random red envelope dropped in <#${postedDrop.channelId}> for ${postedDrop.amount} coins.`
@@ -319,6 +346,12 @@ export const redEnvelopeCommand: SlashCommand = {
 
     if (subcommand === "clearopen") {
       const clearedCount = await clearOpenRedEnvelopesForGuild(prisma, guildId);
+
+      logger.warn("Open red envelopes cleared", {
+        guildId,
+        actorUserId: interaction.user.id,
+        clearedCount
+      });
 
       await interaction.reply({
         content:
@@ -387,6 +420,14 @@ export const redEnvelopeCommand: SlashCommand = {
     await attachRedEnvelopeMessage(prisma, {
       envelopeId: envelope.id,
       messageId: message.id
+    });
+
+    logger.warn("Manual red envelope created", {
+      guildId,
+      channelId: channel.id,
+      envelopeId: envelope.id,
+      amount,
+      actorUserId: interaction.user.id
     });
 
     await interaction.editReply({

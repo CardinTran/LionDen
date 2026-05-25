@@ -6,6 +6,7 @@ import {
 } from "discord.js";
 
 import { adjustCoins } from "../../features/economy/coin-balance.service.js";
+import { logger } from "../../lib/logger.js";
 import { prisma } from "../../lib/prisma.js";
 import type { SlashCommand } from "./types.js";
 
@@ -93,6 +94,15 @@ export const coinsCommand: SlashCommand = {
       userId: member.id,
       displayName: member.username,
       delta: action === "add" ? amount : -amount
+    });
+
+    logger.warn("Admin coin adjustment applied", {
+      guildId,
+      actorUserId: interaction.user.id,
+      targetUserId: member.id,
+      action,
+      amount,
+      resultingCoins: profile.coins
     });
 
     await interaction.reply({

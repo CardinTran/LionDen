@@ -29,6 +29,7 @@ import {
 import { postWildLionSpawnToChannel } from "../../features/lions/lion-spawn-scheduler.js";
 import { formatDiscordTimestamp } from "../../features/lions/lion-formatting.js";
 import type { LionRarityValue } from "../../features/lions/lion-seed-data.js";
+import { logger } from "../../lib/logger.js";
 import { prisma } from "../../lib/prisma.js";
 import type { SlashCommand } from "./types.js";
 
@@ -341,6 +342,14 @@ export const lionAdminCommand: SlashCommand = {
           enabled
         });
 
+        logger.warn("Lion species enabled state changed", {
+          guildId,
+          actorUserId: interaction.user.id,
+          species,
+          enabled,
+          outcome: result.outcome
+        });
+
         await interaction.reply({
           content:
             result.outcome === "updated" && result.record
@@ -356,6 +365,13 @@ export const lionAdminCommand: SlashCommand = {
           publicIdOrSlug: species,
           spawnWeight: interaction.options.getInteger("spawn_weight"),
           baseCatchRate: interaction.options.getInteger("catch_rate")
+        });
+
+        logger.warn("Lion species tuned", {
+          guildId,
+          actorUserId: interaction.user.id,
+          species,
+          outcome: result.outcome
         });
 
         await interaction.reply({
@@ -379,6 +395,14 @@ export const lionAdminCommand: SlashCommand = {
           enabled
         });
 
+        logger.warn("Lion shop item enabled state changed", {
+          guildId,
+          actorUserId: interaction.user.id,
+          itemKey: item,
+          enabled,
+          outcome: result.outcome
+        });
+
         await interaction.reply({
           content:
             result.outcome === "updated" && result.record
@@ -394,6 +418,13 @@ export const lionAdminCommand: SlashCommand = {
           itemKey: item,
           priceCoins: interaction.options.getInteger("price"),
           effectValue: interaction.options.getInteger("effect_value")
+        });
+
+        logger.warn("Lion shop item tuned", {
+          guildId,
+          actorUserId: interaction.user.id,
+          itemKey: item,
+          outcome: result.outcome
         });
 
         await interaction.reply({
@@ -435,6 +466,15 @@ export const lionAdminCommand: SlashCommand = {
         nextSpawnAt
       });
 
+      logger.warn("Lion spawn config changed", {
+        guildId,
+        actorUserId: interaction.user.id,
+        enabled,
+        minIntervalMinutes,
+        maxIntervalMinutes,
+        nextSpawnAt: nextSpawnAt.toISOString()
+      });
+
       await interaction.reply({
         content: `Wild lion spawns are ${enabled ? "enabled" : "paused"}. Interval: ${Math.min(minIntervalMinutes, maxIntervalMinutes)}-${Math.max(minIntervalMinutes, maxIntervalMinutes)} minutes. Next spawn ${formatDiscordTimestamp(nextSpawnAt)}.`,
         ephemeral: true
@@ -450,6 +490,12 @@ export const lionAdminCommand: SlashCommand = {
       });
       await setLionSpawnConfigEnabled(prisma, {
         guildId,
+        enabled: subcommand === "resume"
+      });
+
+      logger.warn("Lion spawn automation state changed", {
+        guildId,
+        actorUserId: interaction.user.id,
         enabled: subcommand === "resume"
       });
 
@@ -513,12 +559,26 @@ export const lionAdminCommand: SlashCommand = {
       });
 
       if (!spawn || spawn.channelId !== channel.id) {
+        logger.warn("Forced lion spawn failed", {
+          guildId,
+          channelId: channel.id,
+          actorUserId: interaction.user.id
+        });
         await interaction.editReply({
           content:
             "LionDen could not create a wild lion spawn right now. Check that enabled species exist and no channel state is stuck."
         });
         return;
       }
+
+      logger.warn("Forced lion spawn posted", {
+        guildId,
+        channelId: channel.id,
+        actorUserId: interaction.user.id,
+        spawnId: spawn.id,
+        species: spawn.species.slug,
+        level: spawn.level
+      });
 
       await interaction.editReply({
         content: `Forced a wild Lv. ${spawn.level} ${spawn.species.name} \`${spawn.species.publicId}\` spawn in <#${channel.id}>.`
@@ -540,6 +600,13 @@ export const lionAdminCommand: SlashCommand = {
       const clearedCount = await clearActiveWildLionSpawns(prisma, {
         guildId,
         channelId: channel.id
+      });
+
+      logger.warn("Active lion spawns cleared", {
+        guildId,
+        channelId: channel.id,
+        actorUserId: interaction.user.id,
+        clearedCount
       });
 
       await interaction.reply({
@@ -569,6 +636,13 @@ export const lionAdminCommand: SlashCommand = {
         now
       });
 
+      logger.warn("Active lion channel effects cleared", {
+        guildId,
+        channelId: channel.id,
+        actorUserId: interaction.user.id,
+        clearedCount
+      });
+
       await interaction.reply({
         content:
           clearedCount === 0
@@ -590,6 +664,15 @@ export const lionAdminCommand: SlashCommand = {
         displayName: member?.displayName ?? user.username,
         itemKey,
         quantity
+      });
+
+      logger.warn("Lion item grant attempted", {
+        guildId,
+        actorUserId: interaction.user.id,
+        targetUserId: user.id,
+        itemKey,
+        quantity,
+        outcome: result.outcome
       });
 
       await interaction.reply({

@@ -42,11 +42,26 @@ export const registerInteractionCreateEvent = (client: Client): void => {
       interaction.isButton() &&
       isPracticeButtonCustomId(interaction.customId)
     ) {
+      logger.info("Practice interaction started", {
+        customId: interaction.customId,
+        guildId: interaction.guildId,
+        channelId: interaction.channelId,
+        userId: interaction.user.id
+      });
       try {
         await handlePracticeButton(interaction);
+        logger.info("Practice interaction succeeded", {
+          customId: interaction.customId,
+          guildId: interaction.guildId,
+          channelId: interaction.channelId,
+          userId: interaction.user.id
+        });
       } catch (error) {
         logger.error("Practice interaction failed", {
           customId: interaction.customId,
+          guildId: interaction.guildId,
+          channelId: interaction.channelId,
+          userId: interaction.user.id,
           error
         });
 
@@ -81,11 +96,25 @@ export const registerInteractionCreateEvent = (client: Client): void => {
       return;
     }
 
+    const subcommandGroup = interaction.options.getSubcommandGroup(false);
+    const subcommand = interaction.options.getSubcommand(false);
+    const commandMeta = {
+      commandName: interaction.commandName,
+      subcommandGroup,
+      subcommand,
+      guildId: interaction.guildId,
+      channelId: interaction.channelId,
+      userId: interaction.user.id
+    };
+
+    logger.info("Slash command started", commandMeta);
+
     try {
       await command.execute(interaction);
+      logger.info("Slash command succeeded", commandMeta);
     } catch (error) {
       logger.error("Command execution failed", {
-        commandName: interaction.commandName,
+        ...commandMeta,
         error
       });
 

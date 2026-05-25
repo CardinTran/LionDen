@@ -10,7 +10,7 @@ LionDen is a Discord bot for a lion dance team. The MVP focuses on meaningful pa
 - Prisma
 - SQLite for MVP
 - Vitest
-- Docker and GitHub Actions later in the roadmap
+- GitHub Actions CI
 
 ## Current Phase
 

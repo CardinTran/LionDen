@@ -1,5 +1,13 @@
 # Editing Guide
 
+## Workflow Guardrails
+
+- Work from `develop` unless the task explicitly says otherwise.
+- Do not merge into `main` unless the task explicitly requests a release or merge.
+- Prefer small, focused PR-sized changes that preserve existing behavior.
+- Do not add deployment infrastructure unless the task asks for that scope.
+- Do not log secrets, tokens, or full environment values.
+
 ## Slash Commands
 
 - Slash command files live in `src/bot/commands/`.
@@ -37,14 +45,24 @@
 - Scheduler startup is wired in `src/bot/events/ready.ts`.
 - Scheduler implementations live in `src/features/practice/practice-scheduler.ts`, `src/features/economy/red-envelope-scheduler.ts`, and `src/features/lions/lion-spawn-scheduler.ts`.
 
+## Health and Logging
+
+- `/botadmin health` is backed by `src/features/admin/bot-health.service.ts`.
+- Keep health checks read-only and resilient; one failed subsystem should not prevent the rest of the report from rendering.
+- Use `src/lib/logger.ts` for runtime logs.
+- Prefer structured metadata objects with guild IDs, channel IDs, user IDs, command names, and safe counts.
+- Log admin state changes such as XP or coin adjustments, forced drops, clearing state, item grants, maintenance changes, and scheduler failures.
+
 ## Prisma Models
 
 - Current schema lives in `prisma/schema.prisma`.
 - Migrations live in `prisma/migrations/`.
 - Keep `docs/DATA_MODEL.md` aligned with the current schema.
+- When data models change, update Prisma schema, migrations, tests, and docs together.
 
 ## Tests
 
 - Command tests live in `tests/*.command.test.ts`.
 - Message-router coverage lives in `tests/lion-creatures.message.test.ts`.
 - Service tests live in `tests/` under the matching domain name.
+- Before finishing a development pass, run lint, typecheck, tests, build, and Prisma validation when practical.

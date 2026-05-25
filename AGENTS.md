@@ -13,6 +13,8 @@ LionDen is a Discord bot for a lion dance team. The repository is organized arou
 - Keep Discord-specific code in `src/bot/`.
 - Keep business logic and data access in `src/features/`.
 - Keep persistence shape in `prisma/schema.prisma`.
+- Keep slash commands in `src/bot/commands/`.
+- Keep `~` command routing in the existing message routing structure unless doing a specific router refactor.
 - Do not overbuild deployment or hosting infrastructure unless the task asks for it.
 - Do not log tokens, secrets, or full environment values.
 - Follow the existing TypeScript style:
@@ -41,6 +43,7 @@ LionDen is a Discord bot for a lion dance team. The repository is organized arou
 - `src/bot/commands/` contains slash command adapters and shared command typing.
 - `src/bot/messages/lion-creatures.ts` handles `~`-prefixed lion text commands.
 - Feature services own behavior; bot modules should mostly validate Discord context and call services.
+- `/botadmin health` lives behind `src/features/admin/bot-health.service.ts`; keep checks read-only, partial-failure tolerant, and useful for development debugging.
 
 ## Data Notes
 
@@ -48,6 +51,7 @@ LionDen is a Discord bot for a lion dance team. The repository is organized arou
 - Prisma models cover profiles, coins, daily claims, red envelopes, practice sessions, lion ownership, lion battles, shop inventory, and guild-level configuration.
 - New persistence changes should update both `prisma/schema.prisma` and the related docs in `docs/DATA_MODEL.md`.
 - When migrations are added, keep local development instructions aligned with the migration workflow.
+- Update Prisma schema, migrations, tests, and docs together when the data model changes.
 
 ## Documentation Rules
 

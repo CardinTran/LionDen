@@ -52,6 +52,9 @@ const ensureLionRuntime = async (): Promise<void> => {
     random: Math.random
   });
   runtimeInitialized = true;
+  logger.info("Lion runtime initialized", {
+    guildId
+  });
 };
 
 const getSpawnFiles = (spawn: ActiveLionSpawnWithSpeciesRecord): string[] => {
@@ -167,13 +170,22 @@ export const runLionSpawnSchedulerTick = async (
 
   for (const config of configs) {
     if (await isMaintenanceModeEnabled(prisma, config.guildId)) {
+      logger.info("Lion spawn scheduler skipped guild in maintenance", {
+        guildId: config.guildId
+      });
       continue;
     }
 
-    await expireActiveLionSpawns(prisma, {
+    const expiredCount = await expireActiveLionSpawns(prisma, {
       guildId: config.guildId,
       now
     });
+    if (expiredCount > 0) {
+      logger.info("Lion spawn scheduler expired active spawns", {
+        guildId: config.guildId,
+        expiredCount
+      });
+    }
 
     if (!config.nextSpawnAt || config.nextSpawnAt.getTime() > now.getTime()) {
       continue;
@@ -203,6 +215,10 @@ export const runLionSpawnSchedulerTick = async (
         guildId: config.guildId,
         nextSpawnAt
       });
+      logger.warn("Lion spawn scheduler could not find eligible channel", {
+        guildId: config.guildId,
+        nextSpawnAt: nextSpawnAt.toISOString()
+      });
       continue;
     }
 
@@ -230,8 +246,13 @@ export const runLionSpawnSchedulerTick = async (
 
 export const startLionSpawnScheduler = (client: Client): void => {
   if (schedulerTimer) {
+    logger.warn("Lion spawn scheduler already running");
     return;
   }
+
+  logger.info("Starting lion spawn scheduler", {
+    intervalMs: 60_000
+  });
 
   void runLionSpawnSchedulerTick(client).catch((error) => {
     logger.error("Initial lion spawn scheduler tick failed", { error });

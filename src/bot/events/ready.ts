@@ -14,7 +14,8 @@ import { applyBotPresence } from "../presence.js";
 export const registerReadyEvent = (client: Client): void => {
   client.once(Events.ClientReady, (readyClient) => {
     logger.info("Discord client ready", {
-      tag: readyClient.user.tag
+      tag: readyClient.user.tag,
+      guildId: env.DISCORD_GUILD_ID
     });
     void (async () => {
       const config = await ensureBotGuildConfig(prisma, {
@@ -22,6 +23,9 @@ export const registerReadyEvent = (client: Client): void => {
       });
 
       applyBotPresence(client, config);
+      logger.info("Starting runtime schedulers", {
+        guildId: env.DISCORD_GUILD_ID
+      });
       startPracticeScheduler(client);
       startRedEnvelopeScheduler(client);
       startLionSpawnScheduler(client);

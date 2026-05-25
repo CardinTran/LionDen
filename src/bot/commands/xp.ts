@@ -6,6 +6,7 @@ import {
 } from "discord.js";
 
 import { adjustXp } from "../../features/progression/xp-adjustment.service.js";
+import { logger } from "../../lib/logger.js";
 import { prisma } from "../../lib/prisma.js";
 import type { SlashCommand } from "./types.js";
 
@@ -94,6 +95,16 @@ export const xpCommand: SlashCommand = {
       userId: member.id,
       displayName: member.username,
       delta: action === "add" ? amount : -amount
+    });
+
+    logger.warn("Admin XP adjustment applied", {
+      guildId,
+      actorUserId: interaction.user.id,
+      targetUserId: member.id,
+      action,
+      amount,
+      resultingXp: profile.xp,
+      resultingLevel: profile.level
     });
 
     await interaction.reply({

@@ -44,6 +44,12 @@ export const registerMessageCreateEvent = (client: Client): void => {
     }
 
     if (message.content.trim().toLowerCase() === RED_ENVELOPE_GRAB_COMMAND) {
+      logger.info("Text command routing started", {
+        command: RED_ENVELOPE_GRAB_COMMAND,
+        guildId: message.guildId,
+        channelId: message.channelId,
+        userId: message.author.id
+      });
       try {
         const openEnvelope = await getOpenRedEnvelopeForChannel(prisma, {
           guildId: message.guildId,
@@ -51,6 +57,13 @@ export const registerMessageCreateEvent = (client: Client): void => {
         });
 
         if (!openEnvelope) {
+          logger.info("Text command routing succeeded", {
+            command: RED_ENVELOPE_GRAB_COMMAND,
+            outcome: "no_open_envelope",
+            guildId: message.guildId,
+            channelId: message.channelId,
+            userId: message.author.id
+          });
           return;
         }
 
@@ -62,6 +75,13 @@ export const registerMessageCreateEvent = (client: Client): void => {
         });
 
         if (!result.envelope) {
+          logger.warn("Text command routing completed without envelope", {
+            command: RED_ENVELOPE_GRAB_COMMAND,
+            outcome: result.outcome,
+            guildId: message.guildId,
+            channelId: message.channelId,
+            userId: message.author.id
+          });
           return;
         }
 
@@ -71,6 +91,13 @@ export const registerMessageCreateEvent = (client: Client): void => {
               envelope: result.envelope
             })
           );
+          logger.info("Text command routing succeeded", {
+            command: RED_ENVELOPE_GRAB_COMMAND,
+            outcome: result.outcome,
+            guildId: message.guildId,
+            channelId: message.channelId,
+            userId: message.author.id
+          });
           return;
         }
 
@@ -86,6 +113,14 @@ export const registerMessageCreateEvent = (client: Client): void => {
             result
           })
         );
+        logger.info("Text command routing succeeded", {
+          command: RED_ENVELOPE_GRAB_COMMAND,
+          outcome: result.outcome,
+          envelopeId: result.envelope.id,
+          guildId: message.guildId,
+          channelId: message.channelId,
+          userId: message.author.id
+        });
       } catch (error) {
         logger.error("Red envelope grab failed", {
           guildId: message.guildId,
@@ -98,11 +133,40 @@ export const registerMessageCreateEvent = (client: Client): void => {
       return;
     }
 
+    const trimmedContent = message.content.trim();
+    const isTextCommand = trimmedContent.startsWith("~");
+
     try {
+      if (isTextCommand) {
+        logger.info("Text command routing started", {
+          command: trimmedContent.split(/\s+/, 1)[0],
+          guildId: message.guildId,
+          channelId: message.channelId,
+          userId: message.author.id
+        });
+      }
+
       const handledLionCommand = await handleLionCreatureMessage(message);
 
       if (handledLionCommand) {
+        logger.info("Text command routing succeeded", {
+          command: trimmedContent.split(/\s+/, 1)[0],
+          outcome: "handled_lion_command",
+          guildId: message.guildId,
+          channelId: message.channelId,
+          userId: message.author.id
+        });
         return;
+      }
+
+      if (isTextCommand) {
+        logger.info("Text command routing succeeded", {
+          command: trimmedContent.split(/\s+/, 1)[0],
+          outcome: "ignored",
+          guildId: message.guildId,
+          channelId: message.channelId,
+          userId: message.author.id
+        });
       }
     } catch (error) {
       logger.error("Lion creature message command failed", {

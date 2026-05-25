@@ -28,7 +28,7 @@
 - `/lionadmin resume`: resumes automated wild lion spawns
 - `/lionadmin status`: shows lion spawn automation state
 - `/botadmin status`: shows maintenance-mode state
-- `/botadmin health`: runs a lightweight bot and database health check
+- `/botadmin health`: runs an ephemeral development health checklist for Discord readiness, database tables, maintenance mode, practice, red envelopes, and lion spawns
 - `/botadmin reloadpresence`: reapplies the current bot presence
 - `/botadmin maintenance`: enables or disables maintenance mode and updates the public message
 - `/coins add`: adds coins to a member

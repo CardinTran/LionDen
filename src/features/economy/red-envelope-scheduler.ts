@@ -176,6 +176,9 @@ export const runRedEnvelopeSchedulerTick = async (
 
   for (const config of configs) {
     if (await isMaintenanceModeEnabled(prisma, config.guildId)) {
+      logger.info("Red envelope scheduler skipped guild in maintenance", {
+        guildId: config.guildId
+      });
       continue;
     }
 
@@ -191,6 +194,10 @@ export const runRedEnvelopeSchedulerTick = async (
     });
 
     if (!postedDrop) {
+      logger.warn("Red envelope scheduler could not post due drop", {
+        guildId: config.guildId,
+        fallbackChannelId: config.channelId
+      });
       continue;
     }
 
@@ -204,8 +211,13 @@ export const runRedEnvelopeSchedulerTick = async (
 
 export const startRedEnvelopeScheduler = (client: Client): void => {
   if (schedulerTimer) {
+    logger.warn("Red envelope scheduler already running");
     return;
   }
+
+  logger.info("Starting red envelope scheduler", {
+    intervalMs: 60_000
+  });
 
   void runRedEnvelopeSchedulerTick(client).catch((error) => {
     logger.error("Initial red envelope scheduler tick failed", { error });

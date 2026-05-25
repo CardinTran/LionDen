@@ -20,6 +20,7 @@ import {
   startPracticeSession,
   upsertPracticeSchedule
 } from "../../features/practice/practice.service.js";
+import { logger } from "../../lib/logger.js";
 import { prisma } from "../../lib/prisma.js";
 import type { SlashCommand } from "./types.js";
 
@@ -176,6 +177,12 @@ export const practiceCommand: SlashCommand = {
         enabled: true
       });
 
+      logger.warn("Practice schedule configured", {
+        guildId,
+        channelId: channel.id,
+        actorUserId: interaction.user.id
+      });
+
       await interaction.reply({
         content:
           "Scheduled practice posts are configured for this channel. LionDen will use the fixed weekly schedule in Central Time.",
@@ -229,6 +236,13 @@ export const practiceCommand: SlashCommand = {
         channelId: channel.id,
         timezone: "America/Chicago",
         enabled: true
+      });
+
+      logger.warn("Manual practice session started", {
+        guildId,
+        channelId: channel.id,
+        actorUserId: interaction.user.id,
+        sessionId: result.session.id
       });
 
       await interaction.reply({
@@ -297,6 +311,13 @@ export const practiceCommand: SlashCommand = {
     await interaction.reply({
       content: `Practice session ended with ${result.checkInCount} member${result.checkInCount === 1 ? "" : "s"} marked here. Awarded ${PRACTICE_ATTENDANCE_XP} XP to ${result.rewardedCount} attendee${result.rewardedCount === 1 ? "" : "s"}.`,
       ephemeral: true
+    });
+    logger.warn("Practice session ended", {
+      guildId,
+      actorUserId: interaction.user.id,
+      sessionId: result.session.id,
+      checkInCount: result.checkInCount,
+      rewardedCount: result.rewardedCount
     });
   }
 };
