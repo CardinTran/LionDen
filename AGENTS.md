@@ -76,6 +76,13 @@ LionDen is a Discord bot for a lion dance team. The repository is organized arou
 6. Document any validation command that cannot be run or fails for a pre-existing reason.
 7. Run typecheck and tests after changes.
 
+## Task Completion Notes
+
+- When a task is completed, mark the requested work as done in the final response or task notes.
+- Before finalizing, pause for a deeper next-step review: consider the changed area, nearby risks, test gaps, and what would most improve the project next without expanding the current scope.
+- Put the best next move into the follow-ups section, along with any necessary unresolved risks or validation gaps.
+- Keep follow-ups practical and PR-sized. Do not suggest merging to `main`, production deployment, or broad rewrites unless the task explicitly calls for them.
+
 ## GitHub Workflow
 
 Use a professional branch-based workflow for development tasks.
