@@ -308,6 +308,18 @@ A recurring leaderboard showing House standings.
 
 ## Sprint 1.1: Team Houses Foundation
 
+Status: implemented.
+
+Implemented behavior:
+
+- `House`, `HouseMembership`, `HousePointLedger`, and `HousePointSourceType` are persisted through Prisma.
+- Public `/house` commands support joining, leaving, profile viewing, leaderboard viewing, and roster viewing.
+- Officer `/houseadmin` commands support House creation, assignment, removal, renaming, deactivation, and manual point adjustments.
+- Practice attendance records 10 House points after attendance XP is applied.
+- Weekly challenge completion records 5 House points when a challenge is newly completed.
+- House point hooks are best-effort and skip members without Houses.
+- House Cup standings are calculated from the point ledger.
+
 ### Branch
 
 ```sh

@@ -71,6 +71,7 @@ export interface BotHealthPrismaClient {
     } | null>;
   };
   activeLionSpawn: CountDelegate;
+  house: CountDelegate;
 }
 
 export interface GetBotHealthReportInput {
@@ -348,6 +349,26 @@ export const getBotHealthReport = async (
     })
   ]);
 
+  const houseChecks = await Promise.all([
+    runHealthCheck("Active Houses", async () => {
+      const activeHouseCount = await prisma.house.count({
+        where: {
+          guildId: input.guildId,
+          isActive: true
+        }
+      });
+
+      return {
+        label: "Active Houses",
+        status: activeHouseCount > 0 ? "healthy" : "warning",
+        message:
+          activeHouseCount > 0
+            ? `${activeHouseCount} active House${activeHouseCount === 1 ? "" : "s"} configured.`
+            : "No active Houses configured."
+      };
+    })
+  ]);
+
   const sections: BotHealthSection[] = [
     {
       name: "Discord",
@@ -372,6 +393,10 @@ export const getBotHealthReport = async (
     {
       name: "Lion Spawns",
       checks: lionSpawnChecks
+    },
+    {
+      name: "Houses",
+      checks: houseChecks
     }
   ];
 
@@ -382,6 +407,7 @@ export const getBotHealthReport = async (
       "Run `/practice configure` if scheduled practice should be active.",
       "Run `/redenvelope configure` if random drops should be active.",
       "Run `/lionadmin configure` if wild spawns should be active.",
+      "Run `/houseadmin create` to configure Team Houses.",
       "Run `npm run prisma:migrate:deploy` if database table checks fail."
     ]
   };

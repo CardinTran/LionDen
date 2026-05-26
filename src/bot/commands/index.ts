@@ -3,6 +3,8 @@ import { Collection } from "discord.js";
 import { botAdminCommand } from "./botadmin.js";
 import { coinsCommand } from "./coins.js";
 import { dailyCommand } from "./daily.js";
+import { houseCommand } from "./house.js";
+import { houseAdminCommand } from "./houseadmin.js";
 import { leaderboardCommand } from "./leaderboard.js";
 import { lionAdminCommand } from "./lionadmin.js";
 import { practiceCommand } from "./practice.js";
@@ -20,6 +22,8 @@ export const commands = [
   dailyCommand,
   coinsCommand,
   redEnvelopeCommand,
+  houseCommand,
+  houseAdminCommand,
   lionAdminCommand,
   leaderboardCommand,
   weeklyCommand,

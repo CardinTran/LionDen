@@ -1,4 +1,5 @@
 import { adjustCoins } from "../economy/coin-balance.service.js";
+import { recordWeeklyChallengeHousePointsSafely } from "../houses/house-hooks.js";
 import type { UserProfileRecord } from "../profiles/profile.service.js";
 import { adjustXp } from "../progression/xp-adjustment.service.js";
 
@@ -315,7 +316,10 @@ export const getWeeklyChallengeWeekKey = (date: Date): string => {
 };
 
 export const syncDefaultWeeklyChallengeData = async (
-  store: Pick<WeeklyChallengeStore, "weeklyChallengeDefinition" | "badgeDefinition">
+  store: Pick<
+    WeeklyChallengeStore,
+    "weeklyChallengeDefinition" | "badgeDefinition"
+  >
 ): Promise<void> => {
   await Promise.all([
     ...DEFAULT_WEEKLY_CHALLENGES.map((challenge) =>
@@ -522,6 +526,15 @@ export const recordWeeklyChallengeProgress = async (
       now: input.occurredAt
     });
 
+    if (completedAt) {
+      await recordWeeklyChallengeHousePointsSafely(store, {
+        guildId: input.guildId,
+        userId: input.userId,
+        weekKey,
+        challengeKey: definition.challengeKey
+      });
+    }
+
     if (rewardedProgress.completedAt && !rewardedProgress.rewardedAt) {
       updates.push(
         await store.userWeeklyChallengeProgress.update({
@@ -545,7 +558,9 @@ export const recordWeeklyChallengeProgress = async (
 export const getUserWeeklyChallengeView = async (
   store: Pick<
     WeeklyChallengeStore,
-    "weeklyChallengeDefinition" | "userWeeklyChallengeProgress" | "badgeDefinition"
+    | "weeklyChallengeDefinition"
+    | "userWeeklyChallengeProgress"
+    | "badgeDefinition"
   >,
   input: {
     guildId: string;
@@ -581,7 +596,8 @@ export const getUserWeeklyChallengeView = async (
   return {
     weekKey,
     challenges: definitions.map((definition) => {
-      const progress = progressByChallengeKey.get(definition.challengeKey) ?? null;
+      const progress =
+        progressByChallengeKey.get(definition.challengeKey) ?? null;
       const progressCount = progress?.progressCount ?? 0;
 
       return {
