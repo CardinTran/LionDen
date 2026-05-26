@@ -97,8 +97,40 @@ Main workflows:
 - `/lionadmin configure`, `/lionadmin pause`, `/lionadmin resume`, `/lionadmin dropnow`, `/lionadmin clearspawn`, `/lionadmin cleareffects`, `/lionadmin grantitem`, `/lionadmin species ...`, `/lionadmin item ...`, `/lionadmin status`: manage wild lion automation, catalog state, active spawns, channel effects, and item grants.
 - `/practice configure`, `/practice start`, `/practice end`: configure scheduled practice posts, start a manual session, and close the active session.
 - `/coins ...` and `/xp ...`: adjust member balances and XP.
+- `/houseadmin create`, `/houseadmin assign`, `/houseadmin remove`, `/houseadmin rename`, `/houseadmin deactivate`: create Houses, move members, remove memberships, and retire Houses without deleting history.
+- `/houseadmin points add` and `/houseadmin points remove`: add signed ledger entries for officer corrections. These commands never mutate a stored House total directly.
 
 Admin setup and status replies should stay ephemeral unless a command intentionally posts public gameplay content, such as creating a red envelope or forcing a wild lion spawn.
+
+## Team Houses / House Cup Operations
+
+House setup:
+
+1. Create one or more active Houses with `/houseadmin create`.
+2. Let members self-select with `/house join`, or use `/houseadmin assign` for officer-managed rosters.
+3. Use `/house leaderboard` to verify House Cup standings.
+4. Use `/house roster` and `/house profile` to inspect memberships and point totals.
+
+House points are ledger-based. Practice attendance and weekly challenge completion currently create House point entries only when the member belongs to an active House:
+
+- Practice attendance: 10 House points after `/practice end` successfully applies the attendance XP reward.
+- Weekly challenge completion: 5 House points when a weekly challenge is newly completed.
+
+House point hooks are best-effort. If House point recording fails, LionDen logs a warning and the original practice or weekly challenge flow continues. Members without Houses are treated as a no-op for point hooks.
+
+Manual corrections:
+
+- Use `/houseadmin points add` for positive corrections.
+- Use `/houseadmin points remove` for negative corrections.
+- Include a reason that is useful for future audit.
+- Leaving or removing a House membership does not delete historical ledger rows.
+
+Troubleshooting missing House points:
+
+- Confirm the member had a House membership before the practice reward or weekly challenge completion happened.
+- Confirm the House is still active.
+- Check `/botadmin health`; the Houses section warns when no active Houses are configured.
+- Check logs for House point hook warnings with `guildId`, `userId`, `sourceType`, and `sourceId`.
 
 ## Migrations
 
@@ -128,5 +160,6 @@ The current health report checks:
 - practice schedule and active session state
 - red envelope configuration and open envelope state
 - lion spawn configuration and active wild spawn state
+- active House table access and configured House count
 
 The report can show `healthy`, `warning`, or `error`. Warnings often mean optional automation is paused, unconfigured, or currently has active public state. Errors should be investigated before relying on the bot for local testing.

@@ -10,11 +10,16 @@
 - `/daily`: claim the fixed daily coin reward
 - `/weekly challenges`: show the caller's current weekly challenge progress
 - `/weekly badges`: show the caller's earned LionDen badges
+- `/house join`: join an active Team House
+- `/house leave`: leave the caller's current Team House
+- `/house profile`: show the caller's House profile, including weekly and lifetime House points
+- `/house leaderboard`: show current House Cup standings
+- `/house roster`: show members currently assigned to a House
 
 ### Officer and Admin
 
 - `/botadmin status`: show maintenance-mode state
-- `/botadmin health`: show an ephemeral development checklist for Discord readiness, database access, maintenance mode, practice, red envelopes, and lion spawns
+- `/botadmin health`: show an ephemeral development checklist for Discord readiness, database access, maintenance mode, practice, red envelopes, lion spawns, and Houses
 - `/botadmin reloadpresence`: reapply presence from current state
 - `/botadmin maintenance`: enable or disable maintenance mode and update the message
 - `/coins add`: add coins to a member
@@ -42,6 +47,13 @@
 - `/practice configure`: set the scheduled practice channel
 - `/practice start`: start a manual practice session
 - `/practice end`: end the active practice session and award attendance XP
+- `/houseadmin create`: create a Team House
+- `/houseadmin assign`: assign or move a member to a House
+- `/houseadmin remove`: remove a member from their House
+- `/houseadmin rename`: update House display details
+- `/houseadmin deactivate`: deactivate a House so it cannot receive new public joins
+- `/houseadmin points add`: add manual House points through the ledger
+- `/houseadmin points remove`: remove manual House points through the ledger
 
 ## `~` Text Commands
 

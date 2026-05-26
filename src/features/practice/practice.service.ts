@@ -1,4 +1,5 @@
 import { adjustXp } from "../progression/xp-adjustment.service.js";
+import { recordPracticeAttendanceHousePointsSafely } from "../houses/house-hooks.js";
 import type { UserProfileRecord } from "../profiles/profile.service.js";
 
 export type PracticeSessionStatus = "SCHEDULED" | "ACTIVE" | "ENDED";
@@ -518,6 +519,12 @@ export const endPracticeSession = async (
           delta: PRACTICE_ATTENDANCE_XP
         }
       );
+
+      await recordPracticeAttendanceHousePointsSafely(store, {
+        guildId: participant.guildId,
+        userId: participant.userId,
+        practiceSessionId: session.id
+      });
 
       rewardedCount += 1;
     }

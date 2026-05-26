@@ -72,6 +72,26 @@ This document describes current Prisma models from `prisma/schema.prisma` only.
 - `UserBadge`
   - Per-guild, per-user awarded badges
 
+### Team Houses / House Cup
+
+- `House`
+  - Guild-scoped Team House definition keyed by `guildId` + `houseKey`
+  - Stores display name, optional description, optional emoji/color labels, active state, and timestamps
+- `HouseMembership`
+  - One current House membership per `guildId` + `userId`
+  - Points to the assigned `House`
+  - Leaving or removing a member deletes current membership but does not delete historical point ledger rows
+- `HousePointLedger`
+  - Append-only House point entries
+  - Stores `guildId`, `houseId`, optional `userId`, `sourceType`, optional `sourceId`, signed point amount, reason, and timestamp
+  - Negative entries are used for officer corrections; House totals are calculated by summing ledger rows
+  - `guildId` + `sourceType` + `sourceId` is unique when a stable source ID is present, preventing duplicate hook awards for the same source
+- `HousePointSourceType`
+  - Enum for House point sources
+  - Current implemented hook sources are `PRACTICE_ATTENDANCE` and `WEEKLY_CHALLENGE`
+  - `ADMIN_ADJUSTMENT` is used by `/houseadmin points add` and `/houseadmin points remove`
+  - Other enum values are reserved for later hook expansion
+
 ## Planned Models
 
 No planned or future-only Prisma models are documented here today.
@@ -83,6 +103,8 @@ No planned or future-only Prisma models are documented here today.
 - `PracticeSession` has many `PracticeCheckIn`
 - `UserProfile` is the central per-user record for XP and coins
 - Weekly challenge progress and badges are scoped by `guildId` + `userId`
+- `House` has many `HouseMembership` and `HousePointLedger` records
+- `HouseMembership` is unique per `guildId` + `userId`
 
 ## Indexing Patterns
 
@@ -101,6 +123,7 @@ No planned or future-only Prisma models are documented here today.
   - lion battle cooldowns
   - practice lifecycle posts
   - weekly challenge week keys
+  - House point ledger entries
 
 ## Change Guidance
 

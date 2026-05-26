@@ -112,15 +112,14 @@ describe("practice service", () => {
       }
     };
 
-    const rsvpResult = await attachPracticeRsvpMessage(
-      rsvpStore,
-      {
-        sessionId: "session_123",
-        rsvpMessageId: "message_rsvp_123"
-      }
-    );
+    const rsvpResult = await attachPracticeRsvpMessage(rsvpStore, {
+      sessionId: "session_123",
+      rsvpMessageId: "message_rsvp_123"
+    });
 
-    const attendanceStore: Parameters<typeof attachPracticeAttendanceMessage>[0] = {
+    const attendanceStore: Parameters<
+      typeof attachPracticeAttendanceMessage
+    >[0] = {
       practiceSession: {
         findFirst: vi.fn(),
         findUnique: vi.fn(),
@@ -250,7 +249,9 @@ describe("practice service", () => {
             displayName: update.displayName,
             rsvpStatus: update.rsvpStatus ?? currentCheckIn?.rsvpStatus ?? null,
             attendanceStatus:
-              update.attendanceStatus ?? currentCheckIn?.attendanceStatus ?? null
+              update.attendanceStatus ??
+              currentCheckIn?.attendanceStatus ??
+              null
           });
           return currentCheckIn;
         }),
@@ -444,6 +445,132 @@ describe("practice service", () => {
     });
   });
 
+  it("records House points after applying an attendance reward", async () => {
+    const endedAt = new Date("2026-05-13T02:00:00.000Z");
+    const ledgers: unknown[] = [];
+    const store = {
+      practiceSession: {
+        findFirst: vi.fn().mockResolvedValue(buildSession()),
+        findUnique: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn().mockResolvedValue(
+          buildSession({
+            status: "ENDED",
+            endedAt,
+            endedByUserId: "officer_123"
+          })
+        )
+      },
+      practiceCheckIn: {
+        findUnique: vi.fn(),
+        findMany: vi.fn().mockResolvedValue([
+          buildCheckIn({
+            id: "checkin_here",
+            attendanceStatus: "HERE"
+          })
+        ]),
+        upsert: vi.fn(),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        count: vi.fn().mockResolvedValue(1)
+      },
+      practiceSchedule: {
+        findMany: vi.fn(),
+        upsert: vi.fn()
+      },
+      userProfile: {
+        upsert: vi.fn(async ({ create, update }) => ({
+          id: "profile_here",
+          guildId: create.guildId,
+          userId: create.userId,
+          displayName: update.displayName,
+          xp: 0,
+          level: 1,
+          coins: 0,
+          lastMessageXpAt: null,
+          lastDailyClaimAt: null,
+          createdAt: endedAt,
+          updatedAt: endedAt
+        })),
+        update: vi.fn(async ({ data }) => ({
+          id: "profile_here",
+          guildId: "guild_123",
+          userId: "member_123",
+          displayName: data.displayName,
+          xp: data.xp,
+          level: data.level,
+          coins: data.coins ?? 0,
+          lastMessageXpAt: null,
+          lastDailyClaimAt: null,
+          createdAt: endedAt,
+          updatedAt: endedAt
+        }))
+      },
+      house: {
+        findUnique: vi.fn(async () => ({
+          id: "house_123",
+          guildId: "guild_123",
+          houseKey: "red-house",
+          name: "Red House",
+          description: null,
+          emoji: null,
+          color: null,
+          isActive: true,
+          createdAt: endedAt,
+          updatedAt: endedAt
+        })),
+        findMany: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn(),
+        count: vi.fn()
+      },
+      houseMembership: {
+        findUnique: vi.fn(async () => ({
+          id: "membership_123",
+          guildId: "guild_123",
+          houseId: "house_123",
+          userId: "member_123",
+          joinedAt: endedAt,
+          updatedAt: endedAt
+        })),
+        findMany: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn()
+      },
+      housePointLedger: {
+        findUnique: vi.fn(async () => null),
+        findMany: vi.fn(async () => []),
+        create: vi.fn(async ({ data }) => {
+          ledgers.push(data);
+          return {
+            id: "ledger_123",
+            createdAt: endedAt,
+            ...data
+          };
+        })
+      }
+    };
+
+    await endPracticeSession(store, {
+      guildId: "guild_123",
+      endedByUserId: "officer_123",
+      endedAt
+    });
+
+    expect(store.housePointLedger.create).toHaveBeenCalledWith({
+      data: {
+        guildId: "guild_123",
+        houseId: "house_123",
+        userId: "member_123",
+        sourceType: "PRACTICE_ATTENDANCE",
+        sourceId: "session_123:member_123",
+        points: 10,
+        reason: "Practice attendance"
+      }
+    });
+    expect(ledgers).toHaveLength(1);
+  });
+
   it("reuses a scheduled practice session for the same practice date", async () => {
     const existingScheduledSession = buildSession({
       source: "SCHEDULED",
@@ -496,14 +623,11 @@ describe("practice service", () => {
       }
     };
 
-    const result = await endPracticeSession(
-      endStore,
-      {
-        guildId: "guild_123",
-        endedByUserId: "coach_123",
-        endedAt: new Date("2026-05-13T02:00:00.000Z")
-      }
-    );
+    const result = await endPracticeSession(endStore, {
+      guildId: "guild_123",
+      endedByUserId: "coach_123",
+      endedAt: new Date("2026-05-13T02:00:00.000Z")
+    });
 
     expect(result?.session.status).toBe("ENDED");
     expect(result?.checkInCount).toBe(8);

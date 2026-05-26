@@ -618,6 +618,78 @@ describe("weekly challenge service", () => {
     expect(userBadges).toHaveLength(1);
   });
 
+  it("records House points when a weekly challenge is newly completed", async () => {
+    const { store } = createLifecycleStore();
+    const houseLedgers: unknown[] = [];
+    const house = {
+      id: "house_123",
+      guildId: "guild_123",
+      houseKey: "red-house",
+      name: "Red House",
+      description: null,
+      emoji: null,
+      color: null,
+      isActive: true,
+      createdAt: now,
+      updatedAt: now
+    };
+
+    Object.assign(store, {
+      house: {
+        findUnique: vi.fn(async () => house),
+        findMany: vi.fn(async () => [house]),
+        create: vi.fn(),
+        update: vi.fn(),
+        count: vi.fn()
+      },
+      houseMembership: {
+        findUnique: vi.fn(async () => ({
+          id: "membership_123",
+          guildId: "guild_123",
+          houseId: house.id,
+          userId: "user_123",
+          joinedAt: now,
+          updatedAt: now
+        })),
+        findMany: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn()
+      },
+      housePointLedger: {
+        findUnique: vi.fn(async () => null),
+        findMany: vi.fn(async () => []),
+        create: vi.fn(async ({ data }) => {
+          houseLedgers.push(data);
+          return {
+            id: "ledger_123",
+            createdAt: now,
+            ...data
+          };
+        })
+      }
+    });
+
+    await recordActivity(store, {
+      activityType: "PRACTICE_ATTENDANCE"
+    });
+    await recordActivity(store, {
+      activityType: "PRACTICE_ATTENDANCE"
+    });
+
+    expect(houseLedgers).toEqual([
+      {
+        guildId: "guild_123",
+        houseId: "house_123",
+        userId: "user_123",
+        sourceType: "WEEKLY_CHALLENGE",
+        sourceId: "2026-W22:practice-presence:user_123",
+        points: 5,
+        reason: "Weekly challenge completed: practice-presence"
+      }
+    ]);
+  });
+
   it("ignores disabled challenge definitions when recording progress", async () => {
     const { store, challengeDefinitions, progressRecords } =
       createLifecycleStore();

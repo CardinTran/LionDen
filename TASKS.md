@@ -23,7 +23,7 @@
 
 ## New Product Direction
 
-LionDen’s next direction is to become a team-wide participation engine.
+LionDen's next direction is to become a team-wide participation engine.
 
 The next major focus is:
 
@@ -39,40 +39,40 @@ The roadmap for this next phase lives in:
 
 ## Sprint 1.1: Team Houses Foundation
 
-- [ ] Create `House` Prisma model
-- [ ] Create `HouseMembership` Prisma model
-- [ ] Create `HousePointLedger` Prisma model
-- [ ] Create `HousePointSourceType` enum
-- [ ] Add Prisma migration for House models
-- [ ] Add House service under `src/features/houses/`
-- [ ] Add `/house join`
-- [ ] Add `/house leave`
-- [ ] Add `/house profile`
-- [ ] Add `/house leaderboard`
-- [ ] Add `/house roster`
-- [ ] Add `/houseadmin create`
-- [ ] Add `/houseadmin assign`
-- [ ] Add `/houseadmin remove`
-- [ ] Add `/houseadmin rename`
-- [ ] Add `/houseadmin deactivate`
-- [ ] Add `/houseadmin points add`
-- [ ] Add `/houseadmin points remove`
-- [ ] Add House point hook for practice attendance
-- [ ] Add House point hook for weekly challenge completion
-- [ ] Add tests for House creation
-- [ ] Add tests for joining and leaving Houses
-- [ ] Add tests for officer assignment and removal
-- [ ] Add tests for one active House membership per user
-- [ ] Add tests for inactive House behavior
-- [ ] Add tests for point ledger entries
-- [ ] Add tests for leaderboard ordering
-- [ ] Add tests for practice attendance point hook
-- [ ] Add tests for weekly challenge completion point hook
-- [ ] Update `docs/COMMANDS.md`
-- [ ] Update `docs/DATA_MODEL.md`
-- [ ] Update `docs/OPERATIONS.md`
-- [ ] Update `docs/PRODUCT_SPEC.md`
-- [ ] Update `docs/ROADMAP_NEXT.md` if implementation details differ
+- [x] Create `House` Prisma model
+- [x] Create `HouseMembership` Prisma model
+- [x] Create `HousePointLedger` Prisma model
+- [x] Create `HousePointSourceType` enum
+- [x] Add Prisma migration for House models
+- [x] Add House service under `src/features/houses/`
+- [x] Add `/house join`
+- [x] Add `/house leave`
+- [x] Add `/house profile`
+- [x] Add `/house leaderboard`
+- [x] Add `/house roster`
+- [x] Add `/houseadmin create`
+- [x] Add `/houseadmin assign`
+- [x] Add `/houseadmin remove`
+- [x] Add `/houseadmin rename`
+- [x] Add `/houseadmin deactivate`
+- [x] Add `/houseadmin points add`
+- [x] Add `/houseadmin points remove`
+- [x] Add House point hook for practice attendance
+- [x] Add House point hook for weekly challenge completion
+- [x] Add tests for House creation
+- [x] Add tests for joining and leaving Houses
+- [x] Add tests for officer assignment and removal
+- [x] Add tests for one active House membership per user
+- [x] Add tests for inactive House behavior
+- [x] Add tests for point ledger entries
+- [x] Add tests for leaderboard ordering
+- [x] Add tests for practice attendance point hook
+- [x] Add tests for weekly challenge completion point hook
+- [x] Update `docs/COMMANDS.md`
+- [x] Update `docs/DATA_MODEL.md`
+- [x] Update `docs/OPERATIONS.md`
+- [x] Update `docs/PRODUCT_SPEC.md`
+- [x] Update `docs/ROADMAP_NEXT.md` if implementation details differ
 - [ ] Run validation commands
 
 ## Sprint 1.2: House Point Hooks Expansion

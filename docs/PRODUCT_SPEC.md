@@ -141,6 +141,17 @@ Current weekly challenge and badge foundation rule:
 - completing at least one weekly challenge awards the `Weekly Starter` badge
 - progress hooks are best-effort; challenge tracking failures should log a warning without blocking the original practice, red envelope, or lion action
 
+Current Team Houses / House Cup foundation rule:
+
+- members can belong to one active House per guild
+- public `/house` commands let members join, leave, view profiles, view rosters, and view House Cup standings
+- officer-only `/houseadmin` commands create Houses, assign or remove members, rename or deactivate Houses, and add or remove manual House points
+- House points are ledger-based; totals are calculated by summing point entries rather than mutating a stored total
+- practice attendance awards 10 House points after `/practice end` successfully applies the attendance XP reward
+- weekly challenge completion awards 5 House points when a challenge is newly completed
+- House point hooks are best-effort; failures log warnings without blocking the original practice or weekly challenge flow
+- members without Houses do not receive House points and do not break existing flows
+
 ## Roadmap
 
 1. Phase 0: repo foundation, toolchain, CI, `/ping`

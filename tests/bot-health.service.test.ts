@@ -53,6 +53,9 @@ const createHealthyStore = (): BotHealthPrismaClient => ({
   },
   activeLionSpawn: {
     count: async () => 0
+  },
+  house: {
+    count: async () => 1
   }
 });
 
@@ -108,6 +111,7 @@ describe("bot health service", () => {
     expect(output).toContain("Practice:");
     expect(output).toContain("Red Envelopes:");
     expect(output).toContain("Lion Spawns:");
+    expect(output).toContain("Houses:");
   });
 
   it("returns partial report results when one check fails", async () => {
