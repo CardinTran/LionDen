@@ -23,6 +23,7 @@ import {
   type UserLionWithSpeciesRecord
 } from "../../../features/lions/lion-creature.service.js";
 import { recordWeeklyChallengeProgressSafely } from "../../../features/challenges/weekly-challenge-hooks.js";
+import { recordTrainingBattleHousePointsSafely } from "../../../features/houses/house-hooks.js";
 import {
   formatExistingLionBattleChallengeMessage,
   formatLionBattleChallengeAcceptedMessage,
@@ -71,7 +72,10 @@ const resolveAndRecordTeamBattle = async (input: {
   secondDisplayName: string;
   secondTeam: UserLionWithSpeciesRecord[] | UserLionTeamSlotWithLionRecord[];
   challengeId?: string | null;
-}): Promise<string> => {
+}): Promise<{
+  battleMessage: string;
+  battleRecordId: string;
+}> => {
   const firstTeamLions = input.firstTeam.map((slot) => slot.lion);
   const secondTeamLions = input.secondTeam.map((entry) =>
     "lion" in entry ? entry.lion : entry
@@ -157,14 +161,17 @@ const resolveAndRecordTeamBattle = async (input: {
     });
   }
 
-  return formatTeamBattleLionMessage({
-    battle,
-    firstDisplayName: input.firstDisplayName,
-    secondDisplayName: input.secondDisplayName,
-    winnerRewards,
-    loserRewards,
-    mvpLion
-  });
+  return {
+    battleMessage: formatTeamBattleLionMessage({
+      battle,
+      firstDisplayName: input.firstDisplayName,
+      secondDisplayName: input.secondDisplayName,
+      winnerRewards,
+      loserRewards,
+      mvpLion
+    }),
+    battleRecordId: battleRecord.id
+  };
 };
 
 export const handleBattleLionMessage: LionMessageCommandHandler = async ({
@@ -193,7 +200,9 @@ export const handleBattleLionMessage: LionMessageCommandHandler = async ({
       return true;
     }
 
-    await message.reply(formatLionBattleChallengeCanceledMessage(result.challenge));
+    await message.reply(
+      formatLionBattleChallengeCanceledMessage(result.challenge)
+    );
     return true;
   }
 
@@ -262,11 +271,13 @@ export const handleBattleLionMessage: LionMessageCommandHandler = async ({
       });
 
       if (accepted.outcome !== "accepted" || !accepted.challenge) {
-        await message.reply("That lion battle challenge is no longer available.");
+        await message.reply(
+          "That lion battle challenge is no longer available."
+        );
         return true;
       }
 
-      const battleMessage = await resolveAndRecordTeamBattle({
+      const battleResult = await resolveAndRecordTeamBattle({
         guildId,
         now: message.createdAt,
         firstUserId: accepted.challenge.challengerUserId,
@@ -281,7 +292,7 @@ export const handleBattleLionMessage: LionMessageCommandHandler = async ({
       await message.reply(
         [
           formatLionBattleChallengeAcceptedMessage(accepted.challenge),
-          battleMessage
+          battleResult.battleMessage
         ].join("\n")
       );
       return true;
@@ -299,7 +310,9 @@ export const handleBattleLionMessage: LionMessageCommandHandler = async ({
       return true;
     }
 
-    await message.reply(formatLionBattleChallengeDeclinedMessage(result.challenge));
+    await message.reply(
+      formatLionBattleChallengeDeclinedMessage(result.challenge)
+    );
     return true;
   }
 
@@ -338,11 +351,13 @@ export const handleBattleLionMessage: LionMessageCommandHandler = async ({
     });
 
     if (npcTeam.length === 0) {
-      await message.reply("The Training Hall could not prepare a team right now.");
+      await message.reply(
+        "The Training Hall could not prepare a team right now."
+      );
       return true;
     }
 
-    const battleMessage = await resolveAndRecordTeamBattle({
+    const battleResult = await resolveAndRecordTeamBattle({
       guildId,
       now: message.createdAt,
       firstUserId: message.author.id,
@@ -360,8 +375,13 @@ export const handleBattleLionMessage: LionMessageCommandHandler = async ({
       activityType: "TRAINING_HALL_BATTLE",
       occurredAt: message.createdAt
     });
+    await recordTrainingBattleHousePointsSafely(prisma, {
+      guildId,
+      userId: message.author.id,
+      battleRecordId: battleResult.battleRecordId
+    });
 
-    await message.reply(battleMessage);
+    await message.reply(battleResult.battleMessage);
     return true;
   }
 
@@ -434,6 +454,8 @@ export const handleBattleLionMessage: LionMessageCommandHandler = async ({
     return true;
   }
 
-  await message.reply(formatLionBattleChallengeMessage(challengeResult.challenge!));
+  await message.reply(
+    formatLionBattleChallengeMessage(challengeResult.challenge!)
+  );
   return true;
 };

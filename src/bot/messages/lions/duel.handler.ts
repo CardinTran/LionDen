@@ -19,6 +19,7 @@ import {
   getOwnedLionDisplayName,
   listUserLionTeam
 } from "../../../features/lions/lion-creature.service.js";
+import { recordDuelCompletionHousePointsSafely } from "../../../features/houses/house-hooks.js";
 import { formatDiscordTimestamp } from "../../../features/lions/lion-formatting.js";
 import { prisma } from "../../../lib/prisma.js";
 import { getDisplayName } from "./data.js";
@@ -187,6 +188,27 @@ const updateDuelInteraction = async (
   });
 };
 
+const recordCompletedDuelHousePoints = async (
+  result: LionDuelInteractionResult
+): Promise<void> => {
+  if (result.outcome !== "updated" || result.duel?.status !== "ENDED") {
+    return;
+  }
+
+  await Promise.all([
+    recordDuelCompletionHousePointsSafely(prisma, {
+      guildId: result.duel.guildId,
+      userId: result.duel.challenger.userId,
+      duelId: result.duel.id
+    }),
+    recordDuelCompletionHousePointsSafely(prisma, {
+      guildId: result.duel.guildId,
+      userId: result.duel.opponent.userId,
+      duelId: result.duel.id
+    })
+  ]);
+};
+
 const handleDuelResult = async (
   interaction: ButtonInteraction,
   result: LionDuelInteractionResult
@@ -214,6 +236,7 @@ const handleDuelResult = async (
     return;
   }
 
+  await recordCompletedDuelHousePoints(result);
   await updateDuelInteraction(interaction, result.duel);
 };
 

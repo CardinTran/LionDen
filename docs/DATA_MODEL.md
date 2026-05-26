@@ -88,9 +88,9 @@ This document describes current Prisma models from `prisma/schema.prisma` only.
   - `guildId` + `sourceType` + `sourceId` is unique when a stable source ID is present, preventing duplicate hook awards for the same source
 - `HousePointSourceType`
   - Enum for House point sources
-  - Current implemented hook sources are `PRACTICE_ATTENDANCE` and `WEEKLY_CHALLENGE`
+  - Current implemented hook sources are `PRACTICE_ATTENDANCE`, `WEEKLY_CHALLENGE`, `RED_ENVELOPE_CLAIM`, `LION_CATCH`, `LION_TRAINING`, `TRAINING_BATTLE`, and `DUEL_COMPLETION`
   - `ADMIN_ADJUSTMENT` is used by `/houseadmin points add` and `/houseadmin points remove`
-  - Other enum values are reserved for later hook expansion
+  - `MESSAGE_ACTIVITY` is reserved for later capped activity design
 
 ## Planned Models
 

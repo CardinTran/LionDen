@@ -5,6 +5,7 @@ import {
   normalizeLionItemKey
 } from "../../../features/lions/lion-creature.service.js";
 import { recordWeeklyChallengeProgressSafely } from "../../../features/challenges/weekly-challenge-hooks.js";
+import { recordLionCatchHousePointsSafely } from "../../../features/houses/house-hooks.js";
 import { prisma } from "../../../lib/prisma.js";
 import { getDisplayName } from "./data.js";
 import type { LionMessageCommandHandler } from "./types.js";
@@ -87,6 +88,13 @@ export const handleCatchLionMessage: LionMessageCommandHandler = async ({
     displayName: getDisplayName(message),
     activityType: "LION_CATCH",
     occurredAt: message.createdAt
+  });
+  await recordLionCatchHousePointsSafely(prisma, {
+    guildId,
+    userId: message.author.id,
+    sourceId: result.spawn
+      ? `lion_catch:${result.spawn.id}:${message.author.id}`
+      : `lion_catch:${result.ownedLion?.id ?? "unknown"}:${message.author.id}`
   });
 
   await message.reply(

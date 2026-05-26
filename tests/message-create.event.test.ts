@@ -9,6 +9,7 @@ const mockRecordChannelActivity = vi.fn();
 const mockAwardMessageXp = vi.fn();
 const mockHandleLionCreatureMessage = vi.fn();
 const mockRecordWeeklyChallengeProgressSafely = vi.fn();
+const mockRecordRedEnvelopeClaimHousePointsSafely = vi.fn();
 const mockLoggerError = vi.fn();
 
 vi.mock("../src/features/admin/bot-config.service.js", () => ({
@@ -37,6 +38,11 @@ vi.mock("../src/features/challenges/weekly-challenge-hooks.js", () => ({
   recordWeeklyChallengeProgressSafely: mockRecordWeeklyChallengeProgressSafely
 }));
 
+vi.mock("../src/features/houses/house-hooks.js", () => ({
+  recordRedEnvelopeClaimHousePointsSafely:
+    mockRecordRedEnvelopeClaimHousePointsSafely
+}));
+
 vi.mock("../src/bot/commands/redenvelope.js", () => ({
   RED_ENVELOPE_GRAB_COMMAND: "~grab",
   formatRedEnvelopeAlreadyClaimedMessage: vi.fn(() => "Already claimed."),
@@ -54,9 +60,8 @@ vi.mock("../src/lib/prisma.js", () => ({
   prisma: {}
 }));
 
-const { registerMessageCreateEvent } = await import(
-  "../src/bot/events/messageCreate.js"
-);
+const { registerMessageCreateEvent } =
+  await import("../src/bot/events/messageCreate.js");
 
 type StoredListener = (payload: unknown) => unknown | Promise<unknown>;
 
@@ -136,6 +141,7 @@ describe("messageCreate event routing", () => {
       envelope: null
     });
     mockRecordWeeklyChallengeProgressSafely.mockResolvedValue(undefined);
+    mockRecordRedEnvelopeClaimHousePointsSafely.mockResolvedValue(undefined);
     mockAwardMessageXp.mockResolvedValue(undefined);
     mockHandleLionCreatureMessage.mockResolvedValue(false);
   });
@@ -233,10 +239,39 @@ describe("messageCreate event routing", () => {
         occurredAt: createdAt
       }
     );
+    expect(mockRecordRedEnvelopeClaimHousePointsSafely).toHaveBeenCalledWith(
+      {},
+      {
+        guildId: "guild_123",
+        userId: "user_123",
+        redEnvelopeId: "envelope_123"
+      }
+    );
     expect(message.channel.send).toHaveBeenCalledWith("Envelope claimed.");
     expect(message.reply).toHaveBeenCalledWith("Claim success.");
     expect(mockHandleLionCreatureMessage).not.toHaveBeenCalled();
     expect(mockAwardMessageXp).not.toHaveBeenCalled();
+  });
+
+  it("does not record House points when a red envelope claim is already claimed", async () => {
+    const { client, emitStored } = createFakeClient();
+    const message = createFakeMessage({
+      content: "~grab"
+    });
+    const envelope = {
+      id: "envelope_123"
+    };
+    mockGetOpenRedEnvelopeForChannel.mockResolvedValue(envelope);
+    mockClaimRedEnvelope.mockResolvedValue({
+      outcome: "already_claimed",
+      envelope
+    });
+
+    registerMessageCreateEvent(client);
+    await emitStored(Events.MessageCreate, message);
+
+    expect(mockRecordRedEnvelopeClaimHousePointsSafely).not.toHaveBeenCalled();
+    expect(message.reply).toHaveBeenCalledWith("Already claimed.");
   });
 
   it("routes lion text commands and skips fallback handling when handled", async () => {

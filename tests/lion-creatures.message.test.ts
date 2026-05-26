@@ -7,11 +7,19 @@ const mockGetUserLionBattleCooldown = vi.fn();
 const mockAcceptLionBattleChallenge = vi.fn();
 const mockDeclineLionBattleChallenge = vi.fn();
 const mockAwardBattleLionExperience = vi.fn();
+const mockAttemptCatchWildLion = vi.fn();
+const mockBuildTrainingNpcLionTeam = vi.fn();
 const mockRecordLionBattle = vi.fn();
 const mockMarkLionBattleChallengeResolved = vi.fn();
 const mockSyncDefaultLionData = vi.fn();
+const mockTrainUserLion = vi.fn();
 const mockResolveAutoLionTeamBattle = vi.fn();
 const mockGetLionBattleMvpLionId = vi.fn();
+const mockRecordWeeklyChallengeProgressSafely = vi.fn();
+const mockRecordLionCatchHousePointsSafely = vi.fn();
+const mockRecordLionTrainingHousePointsSafely = vi.fn();
+const mockRecordTrainingBattleHousePointsSafely = vi.fn();
+const mockRecordDuelCompletionHousePointsSafely = vi.fn();
 
 vi.mock("../src/lib/prisma.js", () => ({
   prisma: {}
@@ -26,13 +34,9 @@ vi.mock("../src/features/lions/lion-formatting.js", () => ({
   formatClearUserLionTeamMessage: vi.fn(),
   formatExistingLionBattleChallengeMessage: vi.fn(),
   formatLionBattleBoardMessage: vi.fn(),
-  formatLionBattleChallengeAcceptedMessage: vi.fn(
-    () => "challenge accepted"
-  ),
+  formatLionBattleChallengeAcceptedMessage: vi.fn(() => "challenge accepted"),
   formatLionBattleChallengeCanceledMessage: vi.fn(),
-  formatLionBattleChallengeDeclinedMessage: vi.fn(
-    () => "challenge declined"
-  ),
+  formatLionBattleChallengeDeclinedMessage: vi.fn(() => "challenge declined"),
   formatLionBattleChallengeMessage: vi.fn(),
   formatLionHelpMessage: vi.fn(),
   formatLionBattleHistoryMessage: vi.fn(),
@@ -58,8 +62,8 @@ vi.mock("../src/features/lions/lion-creature.service.js", () => ({
   acceptLionBattleChallenge: mockAcceptLionBattleChallenge,
   activateLionChannelEffect: vi.fn(),
   awardBattleLionExperience: mockAwardBattleLionExperience,
-  attemptCatchWildLion: vi.fn(),
-  buildTrainingNpcLionTeam: vi.fn(),
+  attemptCatchWildLion: mockAttemptCatchWildLion,
+  buildTrainingNpcLionTeam: mockBuildTrainingNpcLionTeam,
   calculateLionReleaseCoins: vi.fn(),
   cancelLionBattleChallenge: vi.fn(),
   clearUserLionTeam: vi.fn(),
@@ -93,13 +97,25 @@ vi.mock("../src/features/lions/lion-creature.service.js", () => ({
   setUserLionNickname: vi.fn(),
   setUserLionTeam: vi.fn(),
   syncDefaultLionData: mockSyncDefaultLionData,
-  trainUserLion: vi.fn(),
+  trainUserLion: mockTrainUserLion,
   useLionTrainingItem: vi.fn()
 }));
 
-const { handleLionCreatureMessage } = await import(
-  "../src/bot/messages/lion-creatures.js"
-);
+vi.mock("../src/features/challenges/weekly-challenge-hooks.js", () => ({
+  recordWeeklyChallengeProgressSafely: mockRecordWeeklyChallengeProgressSafely
+}));
+
+vi.mock("../src/features/houses/house-hooks.js", () => ({
+  recordLionCatchHousePointsSafely: mockRecordLionCatchHousePointsSafely,
+  recordLionTrainingHousePointsSafely: mockRecordLionTrainingHousePointsSafely,
+  recordTrainingBattleHousePointsSafely:
+    mockRecordTrainingBattleHousePointsSafely,
+  recordDuelCompletionHousePointsSafely:
+    mockRecordDuelCompletionHousePointsSafely
+}));
+
+const { handleLionCreatureMessage } =
+  await import("../src/bot/messages/lion-creatures.js");
 
 const now = new Date("2026-05-18T12:00:00.000Z");
 
@@ -144,7 +160,11 @@ const challenge = {
   updatedAt: now
 };
 
-const buildTeamSlot = (lionId: string, userId: string, displayName: string) => ({
+const buildTeamSlot = (
+  lionId: string,
+  userId: string,
+  displayName: string
+) => ({
   id: `slot_${lionId}`,
   guildId: "guild_123",
   userId,
@@ -199,6 +219,118 @@ describe("lion battle message routing", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSyncDefaultLionData.mockResolvedValue(undefined);
+    mockRecordWeeklyChallengeProgressSafely.mockResolvedValue(undefined);
+    mockRecordLionCatchHousePointsSafely.mockResolvedValue(undefined);
+    mockRecordLionTrainingHousePointsSafely.mockResolvedValue(undefined);
+    mockRecordTrainingBattleHousePointsSafely.mockResolvedValue(undefined);
+  });
+
+  it("records House points after a successful wild lion catch", async () => {
+    const spawn = {
+      id: "spawn_123",
+      level: 4,
+      species: {
+        name: "Test Lion",
+        rarity: "COMMON"
+      }
+    };
+    mockAttemptCatchWildLion.mockResolvedValue({
+      outcome: "caught",
+      spawn,
+      item: {
+        name: "Basic Ball"
+      },
+      ownedLion: {
+        id: "owned_123",
+        level: 4,
+        species: {
+          name: "Test Lion",
+          publicId: "L001",
+          rarity: "COMMON"
+        }
+      },
+      catchChance: 80
+    });
+
+    const message = buildMessage("~catch basic-ball");
+    const handled = await handleLionCreatureMessage(message);
+
+    expect(handled).toBe(true);
+    expect(mockRecordLionCatchHousePointsSafely).toHaveBeenCalledWith(
+      {},
+      {
+        guildId: "guild_123",
+        userId: "user_456",
+        sourceId: "lion_catch:spawn_123:user_456"
+      }
+    );
+    expect(message.reply).toHaveBeenCalledWith(
+      expect.stringContaining("caught Lv. 4")
+    );
+  });
+
+  it("does not record House points after a failed wild lion catch", async () => {
+    mockAttemptCatchWildLion.mockResolvedValue({
+      outcome: "missed",
+      spawn: {
+        species: {
+          name: "Test Lion"
+        }
+      },
+      item: {
+        name: "Basic Ball"
+      },
+      ownedLion: null,
+      catchChance: 50
+    });
+
+    const message = buildMessage("~catch basic-ball");
+    const handled = await handleLionCreatureMessage(message);
+
+    expect(handled).toBe(true);
+    expect(mockRecordLionCatchHousePointsSafely).not.toHaveBeenCalled();
+    expect(message.reply).toHaveBeenCalledWith(
+      "Basic Ball failed. Test Lion is still here."
+    );
+  });
+
+  it("records House points after successful lion training", async () => {
+    mockTrainUserLion.mockResolvedValue({
+      outcome: "trained",
+      result: {
+        lion: {
+          id: "owned_123"
+        }
+      },
+      cooldownEndsAt: new Date(now.getTime() + 60_000)
+    });
+
+    const message = buildMessage("~train L001");
+    const handled = await handleLionCreatureMessage(message);
+
+    expect(handled).toBe(true);
+    expect(mockRecordLionTrainingHousePointsSafely).toHaveBeenCalledWith(
+      {},
+      {
+        guildId: "guild_123",
+        userId: "user_456",
+        sourceId: "lion_training:owned_123:2026-05-18T12:00:00.000Z:user_456"
+      }
+    );
+  });
+
+  it("does not record House points when lion training is on cooldown", async () => {
+    mockTrainUserLion.mockResolvedValue({
+      outcome: "on_cooldown",
+      result: null,
+      cooldownEndsAt: new Date(now.getTime() + 60_000)
+    });
+
+    const message = buildMessage("~train L001");
+    const handled = await handleLionCreatureMessage(message);
+
+    expect(handled).toBe(true);
+    expect(mockRecordLionTrainingHousePointsSafely).not.toHaveBeenCalled();
   });
 
   it("accepts the documented `~battle accept` syntax", async () => {
@@ -275,5 +407,63 @@ describe("lion battle message routing", () => {
     expect(handled).toBe(true);
     expect(mockDeclineLionBattleChallenge).toHaveBeenCalledOnce();
     expect(message.reply).toHaveBeenCalledWith("challenge declined");
+  });
+
+  it("records House points after a completed Training Hall battle", async () => {
+    mockListUserLionTeam.mockResolvedValue([
+      buildTeamSlot("1", "user_456", "Mira")
+    ]);
+    mockGetUserLionBattleCooldown.mockResolvedValue({
+      allowed: true,
+      cooldownEndsAt: null
+    });
+    mockBuildTrainingNpcLionTeam.mockResolvedValue([
+      buildTeamSlot("2", "lionden-training-npc", "Training Hall").lion
+    ]);
+    mockResolveAutoLionTeamBattle.mockReturnValue({
+      firstTeam: [buildTeamSlot("1", "user_456", "Mira").lion],
+      secondTeam: [
+        buildTeamSlot("2", "lionden-training-npc", "Training Hall").lion
+      ],
+      participantLionIds: {
+        first: ["1"],
+        second: ["2"]
+      },
+      winnerSide: "first",
+      loserSide: "second",
+      rounds: [],
+      finalHp: {
+        "1": 12,
+        "2": 0
+      }
+    });
+    mockGetLionBattleMvpLionId.mockReturnValue("1");
+    mockAwardBattleLionExperience.mockResolvedValue({
+      outcome: "awarded",
+      result: {
+        lion: buildTeamSlot("1", "user_456", "Mira").lion,
+        gainedExperience: 45,
+        previousLevel: 5,
+        nextLevel: 5,
+        leveledUp: false
+      }
+    });
+    mockRecordLionBattle.mockResolvedValue({
+      id: "battle_123"
+    });
+
+    const message = buildMessage("~battle training");
+    const handled = await handleLionCreatureMessage(message);
+
+    expect(handled).toBe(true);
+    expect(mockRecordTrainingBattleHousePointsSafely).toHaveBeenCalledWith(
+      {},
+      {
+        guildId: "guild_123",
+        userId: "user_456",
+        battleRecordId: "battle_123"
+      }
+    );
+    expect(message.reply).toHaveBeenCalledWith("battle summary");
   });
 });

@@ -149,8 +149,14 @@ Current Team Houses / House Cup foundation rule:
 - House points are ledger-based; totals are calculated by summing point entries rather than mutating a stored total
 - practice attendance awards 10 House points after `/practice end` successfully applies the attendance XP reward
 - weekly challenge completion awards 5 House points when a challenge is newly completed
-- House point hooks are best-effort; failures log warnings without blocking the original practice or weekly challenge flow
+- red envelope claims award 1 House point after a successful `~grab`
+- wild lion catches award 1 House point after a successful `~catch`
+- lion training awards 1 House point after a successful `~train`
+- Training Hall battles award 2 House points after a completed `~battle training`
+- interactive duel completions award 2 House points to each participant after a completed `~duel`
+- House point hooks are best-effort; failures log warnings without blocking the original activity flow
 - members without Houses do not receive House points and do not break existing flows
+- message activity does not award House points yet; it needs a capped anti-spam design before implementation
 
 ## Roadmap
 

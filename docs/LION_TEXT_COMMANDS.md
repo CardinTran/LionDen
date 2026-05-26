@@ -21,6 +21,8 @@ The message-create event handles maintenance checks first, then `~grab`, then th
 - `~grab`: claims an open red envelope in the current channel. This is routed directly from `src/bot/events/messageCreate.ts` and uses helpers in `src/bot/commands/redenvelope.ts`; it is not part of the lion creature router.
 - `~help`: shows the public lion gameplay command guide. Handler: `src/bot/messages/lions/help.handler.ts`.
 
+Successful `~grab` claims record weekly challenge progress and 1 House point on a best-effort basis when the member belongs to a House.
+
 ## Shop and Inventory
 
 Handlers:
@@ -56,7 +58,7 @@ Commands:
 - `~catch <ball>`: attempts to catch the active wild lion in the current channel. If no ball is provided, the handler defaults to `basic-ball`.
 - `~train <lion>`: trains one owned lion by ID, public code, slug, or name and applies the current training cooldown.
 
-Successful catches and training actions also record weekly challenge progress on a best-effort basis.
+Successful catches and training actions also record weekly challenge progress on a best-effort basis. They also record 1 House point when the member belongs to a House.
 
 ## Roster and Identity
 
@@ -98,6 +100,8 @@ Commands:
 - `~cancelbattle [@user]`: cancels a pending challenge sent by the caller.
 
 The public help text currently points members to the `~battle accept` and `~battle decline` forms.
+
+Completed `~battle training` runs record weekly challenge progress and 2 House points on a best-effort basis. Completed interactive `~duel` sessions record 2 House points for each participant. Automatic `~battle @user` team battles do not currently award House points.
 
 ## Battle History and Leaderboards
 
