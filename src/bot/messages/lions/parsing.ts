@@ -9,6 +9,7 @@ export const LION_MESSAGE_COMMANDS = [
   "~nickname",
   "~release",
   "~team",
+  "~duel",
   "~battle",
   "~accept",
   "~decline",

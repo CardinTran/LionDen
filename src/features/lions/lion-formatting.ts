@@ -107,6 +107,7 @@ export const formatLionHelpMessage = (): string =>
     "- `~team` view your battle team",
     "- `~team set <lion1> <lion2> <lion3>` set up to 3 team slots",
     "- `~team clear` clear your battle team",
+    "- `~duel @user` start a button-based 1v1 prototype duel using each trainer's lead team lion",
     "- `~battle @user` challenge someone using both saved teams",
     "- `~battle accept` accept a pending battle challenge in this channel",
     "- `~battle decline` decline a pending battle challenge in this channel",
@@ -115,7 +116,7 @@ export const formatLionHelpMessage = (): string =>
     "- `~battlehistory [@user]` view recent team battles",
     "- `~battlestats [@user]` view trainer battle stats",
     "- `~battleboard` view the top battle trainers",
-    "Battle note: battles currently resolve automatically with round-by-round logs. Turn-based duels are planned later.",
+    "Battle note: team battles currently resolve automatically with round-by-round logs. `~duel` is a lightweight 1v1 prototype and does not affect team battle history yet.",
     "- `~toplions` view the strongest lions in this server",
     "- `~rarecatches` view recent rare or high-level catches",
     "- `~lions` view your roster",
@@ -445,7 +446,7 @@ const formatBattleXpSummary = (
     awardedLines.length > 0
       ? awardedLines.join(", ")
       : `${awarded.length}/${rewards.length} awarded XP`,
-    cooldownCount > 0 ? `${cooldownCount} on cooldown` : null,
+    cooldownCount > 0 ? `${cooldownCount} on cooldown` : null
   ]
     .filter(Boolean)
     .join(" | ");

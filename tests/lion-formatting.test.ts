@@ -69,13 +69,14 @@ describe("lion formatting", () => {
     expect(message).toContain("~nickname");
     expect(message).toContain("~release");
     expect(message).toContain("~battle accept");
+    expect(message).toContain("~duel @user");
     expect(message).toContain("~battle decline");
     expect(message).toContain("~battle training");
     expect(message).toContain("~battlehistory");
     expect(message).toContain("~battleboard");
     expect(message).toContain("~rarecatches");
-    expect(message).toContain("battles currently resolve automatically");
-    expect(message).toContain("Turn-based duels are planned later");
+    expect(message).toContain("team battles currently resolve automatically");
+    expect(message).toContain("does not affect team battle history yet");
     expect(message).not.toContain("/lionadmin");
     expect(message).not.toContain("Admin command");
   });

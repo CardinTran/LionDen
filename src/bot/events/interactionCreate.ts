@@ -16,6 +16,10 @@ import {
   handlePracticeButton,
   isPracticeButtonCustomId
 } from "../commands/practice.js";
+import {
+  handleLionDuelButton,
+  isLionDuelButtonCustomId
+} from "../messages/lions/duel.handler.js";
 
 export const registerInteractionCreateEvent = (client: Client): void => {
   client.on(Events.InteractionCreate, async (interaction: Interaction) => {
@@ -36,6 +40,34 @@ export const registerInteractionCreateEvent = (client: Client): void => {
         }
         return;
       }
+    }
+
+    if (
+      interaction.isButton() &&
+      isLionDuelButtonCustomId(interaction.customId)
+    ) {
+      try {
+        await handleLionDuelButton(interaction);
+      } catch (error) {
+        logger.error("Lion duel interaction failed", {
+          customId: interaction.customId,
+          error
+        });
+
+        if (interaction.replied || interaction.deferred) {
+          await interaction.followUp({
+            content: "Something went wrong while updating that lion duel.",
+            ephemeral: true
+          });
+          return;
+        }
+
+        await interaction.reply({
+          content: "Something went wrong while updating that lion duel.",
+          ephemeral: true
+        });
+      }
+      return;
     }
 
     if (

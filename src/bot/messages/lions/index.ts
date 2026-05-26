@@ -4,6 +4,7 @@ import { handleBattleHistoryLionMessage } from "./battle-history.handler.js";
 import { handleBattleLionMessage } from "./battle.handler.js";
 import { handleCatchLionMessage } from "./catch.handler.js";
 import { ensureLionData } from "./data.js";
+import { handleDuelLionMessage } from "./duel.handler.js";
 import { handleHelpLionMessage } from "./help.handler.js";
 import { handleInventoryLionMessage } from "./inventory.handler.js";
 import { handleLeaderboardsLionMessage } from "./leaderboards.handler.js";
@@ -28,6 +29,7 @@ const lionMessageHandlers: LionMessageCommandHandler[] = [
   handleNicknameLionMessage,
   handleReleaseLionMessage,
   handleTeamLionMessage,
+  handleDuelLionMessage,
   handleBattleLionMessage,
   handleBattleHistoryLionMessage,
   handleLeaderboardsLionMessage,
