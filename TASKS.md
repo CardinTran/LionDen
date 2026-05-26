@@ -73,25 +73,25 @@ The roadmap for this next phase lives in:
 - [x] Update `docs/OPERATIONS.md`
 - [x] Update `docs/PRODUCT_SPEC.md`
 - [x] Update `docs/ROADMAP_NEXT.md` if implementation details differ
-- [ ] Run validation commands
+- [x] Run validation commands
 
 ## Sprint 1.2: House Point Hooks Expansion
 
-- [ ] Add House point hook for red envelope claims
-- [ ] Add House point hook for wild lion catches
-- [ ] Add House point hook for lion training
-- [ ] Add House point hook for Training Hall battles
-- [ ] Add House point hook for interactive duel completions
+- [x] Add House point hook for red envelope claims
+- [x] Add House point hook for wild lion catches
+- [x] Add House point hook for lion training
+- [x] Add House point hook for Training Hall battles
+- [x] Add House point hook for interactive duel completions
 - [ ] Consider capped House point hook for eligible message activity
-- [ ] Ensure all hooks are best-effort
-- [ ] Ensure hook failures log warnings without blocking original actions
-- [ ] Ensure members without Houses do not cause errors
-- [ ] Ensure duplicate sources do not double-award when source IDs are available
-- [ ] Add tests for each new House point hook
-- [ ] Add tests for hook failure behavior
-- [ ] Update `docs/OPERATIONS.md`
-- [ ] Update `docs/PRODUCT_SPEC.md`
-- [ ] Update `docs/ROADMAP_NEXT.md`
+- [x] Ensure all hooks are best-effort
+- [x] Ensure hook failures log warnings without blocking original actions
+- [x] Ensure members without Houses do not cause errors
+- [x] Ensure duplicate sources do not double-award when source IDs are available
+- [x] Add tests for each new House point hook
+- [x] Add tests for hook failure behavior
+- [x] Update `docs/OPERATIONS.md`
+- [x] Update `docs/PRODUCT_SPEC.md`
+- [x] Update `docs/ROADMAP_NEXT.md`
 
 ## Sprint 1.3: Weekly House Recap
 

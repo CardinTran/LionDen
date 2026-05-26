@@ -320,10 +320,28 @@ Implemented behavior:
 - House point hooks are best-effort and skip members without Houses.
 - House Cup standings are calculated from the point ledger.
 
-### Branch
+## Sprint 1.2: House Point Hooks Expansion
 
-```sh
-git checkout develop
-git pull
-git checkout -b feat/team-houses-foundation
-```
+Status: implemented.
+
+Implemented behavior:
+
+- Red envelope claims record 1 House point after successful `~grab` claims.
+- Wild lion catches record 1 House point after successful `~catch` actions.
+- Lion training records 1 House point after successful `~train` actions.
+- Training Hall battles record 2 House points after completed `~battle training` battles.
+- Interactive duel completions record 2 House points for each participant after completed `~duel` sessions.
+- Hook failures are logged and do not block the original action.
+- Members without Houses are skipped by point hooks.
+- Stable source IDs prevent duplicate hook awards when the same completed action is retried.
+
+Message activity House points remain a future consideration. They should wait for a capped anti-spam design instead of rewarding raw message volume.
+
+## Sprint 1.3: Weekly House Recap
+
+Next focus:
+
+- Aggregate weekly House standings from the point ledger.
+- Show top Houses, top contributors, and source breakdowns.
+- Add officer controls for configuring, previewing, and posting recaps.
+- Prevent duplicate recap posts for the same guild and week.

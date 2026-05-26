@@ -8,6 +8,7 @@ import type {
 } from "../src/features/lions/lion-creature.service.js";
 
 const mockListUserLionTeam = vi.fn();
+const mockRecordDuelCompletionHousePointsSafely = vi.fn();
 
 vi.mock("../src/lib/prisma.js", () => ({
   prisma: {}
@@ -23,6 +24,11 @@ vi.mock("../src/features/lions/lion-creature.service.js", async () => {
     listUserLionTeam: mockListUserLionTeam
   };
 });
+
+vi.mock("../src/features/houses/house-hooks.js", () => ({
+  recordDuelCompletionHousePointsSafely:
+    mockRecordDuelCompletionHousePointsSafely
+}));
 
 const {
   buildLionDuelActionComponents,
@@ -144,6 +150,7 @@ describe("lion duel message handler", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     clearLionDuelStore();
+    mockRecordDuelCompletionHousePointsSafely.mockResolvedValue(undefined);
   });
 
   it("starts a pending duel using each trainer's lead team lion", async () => {
@@ -251,6 +258,138 @@ describe("lion duel message handler", () => {
         components: expect.any(Array)
       })
     );
+    expect(mockRecordDuelCompletionHousePointsSafely).not.toHaveBeenCalled();
+  });
+
+  it("records House points for both participants when a duel completes", async () => {
+    const buttonNow = new Date();
+    const created = createLionDuelChallenge({
+      guildId: "guild_123",
+      channelId: "channel_123",
+      challengerUserId: "user_123",
+      challengerDisplayName: "Mira",
+      challengerLion: buildOwnedLion({
+        id: "owned_challenger",
+        userId: "user_123",
+        level: 30,
+        species: buildSpecies({
+          baseAttack: 80,
+          baseSpeed: 50
+        })
+      }),
+      opponentUserId: "user_456",
+      opponentDisplayName: "Cardin",
+      opponentLion: buildOwnedLion({
+        id: "owned_opponent",
+        userId: "user_456",
+        species: buildSpecies({
+          baseHp: 10,
+          baseDefense: 1,
+          baseSpeed: 1
+        })
+      }),
+      now: buttonNow
+    });
+    await handleLionDuelButton(
+      createButtonInteraction(`lionduel:${created.duel.id}:accept`) as never
+    );
+    const interaction = createButtonInteraction(
+      `lionduel:${created.duel.id}:basic`,
+      "user_123"
+    );
+
+    await expect(handleLionDuelButton(interaction as never)).resolves.toBe(
+      true
+    );
+
+    expect(mockRecordDuelCompletionHousePointsSafely).toHaveBeenCalledTimes(2);
+    expect(mockRecordDuelCompletionHousePointsSafely).toHaveBeenCalledWith(
+      {},
+      {
+        guildId: "guild_123",
+        userId: "user_123",
+        duelId: created.duel.id
+      }
+    );
+    expect(mockRecordDuelCompletionHousePointsSafely).toHaveBeenCalledWith(
+      {},
+      {
+        guildId: "guild_123",
+        userId: "user_456",
+        duelId: created.duel.id
+      }
+    );
+    expect(interaction.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: expect.stringContaining("won."),
+        components: []
+      })
+    );
+  });
+
+  it("does not record House points when a duel is declined", async () => {
+    const created = createLionDuelChallenge({
+      guildId: "guild_123",
+      channelId: "channel_123",
+      challengerUserId: "user_123",
+      challengerDisplayName: "Mira",
+      challengerLion: buildOwnedLion({
+        id: "owned_challenger",
+        userId: "user_123"
+      }),
+      opponentUserId: "user_456",
+      opponentDisplayName: "Cardin",
+      opponentLion: buildOwnedLion({
+        id: "owned_opponent",
+        userId: "user_456"
+      }),
+      now
+    });
+    const interaction = createButtonInteraction(
+      `lionduel:${created.duel.id}:decline`
+    );
+
+    await handleLionDuelButton(interaction as never);
+
+    expect(mockRecordDuelCompletionHousePointsSafely).not.toHaveBeenCalled();
+    expect(interaction.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: expect.stringContaining("Duel canceled.")
+      })
+    );
+  });
+
+  it("does not record House points when a duel is canceled", async () => {
+    const created = createLionDuelChallenge({
+      guildId: "guild_123",
+      channelId: "channel_123",
+      challengerUserId: "user_123",
+      challengerDisplayName: "Mira",
+      challengerLion: buildOwnedLion({
+        id: "owned_challenger",
+        userId: "user_123"
+      }),
+      opponentUserId: "user_456",
+      opponentDisplayName: "Cardin",
+      opponentLion: buildOwnedLion({
+        id: "owned_opponent",
+        userId: "user_456"
+      }),
+      now
+    });
+    const interaction = createButtonInteraction(
+      `lionduel:${created.duel.id}:cancel`,
+      "user_123"
+    );
+
+    await handleLionDuelButton(interaction as never);
+
+    expect(mockRecordDuelCompletionHousePointsSafely).not.toHaveBeenCalled();
+    expect(interaction.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: expect.stringContaining("Duel canceled.")
+      })
+    );
   });
 
   it("replies ephemerally when a non-participant presses a duel button", async () => {
@@ -284,6 +423,7 @@ describe("lion duel message handler", () => {
       ephemeral: true
     });
     expect(interaction.update).not.toHaveBeenCalled();
+    expect(mockRecordDuelCompletionHousePointsSafely).not.toHaveBeenCalled();
   });
 
   it("identifies duel button custom IDs", () => {

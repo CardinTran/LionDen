@@ -111,12 +111,19 @@ House setup:
 3. Use `/house leaderboard` to verify House Cup standings.
 4. Use `/house roster` and `/house profile` to inspect memberships and point totals.
 
-House points are ledger-based. Practice attendance and weekly challenge completion currently create House point entries only when the member belongs to an active House:
+House points are ledger-based. Current hook-based point sources create House point entries only when the member belongs to an active House:
 
 - Practice attendance: 10 House points after `/practice end` successfully applies the attendance XP reward.
 - Weekly challenge completion: 5 House points when a weekly challenge is newly completed.
+- Red envelope claim: 1 House point after a successful `~grab`.
+- Wild lion catch: 1 House point after a successful `~catch`.
+- Lion training: 1 House point after a successful `~train`.
+- Training Hall battle: 2 House points after a completed `~battle training`.
+- Interactive duel completion: 2 House points for each participant after a completed `~duel`.
 
-House point hooks are best-effort. If House point recording fails, LionDen logs a warning and the original practice or weekly challenge flow continues. Members without Houses are treated as a no-op for point hooks.
+House point hooks are best-effort. If House point recording fails, LionDen logs a warning and the original action continues. Members without Houses are treated as a no-op for point hooks. Hook source IDs prevent duplicate awards when the same completed action is retried.
+
+Message activity does not currently award House points. That remains a future design item because spam prevention needs a capped, intentional mechanism.
 
 Manual corrections:
 
@@ -127,7 +134,7 @@ Manual corrections:
 
 Troubleshooting missing House points:
 
-- Confirm the member had a House membership before the practice reward or weekly challenge completion happened.
+- Confirm the member had a House membership before the relevant activity completed.
 - Confirm the House is still active.
 - Check `/botadmin health`; the Houses section warns when no active Houses are configured.
 - Check logs for House point hook warnings with `guildId`, `userId`, `sourceType`, and `sourceId`.

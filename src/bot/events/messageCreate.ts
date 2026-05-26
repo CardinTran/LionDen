@@ -16,6 +16,7 @@ import {
 import { recordChannelActivity } from "../../features/economy/channel-activity.service.js";
 import { awardMessageXp } from "../../features/progression/message-xp.service.js";
 import { recordWeeklyChallengeProgressSafely } from "../../features/challenges/weekly-challenge-hooks.js";
+import { recordRedEnvelopeClaimHousePointsSafely } from "../../features/houses/house-hooks.js";
 import { logger } from "../../lib/logger.js";
 import { prisma } from "../../lib/prisma.js";
 import { handleLionCreatureMessage } from "../messages/lion-creatures.js";
@@ -81,6 +82,11 @@ export const registerMessageCreateEvent = (client: Client): void => {
           displayName: message.member?.user.username ?? message.author.username,
           activityType: "RED_ENVELOPE_CLAIM",
           occurredAt: message.createdAt
+        });
+        await recordRedEnvelopeClaimHousePointsSafely(prisma, {
+          guildId: message.guildId,
+          userId: message.author.id,
+          redEnvelopeId: result.envelope.id
         });
 
         if (message.channel.isTextBased() && "send" in message.channel) {
