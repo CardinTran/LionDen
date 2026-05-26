@@ -6,6 +6,8 @@ const mockFormatMaintenanceNotice = vi.fn(() => "LionDen is in maintenance.");
 const mockCommandRegistryGet = vi.fn();
 const mockHandlePracticeButton = vi.fn();
 const mockIsPracticeButtonCustomId = vi.fn();
+const mockHandleLionDuelButton = vi.fn();
+const mockIsLionDuelButtonCustomId = vi.fn();
 const mockLoggerWarn = vi.fn();
 const mockLoggerError = vi.fn();
 
@@ -25,6 +27,11 @@ vi.mock("../src/bot/commands/practice.js", () => ({
   isPracticeButtonCustomId: mockIsPracticeButtonCustomId
 }));
 
+vi.mock("../src/bot/messages/lions/duel.handler.js", () => ({
+  handleLionDuelButton: mockHandleLionDuelButton,
+  isLionDuelButtonCustomId: mockIsLionDuelButtonCustomId
+}));
+
 vi.mock("../src/lib/logger.js", () => ({
   logger: {
     warn: mockLoggerWarn,
@@ -36,9 +43,8 @@ vi.mock("../src/lib/prisma.js", () => ({
   prisma: {}
 }));
 
-const { registerInteractionCreateEvent } = await import(
-  "../src/bot/events/interactionCreate.js"
-);
+const { registerInteractionCreateEvent } =
+  await import("../src/bot/events/interactionCreate.js");
 
 type StoredListener = (payload: unknown) => unknown | Promise<unknown>;
 
@@ -113,6 +119,8 @@ describe("interactionCreate event routing", () => {
     mockCommandRegistryGet.mockReturnValue(undefined);
     mockHandlePracticeButton.mockResolvedValue(undefined);
     mockIsPracticeButtonCustomId.mockReturnValue(false);
+    mockHandleLionDuelButton.mockResolvedValue(undefined);
+    mockIsLionDuelButtonCustomId.mockReturnValue(false);
   });
 
   it("ignores interactions that are not commands or practice buttons", async () => {
@@ -268,6 +276,48 @@ describe("interactionCreate event routing", () => {
     expect(mockCommandRegistryGet).not.toHaveBeenCalled();
   });
 
+  it("routes lion duel button interactions", async () => {
+    const { client, emitStored } = createFakeClient();
+    const interaction = createFakeInteraction({
+      customId: "lionduel:duel_123:basic",
+      isButton: true
+    });
+    mockIsLionDuelButtonCustomId.mockReturnValue(true);
+
+    registerInteractionCreateEvent(client);
+    await emitStored(Events.InteractionCreate, interaction);
+
+    expect(mockHandleLionDuelButton).toHaveBeenCalledWith(interaction);
+    expect(mockHandlePracticeButton).not.toHaveBeenCalled();
+    expect(mockCommandRegistryGet).not.toHaveBeenCalled();
+  });
+
+  it("replies ephemerally when a lion duel button handler fails", async () => {
+    const error = new Error("duel failed");
+    const { client, emitStored } = createFakeClient();
+    const interaction = createFakeInteraction({
+      customId: "lionduel:duel_123:basic",
+      isButton: true
+    });
+    mockIsLionDuelButtonCustomId.mockReturnValue(true);
+    mockHandleLionDuelButton.mockRejectedValue(error);
+
+    registerInteractionCreateEvent(client);
+    await emitStored(Events.InteractionCreate, interaction);
+
+    expect(mockLoggerError).toHaveBeenCalledWith(
+      "Lion duel interaction failed",
+      {
+        customId: "lionduel:duel_123:basic",
+        error
+      }
+    );
+    expect(interaction.reply).toHaveBeenCalledWith({
+      content: "Something went wrong while updating that lion duel.",
+      ephemeral: true
+    });
+  });
+
   it("replies ephemerally when a practice button handler fails", async () => {
     const error = new Error("practice failed");
     const { client, emitStored } = createFakeClient();
@@ -281,10 +331,13 @@ describe("interactionCreate event routing", () => {
     registerInteractionCreateEvent(client);
     await emitStored(Events.InteractionCreate, interaction);
 
-    expect(mockLoggerError).toHaveBeenCalledWith("Practice interaction failed", {
-      customId: "practice:rsvp:GOING:session_123",
-      error
-    });
+    expect(mockLoggerError).toHaveBeenCalledWith(
+      "Practice interaction failed",
+      {
+        customId: "practice:rsvp:GOING:session_123",
+        error
+      }
+    );
     expect(interaction.reply).toHaveBeenCalledWith({
       content: "Something went wrong while recording that practice check-in.",
       ephemeral: true

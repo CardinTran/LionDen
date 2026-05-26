@@ -23,4 +23,4 @@
 - [x] Add a short contributor guide for introducing a new command or scheduler
 - [x] Document operational conventions such as scheduler timing, maintenance-mode expectations, and admin-only workflows
 - [x] Add deeper weekly challenge lifecycle tests after real server usage settles the first defaults
-- [ ] Prototype interactive 1v1 turn-based lion duels without changing existing automatic team battles
+- [x] Prototype interactive 1v1 turn-based lion duels without changing existing automatic team battles

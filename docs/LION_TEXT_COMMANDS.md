@@ -88,6 +88,7 @@ Commands:
 - `~team`: shows the caller's saved battle team.
 - `~team set <lion1> <lion2> <lion3>`: saves up to three owned lions as the caller's battle team.
 - `~team clear`: clears the caller's saved battle team.
+- `~duel @user`: starts a button-based 1v1 lion duel prototype using each trainer's lead saved team lion. Duels are in-memory active state and do not write to automatic team battle history or trainer stats yet.
 - `~battle @user`: challenges another member's saved team.
 - `~battle training`: runs an automatic Training Hall battle against the NPC team.
 - `~battle accept [@user]`: accepts a pending lion battle challenge.
