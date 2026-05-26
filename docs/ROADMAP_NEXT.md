@@ -1,64 +1,317 @@
-# Next Roadmap: Team Activity Systems
+# LionDen Next Roadmap
 
-LionDen's next product direction is Team Houses and a lightweight House Cup. This should build on the existing participation, weekly challenge, red envelope, practice, and lion systems without turning the bot into a spam leaderboard.
+## Purpose of This Roadmap
 
-## Product Direction
+This roadmap defines LionDen’s next product direction after the original foundation work was completed.
 
-The next major loop should make team activity visible at the group level:
+LionDen is no longer just a basic Discord bot. It now has:
 
-- members belong to optional Team Houses
-- normal participation contributes to house progress
-- a recurring House Cup summarizes house standings
-- officers can manage house membership and correct obvious mistakes
-- house scoring should reward real activity more than raw message volume
+- profiles, XP, levels, and coins
+- `/daily`
+- red envelopes and `~grab`
+- scheduled practice attendance
+- weekly challenges and badges
+- wild lion spawns
+- lion catching, training, nicknames, teams, inventory, shop, and release
+- automatic team battles
+- Training Hall battles
+- battle history, battle stats, and battle leaderboards
+- interactive `~duel @user` prototype
+- admin controls
+- `/botadmin health`
+- structured logs
+- contributor docs
+- operations docs
+- strong test coverage around routing, handlers, weekly challenges, and services
 
-The first version should stay small and reversible. It should prove whether team-based goals motivate healthy participation before adding complicated seasons, perks, or custom house economies.
+The next direction is to make LionDen feel less like a collection of individual mini-games and more like a **team activity engine** for the lion dance team.
 
-## Design Principles
+The new direction is:
 
-- Keep individual progression and house progression connected, but not identical.
-- Prefer existing activity hooks over new spam-friendly actions.
-- Make standings understandable enough that members know why a house moved.
-- Give officers simple admin controls before adding automation-heavy systems.
-- Treat House Cup rewards as modest recognition, not a second economy.
-- Keep the data model flexible enough for future seasons without overbuilding the first pass.
+> Turn individual participation into team-wide momentum.
 
-## Suggested First Pass
+The most important next system is **Team Houses / House Cup**.
 
-1. Define Team Houses at the guild level.
-2. Let officers create, rename, archive, and assign members to houses.
-3. Track house points from selected existing activities:
-   - practice attendance
-   - weekly challenge completion
-   - red envelope claims
-   - lion catches or training
-   - Training Hall or duel participation only if the hook is clean
-4. Add a public house standings view.
-5. Add an officer-only house admin view.
-6. Add a simple recurring House Cup period, likely weekly or monthly.
-7. Document scoring clearly before expanding rewards.
+---
 
-## Out of Scope For The First Pass
+# Product Goal
 
-- real-money or fundraising mechanics
-- complicated house perks
-- permanent competitive imbalance
-- anonymous or hidden scoring
-- production deployment changes
-- large Discord role synchronization
-- seasonal event systems
-- custom house shops
+LionDen should increase meaningful team activity without encouraging spam.
 
-## Open Product Questions
+The bot should reward:
 
-- Should every member be assigned to a house, or should houses be opt-in first?
-- Should House Cup periods be weekly, monthly, or manually reset by officers?
-- Should points come directly from existing XP/coins, or use a separate house score?
-- Should duel participation count once interactive duels graduate beyond prototype status?
-- What officer workflow is simplest for correcting house assignments and points?
+- practice attendance
+- recurring participation
+- helpful community behavior
+- team identity
+- event participation
+- friendly competition
+- new member onboarding
+- culturally themed engagement
 
-## Implementation Notes
+The bot should avoid:
 
-This roadmap is not an implementation plan yet. Before building, inspect the existing challenge hooks, profile service, admin command patterns, and guild configuration models. If house scoring needs persistence, update `docs/DATA_MODEL.md` with any Prisma changes in the same PR that introduces those changes.
+- spam-based grinding
+- bloated economy mechanics
+- features that only reward solo play
+- overly complex systems before the team has validated interest
+- breaking existing battle, practice, weekly challenge, or lion systems
 
-Interactive duels should not automatically become House Cup scoring until their lifecycle and persistence model are clearer.
+---
+
+# Guiding Principles
+
+## 1. Reward Real Team Participation First
+
+Practice attendance, event participation, and useful team engagement should matter more than passive grinding.
+
+Practice should remain one of the highest-value activities in the bot.
+
+## 2. Make Activity Social
+
+The best next features should make members talk, react, compete, and encourage each other.
+
+Individual progression already exists. The next stage should make individual progress benefit a larger group.
+
+## 3. Avoid Spam Loops
+
+Any message-based reward must include cooldowns, caps, or limits.
+
+Do not create systems where members can farm points by sending low-effort messages.
+
+## 4. Keep Officers in Control
+
+Admin/officer tools should support:
+
+- manual assignment
+- correction
+- state recovery
+- manual point adjustments
+- configuration
+- status checks
+
+## 5. Build in Small Reviewable PRs
+
+Each sprint should be one focused branch.
+
+Avoid combining unrelated systems in the same PR.
+
+## 6. Preserve Existing Behavior
+
+Do not replace existing automatic battles, weekly challenges, practice, red envelopes, or lion systems unless a sprint explicitly requires a small integration.
+
+New systems should build on existing systems.
+
+## 7. Add Tests With Every Feature
+
+Each sprint should add focused tests for:
+
+- service logic
+- command behavior
+- formatting
+- hooks
+- edge cases
+- idempotency when relevant
+
+## 8. Keep Docs Updated
+
+When adding public commands, update:
+
+- `docs/COMMANDS.md`
+- `docs/LION_TEXT_COMMANDS.md` if it is a `~` command
+- `docs/DATA_MODEL.md` for schema changes
+- `docs/OPERATIONS.md` for admin/scheduler behavior
+- `TASKS.md` when completing a sprint
+
+---
+
+# Current Completed Foundation
+
+This section describes what already exists and should generally be preserved.
+
+## Core Progression
+
+- user profiles
+- XP
+- levels
+- coins
+- `/profile`
+- `/leaderboard`
+- `/daily`
+- admin XP controls
+- admin coin controls
+
+## Practice System
+
+- manual practice sessions
+- scheduled RSVP posts
+- scheduled attendance posts
+- attendance check-in buttons
+- practice XP rewards
+- practice configuration
+- attendance status tracking
+
+## Red Envelope System
+
+- manual red envelopes
+- automated random red envelope drops
+- activity-based channel targeting
+- `~grab`
+- officer configuration
+- pause/resume behavior
+- forced drops
+- clear stale drops
+- status checks
+- automatic expiration
+
+## Lion Creature System
+
+- seeded lion species catalog
+- lion shop
+- item inventory
+- wild lion spawns
+- catching
+- training
+- nicknames
+- release-for-coins
+- owned lion roster
+- top lions
+- rare catches
+- channel effects
+
+## Battle Systems
+
+- saved battle teams
+- automatic team battles
+- Training Hall battles
+- battle challenges
+- battle accept/decline/cancel
+- battle history
+- battle stats
+- battle leaderboard
+- interactive `~duel @user` prototype
+
+## Weekly Challenges and Badges
+
+- `/weekly challenges`
+- `/weekly badges`
+- default weekly challenge definitions
+- badge definitions
+- weekly progress tracking
+- reward application
+- best-effort progress hooks
+- lifecycle tests
+
+## Development Hardening
+
+- `/botadmin health`
+- structured logging
+- event routing tests
+- decomposed lion message router
+- non-battle handler tests
+- read-only handler tests
+- weekly lifecycle tests
+- contributor docs
+- operations docs
+- lion text-command docs
+
+---
+
+# New Roadmap Overview
+
+The next roadmap has five major stages:
+
+1. **Team Houses / House Cup**
+2. **Practice Streaks and Attendance Recaps**
+3. **Seasonal Events**
+4. **Lion Bond / Care System**
+5. **Performance and Member Onboarding Tools**
+
+The priority order is intentional.
+
+Team Houses should come first because it connects every existing system into a social team-wide competition.
+
+---
+
+# Stage 1: Team Houses / House Cup
+
+## Product Goal
+
+Create a team-based competition layer where members belong to Houses or Crews.
+
+Houses earn points from meaningful activities like:
+
+- practice attendance
+- weekly challenge completion
+- red envelope claims
+- wild lion catches
+- lion training
+- Training Hall battles
+- interactive duel completion
+- capped message activity
+- officer manual awards
+
+This system should make the Discord server feel more alive because members are no longer only progressing individually. Their activity helps their House.
+
+## Why This Matters
+
+LionDen currently has many strong individual systems. Team Houses connect those systems into a social structure.
+
+This creates:
+
+- friendly competition
+- team identity
+- peer encouragement
+- recurring discussion
+- reasons to check standings
+- officer-friendly engagement tracking
+- better alignment with real lion dance team culture
+
+## Recommended Naming
+
+Use **House** as the product term.
+
+Examples:
+
+- Red House
+- Gold House
+- Black House
+- Dragon House
+- Drumline House
+- Lion Crew
+- Buddha Crew
+
+The command surface should use:
+
+- `/house`
+- `/houseadmin`
+
+## Core Concepts
+
+### House
+
+A persistent group inside the Discord server.
+
+### House Membership
+
+A user can belong to one House in a guild.
+
+### House Points
+
+A point ledger records why points were earned or removed.
+
+### House Cup
+
+A recurring leaderboard showing House standings.
+
+---
+
+## Sprint 1.1: Team Houses Foundation
+
+### Branch
+
+```sh
+git checkout develop
+git pull
+git checkout -b feat/team-houses-foundation
+```
