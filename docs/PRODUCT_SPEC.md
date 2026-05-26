@@ -23,6 +23,10 @@ LionDen should increase meaningful team activity without encouraging spam. The b
 - Give officers simple correction tools.
 - Keep the MVP narrow and validate interest before expanding.
 
+## Next Product Direction
+
+The next product direction is Team Houses / House Cup: a team activity system that makes group participation visible without replacing individual progression. See [Next roadmap](ROADMAP_NEXT.md) for the current planning notes.
+
 ## Current Progression Rules
 
 The MVP progression display uses total XP thresholds that make early levels visible without letting one activity jump multiple levels.
@@ -147,3 +151,5 @@ Current weekly challenge and badge foundation rule:
 6. Phase 5: badges and weekly challenges
 7. Phase 6: shop and cosmetics
 8. Phase 7: 24/7 deployment
+
+Future roadmap work should prioritize Team Houses / House Cup as the next team activity layer after the current progression, challenge, lion, and duel foundations.

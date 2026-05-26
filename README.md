@@ -66,6 +66,7 @@ After pulling new migrations, run `npm run prisma:migrate:deploy` before startin
 ## Docs
 
 - [Product spec](docs/PRODUCT_SPEC.md)
+- [Next roadmap](docs/ROADMAP_NEXT.md)
 - [Command reference](docs/COMMANDS.md)
 - [Lion text commands](docs/LION_TEXT_COMMANDS.md)
 - [Contributor command and scheduler guide](docs/CONTRIBUTING_COMMANDS.md)
