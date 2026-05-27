@@ -326,6 +326,7 @@ model House {
   updatedAt   DateTime           @updatedAt
   memberships HouseMembership[]
   pointLedger HousePointLedger[]
+  badgeAwards UserHouseBadge[]
 
   @@unique([guildId, houseKey])
   @@index([guildId])
@@ -385,6 +386,34 @@ model HouseRecapPost {
 
   @@unique([guildId, weekKey])
   @@index([guildId, postedAt])
+}
+
+model HouseBadgeDefinition {
+  id          String             @id @default(cuid())
+  badgeKey    String             @unique
+  title       String
+  description String
+  category    HouseBadgeCategory
+  isEnabled   Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+}
+
+model UserHouseBadge {
+  id        String   @id @default(cuid())
+  guildId   String
+  userId    String
+  badgeKey  String
+  houseId   String?
+  weekKey   String?
+  awardedAt DateTime @default(now())
+  reason    String?
+  house     House?   @relation(fields: [houseId], references: [id])
+
+  @@unique([guildId, userId, badgeKey, weekKey])
+  @@index([guildId, userId])
+  @@index([guildId, houseId])
+  @@index([guildId, weekKey])
 }
 
 model PracticeSession {
@@ -527,4 +556,14 @@ enum HousePointSourceType {
   DUEL_COMPLETION
   MESSAGE_ACTIVITY
   ADMIN_ADJUSTMENT
+}
+
+enum HouseBadgeCategory {
+  MEMBERSHIP
+  WEEKLY_RECAP
+  PRACTICE
+  RED_ENVELOPE
+  LION_ACTIVITY
+  BATTLE_DUEL
+  CONTRIBUTION
 }

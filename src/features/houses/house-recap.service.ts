@@ -188,6 +188,7 @@ export interface WeeklyHouseRecap {
   weekKey: string;
   range: HouseRecapRange;
   houses: HouseRecord[];
+  ledgerEntries: HouseRecapLedgerRecord[];
   standings: HouseRecapStanding[];
   topContributors: HouseRecapContributor[];
   sourceBreakdown: HouseRecapSourceBreakdown[];
@@ -552,6 +553,7 @@ export const buildWeeklyHouseRecap = async (
     weekKey,
     range,
     houses,
+    ledgerEntries: scopedLedgers,
     standings: listWeeklyHouseStandings(houses, scopedLedgers),
     topContributors: listWeeklyTopContributors(scopedLedgers),
     sourceBreakdown: summarizeHousePointsBySourceType(scopedLedgers),

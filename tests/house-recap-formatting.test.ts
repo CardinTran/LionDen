@@ -51,6 +51,7 @@ const buildRecap = (
     end: new Date("2026-06-01T00:00:00.000Z")
   },
   houses: [house],
+  ledgerEntries: [],
   standings: [
     {
       rank: 1,

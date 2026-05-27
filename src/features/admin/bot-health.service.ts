@@ -90,6 +90,7 @@ export interface BotHealthPrismaClient {
       postedAt: Date;
     } | null>;
   };
+  houseBadgeDefinition: CountDelegate;
 }
 
 export interface GetBotHealthReportInput {
@@ -426,6 +427,22 @@ export const getBotHealthReport = async (
           ? `Enabled for <#${config.channelId}>; current week ${weekKey} ${currentPost ? "already posted" : "not posted yet"}.`
           : "Configured but disabled."
       };
+    }),
+    runHealthCheck("House badge definitions", async () => {
+      const enabledBadgeCount = await prisma.houseBadgeDefinition.count({
+        where: {
+          isEnabled: true
+        }
+      });
+
+      return {
+        label: "House badge definitions",
+        status: enabledBadgeCount > 0 ? "healthy" : "warning",
+        message:
+          enabledBadgeCount > 0
+            ? `${enabledBadgeCount} enabled House badge definition${enabledBadgeCount === 1 ? "" : "s"} synced.`
+            : "No enabled House badge definitions found. Run `/houseadmin badge sync`."
+      };
     })
   ]);
 
@@ -469,6 +486,7 @@ export const getBotHealthReport = async (
       "Run `/lionadmin configure` if wild spawns should be active.",
       "Run `/houseadmin create` to configure Team Houses.",
       "Run `/houseadmin recap configure` if Weekly House Recaps should be active.",
+      "Run `/houseadmin badge sync` if House badge definitions are missing.",
       "Run `npm run prisma:migrate:deploy` if database table checks fail."
     ]
   };

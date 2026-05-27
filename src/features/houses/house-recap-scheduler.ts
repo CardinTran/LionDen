@@ -2,6 +2,10 @@ import type { Client } from "discord.js";
 
 import { logger } from "../../lib/logger.js";
 import { prisma } from "../../lib/prisma.js";
+import {
+  awardHouseBadgesForWeeklyRecap,
+  type HouseAchievementStore
+} from "./house-achievement.service.js";
 import { formatWeeklyHouseRecap } from "./house-recap-formatting.js";
 import {
   buildWeeklyHouseRecap,
@@ -109,7 +113,7 @@ export type PostWeeklyHouseRecapResult =
     };
 
 export const postWeeklyHouseRecap = async (
-  store: HouseRecapStore,
+  store: HouseRecapStore & HouseAchievementStore,
   input: {
     guildId: string;
     channel: SendableChannel;
@@ -179,6 +183,21 @@ export const postWeeklyHouseRecap = async (
       weekKey,
       messageId: message.id
     });
+
+    try {
+      await awardHouseBadgesForWeeklyRecap(store, {
+        recap,
+        awardedAt: input.now
+      });
+    } catch (error) {
+      logger.warn("Weekly House Recap badge awarding failed", {
+        guildId: input.guildId,
+        channelId: input.channel.id,
+        weekKey,
+        messageId: message.id,
+        error
+      });
+    }
 
     return {
       outcome: "posted",

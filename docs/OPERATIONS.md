@@ -100,6 +100,7 @@ Main workflows:
 - `/houseadmin create`, `/houseadmin assign`, `/houseadmin remove`, `/houseadmin rename`, `/houseadmin deactivate`: create Houses, move members, remove memberships, and retire Houses without deleting history.
 - `/houseadmin points add` and `/houseadmin points remove`: add signed ledger entries for officer corrections. These commands never mutate a stored House total directly.
 - `/houseadmin recap configure`, `/houseadmin recap status`, `/houseadmin recap postnow`, `/houseadmin recap disable`: configure, inspect, manually post, and pause Weekly House Recaps.
+- `/houseadmin badge sync` and `/houseadmin badge grant`: sync default House badge definitions and manually grant cosmetic House badges.
 
 Admin setup and status replies should stay ephemeral unless a command intentionally posts public gameplay content, such as creating a red envelope or forcing a wild lion spawn.
 
@@ -137,6 +138,16 @@ Weekly House Recaps turn the House point ledger into a weekly social summary:
 - Normal recap posts are de-duplicated by `guildId` + `weekKey` in `HouseRecapPost`.
 - A forced manual repost can send another message, but it does not create a second normal posted-week record.
 
+House badges make weekly accomplishments durable:
+
+- Default badge definitions are synced with `/houseadmin badge sync`; `/houseadmin badge grant` also syncs defaults before granting.
+- Official weekly recap posts award House badges after the recap post is recorded.
+- Forced recap reposts and skipped duplicate recap posts do not start another badge award cycle.
+- Weekly badge awards are idempotent by guild, user, badge key, and week key.
+- Current recap awards include House Champion for current members of the winning House, Weekly Contributor for members who earned positive House points, and category badges for practice, red envelope, lion activity, and battle/duel point contributors.
+- House badges are cosmetic only. They do not change House points, XP, coins, combat, economy, or challenge rewards.
+- If badge awarding fails after a recap posts, LionDen logs a warning and keeps the recap message posted.
+
 Manual corrections:
 
 - Use `/houseadmin points add` for positive corrections.
@@ -152,6 +163,10 @@ Troubleshooting missing House points:
 - Check logs for House point hook warnings with `guildId`, `userId`, `sourceType`, and `sourceId`.
 - If no recap posted, check `/houseadmin recap status`, confirm the channel is configured, and review logs for scheduler warnings.
 - If a manual recap says it was skipped, the current week already has a normal post recorded.
+- If House badges are missing, run `/houseadmin badge sync`, then check `/botadmin health` for enabled House badge definitions.
+- If a badge did not appear after a recap, confirm the user earned positive House points or belonged to the winning House during that recap week.
+- Duplicate badge awards are expected to be skipped; repeated recap processing should not create another copy for the same week.
+- If a recap posted but badges did not award, review logs for `Weekly House Recap badge awarding failed`.
 
 ## Migrations
 
@@ -182,5 +197,6 @@ The current health report checks:
 - red envelope configuration and open envelope state
 - lion spawn configuration and active wild spawn state
 - active House table access and configured House count
+- enabled House badge definition count
 
 The report can show `healthy`, `warning`, or `error`. Warnings often mean optional automation is paused, unconfigured, or currently has active public state. Errors should be investigated before relying on the bot for local testing.

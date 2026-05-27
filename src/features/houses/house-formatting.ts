@@ -7,6 +7,8 @@ import type {
   UpdateHouseResult,
   UserHouseProfile
 } from "./house.service.js";
+import type { UserHouseBadgeViewEntry } from "./house-achievement.service.js";
+import { formatRecentHouseBadgesSummary } from "./house-achievement-formatting.js";
 
 const houseLabel = (house: HouseRecord): string =>
   `${house.emoji ? `${house.emoji} ` : ""}${house.name} \`${house.houseKey}\``;
@@ -40,6 +42,7 @@ export const formatHouseLeaveMessage = (
 export const formatHouseProfileMessage = (input: {
   displayName: string;
   profile: UserHouseProfile;
+  recentBadges?: UserHouseBadgeViewEntry[];
 }): string => {
   if (!input.profile.house) {
     return `${input.displayName} is not in a House yet.`;
@@ -54,8 +57,13 @@ export const formatHouseProfileMessage = (input: {
     `House: ${houseLabel(input.profile.house)}`,
     description,
     `This week: ${input.profile.weekPoints} points`,
-    `Lifetime: ${input.profile.lifetimePoints} points`
-  ].join("\n");
+    `Lifetime: ${input.profile.lifetimePoints} points`,
+    input.recentBadges
+      ? formatRecentHouseBadgesSummary(input.recentBadges)
+      : null
+  ]
+    .filter(Boolean)
+    .join("\n");
 };
 
 export const formatHouseLeaderboardMessage = (

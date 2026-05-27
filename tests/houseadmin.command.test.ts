@@ -15,6 +15,8 @@ const mockGetHouseRecapConfig = vi.fn();
 const mockGetHouseRecapStatus = vi.fn();
 const mockFetchHouseRecapChannel = vi.fn();
 const mockPostWeeklyHouseRecapNow = vi.fn();
+const mockAwardHouseBadge = vi.fn();
+const mockSyncDefaultHouseBadgeDefinitions = vi.fn();
 
 vi.mock("../src/features/houses/house.service.js", async () => {
   const actual = await vi.importActual<
@@ -56,6 +58,18 @@ vi.mock("../src/features/houses/house-recap-scheduler.js", () => ({
   fetchHouseRecapChannel: mockFetchHouseRecapChannel,
   postWeeklyHouseRecapNow: mockPostWeeklyHouseRecapNow
 }));
+
+vi.mock("../src/features/houses/house-achievement.service.js", async () => {
+  const actual = await vi.importActual<
+    typeof import("../src/features/houses/house-achievement.service.js")
+  >("../src/features/houses/house-achievement.service.js");
+
+  return {
+    ...actual,
+    awardHouseBadge: mockAwardHouseBadge,
+    syncDefaultHouseBadgeDefinitions: mockSyncDefaultHouseBadgeDefinitions
+  };
+});
 
 vi.mock("../src/lib/logger.js", () => ({
   logger: {
@@ -111,7 +125,9 @@ const createInteraction = (
     | "recapConfigure"
     | "recapStatus"
     | "recapPostNow"
-    | "recapDisable",
+    | "recapDisable"
+    | "badgeSync"
+    | "badgeGrant",
   subcommandGroup: string | null = null
 ) => {
   const member = {
@@ -137,16 +153,27 @@ const createInteraction = (
     },
     options: {
       getSubcommandGroup: vi.fn(() => subcommandGroup),
-      getSubcommand: vi.fn(() =>
-        subcommand === "removePoints"
-          ? "remove"
-          : subcommand.replace("recap", "").toLowerCase()
-      ),
+      getSubcommand: vi.fn(() => {
+        if (subcommand === "removePoints") {
+          return "remove";
+        }
+
+        if (subcommand.startsWith("recap")) {
+          return subcommand.replace("recap", "").toLowerCase();
+        }
+
+        if (subcommand.startsWith("badge")) {
+          return subcommand.replace("badge", "").toLowerCase();
+        }
+
+        return subcommand;
+      }),
       getString: vi.fn((name: string) => {
         const values: Record<string, string> = {
           key: "red-house",
           name: "Red House",
           house: "red-house",
+          badge: "house-founder",
           reason: "Manual correction"
         };
         return values[name] ?? null;
@@ -264,6 +291,41 @@ describe("houseadmin command", () => {
       post: null,
       alreadyPosted: null
     });
+    mockSyncDefaultHouseBadgeDefinitions.mockResolvedValue([
+      {
+        id: "definition_123",
+        badgeKey: "house-founder",
+        title: "House Founder",
+        description: "Foundation period.",
+        category: "MEMBERSHIP",
+        isEnabled: true,
+        createdAt: house.createdAt,
+        updatedAt: house.updatedAt
+      }
+    ]);
+    mockAwardHouseBadge.mockResolvedValue({
+      outcome: "awarded",
+      award: {
+        id: "award_123",
+        guildId: "guild_123",
+        userId: "user_456",
+        badgeKey: "house-founder",
+        houseId: "house_123",
+        weekKey: null,
+        awardedAt: house.createdAt,
+        reason: "Manual correction"
+      },
+      definition: {
+        id: "definition_123",
+        badgeKey: "house-founder",
+        title: "House Founder",
+        description: "Foundation period.",
+        category: "MEMBERSHIP",
+        isEnabled: true,
+        createdAt: house.createdAt,
+        updatedAt: house.updatedAt
+      }
+    });
     mockFetchHouseRecapChannel.mockResolvedValue({
       id: "recap_channel",
       send: vi.fn()
@@ -276,7 +338,16 @@ describe("houseadmin command", () => {
       String(PermissionFlagsBits.ManageGuild)
     );
     expect(houseAdminCommandJson.options?.map((option) => option.name)).toEqual(
-      ["create", "assign", "remove", "rename", "deactivate", "points", "recap"]
+      [
+        "create",
+        "assign",
+        "remove",
+        "rename",
+        "deactivate",
+        "points",
+        "recap",
+        "badge"
+      ]
     );
   });
 
@@ -456,6 +527,41 @@ describe("houseadmin command", () => {
     expect(interaction.reply).toHaveBeenCalledWith({
       content:
         "Weekly House Recap disabled. Existing config and post history were kept.",
+      ephemeral: true
+    });
+  });
+
+  it("syncs and grants House badges", async () => {
+    const syncInteraction = createInteraction("badgeSync", "badge");
+    const grantInteraction = createInteraction("badgeGrant", "badge");
+
+    await houseAdminCommand.execute(syncInteraction as never);
+    await houseAdminCommand.execute(grantInteraction as never);
+
+    expect(mockSyncDefaultHouseBadgeDefinitions).toHaveBeenCalledWith({});
+    expect(mockGetHouseByKey).toHaveBeenCalledWith(
+      {},
+      {
+        guildId: "guild_123",
+        houseKey: "red-house"
+      }
+    );
+    expect(mockAwardHouseBadge).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({
+        guildId: "guild_123",
+        userId: "user_456",
+        badgeKey: "house-founder",
+        houseId: "house_123",
+        reason: "Manual correction"
+      })
+    );
+    expect(syncInteraction.reply).toHaveBeenCalledWith({
+      content: "Synced 1 default House badge definition.",
+      ephemeral: true
+    });
+    expect(grantInteraction.reply).toHaveBeenCalledWith({
+      content: "Granted House Founder to Cardin.",
       ephemeral: true
     });
   });

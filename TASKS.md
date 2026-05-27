@@ -116,23 +116,26 @@ The roadmap for this next phase lives in:
 
 ## Sprint 1.4: House Badges and Titles
 
-- [ ] Add House badge definitions
+- [x] Add House badge definitions
 - [ ] Add House title support if needed
-- [ ] Add House Founder badge
-- [ ] Add House Champion badge
-- [ ] Add Practice Powerhouse badge
-- [ ] Add Red Envelope Raider badge
-- [ ] Add Duel Defender badge
-- [ ] Add Weekly Contributor badge
+- [x] Add House Founder badge
+- [x] Add House Champion badge
+- [x] Add Practice Powerhouse badge
+- [x] Add Red Envelope Raider badge
+- [x] Add Lion Handler badge
+- [x] Add Duel Defender badge
+- [x] Add Weekly Contributor badge
 - [ ] Add title display to profile or House profile if appropriate
-- [ ] Ensure badge and title awards are idempotent
-- [ ] Add tests for House badge awarding
-- [ ] Add tests for duplicate badge prevention
+- [x] Ensure badge awards are idempotent
+- [x] Add tests for House badge awarding
+- [x] Add tests for duplicate badge prevention
 - [ ] Add tests for title assignment
 - [ ] Add tests for title display
-- [ ] Update `docs/COMMANDS.md`
-- [ ] Update `docs/DATA_MODEL.md`
-- [ ] Update `docs/ROADMAP_NEXT.md`
+- [x] Update `docs/COMMANDS.md`
+- [x] Update `docs/DATA_MODEL.md`
+- [x] Update `docs/OPERATIONS.md`
+- [x] Update `docs/PRODUCT_SPEC.md`
+- [x] Update `docs/ROADMAP_NEXT.md`
 
 ---
 
