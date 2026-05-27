@@ -71,8 +71,11 @@ Practice attendance history uses the existing practice tables. Completed-practic
   - Tracks progress count, completion time, and reward application time
 - `BadgeDefinition`
   - Seeded badge definitions keyed by `badgeKey`
+  - Stores generic LionDen badges, including weekly challenge badges and practice badge definitions
 - `UserBadge`
   - Per-guild, per-user awarded badges
+  - Practice badge idempotency uses the existing unique `guildId` + `userId` + `badgeKey` constraint
+  - Practice badge definitions are global and can be disabled without deleting historical awards
 
 ### Team Houses / House Cup
 

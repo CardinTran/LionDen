@@ -153,6 +153,20 @@ Current practice recap rule:
 - active, scheduled, future, or missing practice sessions do not produce recaps
 - automatic recap posting after `/practice end` is deferred until duplicate-post tracking is designed
 
+Current practice badge rule:
+
+- practice badges are cosmetic LionDen badges for real practice attendance
+- practice badges reuse the generic badge system and are visible through `/practice badges`
+- `/practice streaks` includes a compact practice badge summary when the member has earned badges
+- `/practice end` awards eligible practice badges after attendance XP and House practice points are finalized
+- badge awarding is best-effort and does not block practice ending
+- `/practice badge-sync` lets officers sync default definitions and backfill eligible badges from existing completed attendance history
+- `HERE` is the only status that counts toward practice badges
+- `NOT_HERE`, no response, active sessions, scheduled sessions, and future sessions do not count
+- default badges are First Practice, Three Practice Streak, Five Practice Streak, Perfect Week, Practice Regular, and Practice Veteran
+- Perfect Week means the member attended every completed practice in a calendar week with at least 1 completed practice
+- practice badges do not affect XP, coins, House points, weekly challenges, combat, lion stats, or economy behavior
+
 Current weekly challenge and badge foundation rule:
 
 - `/weekly challenges` shows the caller's current weekly challenge progress

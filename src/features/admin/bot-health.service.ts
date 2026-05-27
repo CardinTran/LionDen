@@ -2,6 +2,7 @@ import type { PrismaClient } from "@prisma/client";
 
 import { RED_ENVELOPE_EXPIRY_MINUTES } from "../economy/red-envelope.service.js";
 import { getCurrentHouseRecapWeekKey } from "../houses/house-recap.service.js";
+import { DEFAULT_PRACTICE_BADGE_DEFINITIONS } from "../practice/practice-badge.service.js";
 import type { BotGuildConfigRecord } from "./bot-config.service.js";
 
 export type BotHealthStatus = "healthy" | "warning" | "error";
@@ -58,6 +59,7 @@ export interface BotHealthPrismaClient {
     } | null>;
     count(args: unknown): Promise<number>;
   };
+  badgeDefinition: CountDelegate;
   redEnvelopeDropConfig: {
     findUnique(args: unknown): Promise<{
       channelId: string;
@@ -280,6 +282,27 @@ export const getBotHealthReport = async (
         status: "healthy",
         message: `${completedCount} completed practice session${completedCount === 1 ? "" : "s"} available for attendance history.`
       };
+    }),
+    runHealthCheck("Practice badge definitions", async () => {
+      const enabledBadgeCount = await prisma.badgeDefinition.count({
+        where: {
+          badgeKey: {
+            in: DEFAULT_PRACTICE_BADGE_DEFINITIONS.map(
+              (definition) => definition.badgeKey
+            )
+          },
+          isEnabled: true
+        }
+      });
+
+      return {
+        label: "Practice badge definitions",
+        status: enabledBadgeCount > 0 ? "healthy" : "warning",
+        message:
+          enabledBadgeCount > 0
+            ? `${enabledBadgeCount} enabled practice badge definition${enabledBadgeCount === 1 ? "" : "s"} synced.`
+            : "No enabled practice badge definitions found. Run `/practice badge-sync`."
+      };
     })
   ]);
 
@@ -500,6 +523,7 @@ export const getBotHealthReport = async (
     sections,
     notes: [
       "Run `/practice configure` if scheduled practice should be active.",
+      "Run `/practice badge-sync` if practice badge definitions are missing or old attendance needs backfill.",
       "Run `/redenvelope configure` if random drops should be active.",
       "Run `/lionadmin configure` if wild spawns should be active.",
       "Run `/houseadmin create` to configure Team Houses.",

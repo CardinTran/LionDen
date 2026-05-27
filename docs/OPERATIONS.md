@@ -113,6 +113,7 @@ Member-facing views:
 - `/practice history` shows recent completed practice sessions for the caller.
 - `/practice history member:@user` lets someone inspect another member's history, but the response remains ephemeral to the requester.
 - `/practice streaks` shows current streak, longest streak, total attended practices, current-month attendance, and last attended date.
+- `/practice badges` shows earned practice badges for the caller or a selected member.
 - `/practice leaderboard` shows top attendees for the current month by default, with optional last-30-days and all-time periods.
 
 Attendance rules:
@@ -153,6 +154,36 @@ Troubleshooting:
 - If House points are missing, the practice may predate the House point ledger hook or the attendees may not have belonged to active Houses.
 - If streak highlights are omitted, no attendee currently has a two-practice-or-longer streak.
 - Manual recap posting is intentionally repeatable. Automatic recap posting after `/practice end` is left as a future option with duplicate-post tracking.
+
+## Practice Badge Operations
+
+Practice badges reuse the generic `BadgeDefinition` and `UserBadge` tables. They are cosmetic only and do not change XP, coins, House points, weekly challenge progress, combat, lion stats, or economy behavior.
+
+Default badges:
+
+- First Practice: at least 1 attended completed practice.
+- Three Practice Streak: at least 3 attended completed practices in a row.
+- Five Practice Streak: at least 5 attended completed practices in a row.
+- Perfect Week: attended every completed practice in a calendar week with at least 1 completed practice.
+- Practice Regular: at least 10 attended completed practices.
+- Practice Veteran: at least 25 attended completed practices.
+
+Awarding behavior:
+
+- `/practice end` runs practice badge awarding after attendance XP and House practice points are finalized.
+- `/practice badge-sync` syncs default practice badge definitions and backfills eligible badges from completed attendance history.
+- Badge awarding is best-effort. If it fails, practice ending still succeeds and LionDen logs a warning.
+- `HERE` is the only attendance status that counts toward practice badges.
+- `NOT_HERE`, no response, scheduled sessions, active sessions, and future sessions do not count.
+- Badge awards are idempotent by `guildId`, `userId`, and `badgeKey`.
+- Sync preserves disabled practice badge definitions; it does not silently re-enable badges officers disabled.
+
+Troubleshooting:
+
+- If badges do not appear, confirm the practice session was ended and the member was marked `HERE`.
+- If older attendance should count, run `/practice badge-sync`.
+- If a badge was already awarded, sync and future practice ends skip the duplicate.
+- `/botadmin health` reports whether enabled practice badge definitions are present.
 
 ## Team Houses / House Cup Operations
 

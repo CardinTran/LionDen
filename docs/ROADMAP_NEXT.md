@@ -402,7 +402,22 @@ Implemented behavior:
 - Keep automatic recap posting after `/practice end` as a follow-up until duplicate-post tracking is designed.
 - Preserve existing practice check-in, XP reward, House point, weekly challenge, and badge behavior.
 
+## Sprint 2.3: Practice Badges
+
+Status: implemented.
+
+Implemented behavior:
+
+- Reuse the generic LionDen badge models for practice badges.
+- Add First Practice, Three Practice Streak, Five Practice Streak, Perfect Week, Practice Regular, and Practice Veteran.
+- Award practice badges best-effort after `/practice end` finalizes attendance rewards and House practice points.
+- Add `/practice badges` for member-facing badge display.
+- Add `/practice badge-sync` for officer definition sync and attendance-history backfill.
+- Keep practice badges cosmetic only.
+- Preserve existing practice check-in, XP reward, House point, weekly challenge, recap, and economy behavior.
+
 Next recommended focus:
 
-- Sprint 2.3: Practice Badges.
+- Small follow-up: Practice Recap auto-post with duplicate-post tracking.
+- Larger roadmap step: Stage 3.1 Seasonal Event Foundation.
 - House title selection/display remains optional polish after the badge foundation.
