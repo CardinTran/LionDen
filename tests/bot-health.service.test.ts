@@ -33,7 +33,8 @@ const createHealthyStore = (): BotHealthPrismaClient => ({
     })
   },
   practiceSession: {
-    findFirst: async () => null
+    findFirst: async () => null,
+    count: async () => 3
   },
   redEnvelopeDropConfig: {
     findUnique: async () => ({
@@ -125,6 +126,7 @@ describe("bot health service", () => {
     expect(output).toContain("Discord:");
     expect(output).toContain("Database:");
     expect(output).toContain("Practice:");
+    expect(output).toContain("completed practice sessions");
     expect(output).toContain("Red Envelopes:");
     expect(output).toContain("Lion Spawns:");
     expect(output).toContain("Houses:");

@@ -369,7 +369,26 @@ Implemented behavior:
 
 Titles were intentionally left as follow-up so badge durability could land without adding profile flair or title-selection complexity.
 
+---
+
+# Stage 2: Practice Streaks and Attendance Recaps
+
+## Sprint 2.1: Practice Attendance History
+
+Status: implemented.
+
+Implemented behavior:
+
+- Add reusable practice attendance aggregation for history, summaries, streaks, and leaderboards.
+- Treat `HERE` as attended and keep `NOT_HERE` / no response as neutral non-attendance states.
+- Exclude future, scheduled, and active practice sessions from history calculations.
+- Add `/practice history`, `/practice leaderboard`, and `/practice streaks`.
+- Keep personal history and streak views ephemeral.
+- Add a lightweight `/botadmin health` check that confirms completed practice sessions can be queried.
+- Preserve existing practice check-in, XP reward, House point, and weekly challenge behavior.
+
 Next recommended focus:
 
-- Stage 2.1: Practice Attendance History.
-- Alternatively, add House title selection/display as a small polish PR if the team wants visible flair before Stage 2.
+- Sprint 2.2: Practice Recap.
+- Practice Badges remain Sprint 2.3.
+- House title selection/display remains optional polish after the badge foundation.

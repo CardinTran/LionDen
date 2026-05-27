@@ -143,23 +143,23 @@ The roadmap for this next phase lives in:
 
 ## Sprint 2.1: Practice Attendance History
 
-- [ ] Add practice attendance aggregation service
-- [ ] Add `/practice history [@user]`
-- [ ] Add `/practice leaderboard`
-- [ ] Add `/practice streaks`
-- [ ] Add current streak calculation
-- [ ] Add longest streak calculation
-- [ ] Add monthly or season attendance count
-- [ ] Add tests for attendance history
-- [ ] Add tests for monthly attendance count
-- [ ] Add tests for current streak
-- [ ] Add tests for longest streak
-- [ ] Add tests for missed practice handling
-- [ ] Add tests for users with no attendance
-- [ ] Update `docs/COMMANDS.md`
-- [ ] Update `docs/OPERATIONS.md`
-- [ ] Update `docs/PRODUCT_SPEC.md`
-- [ ] Update `docs/ROADMAP_NEXT.md`
+- [x] Add practice attendance aggregation service
+- [x] Add `/practice history [@user]`
+- [x] Add `/practice leaderboard`
+- [x] Add `/practice streaks`
+- [x] Add current streak calculation
+- [x] Add longest streak calculation
+- [x] Add monthly or season attendance count
+- [x] Add tests for attendance history
+- [x] Add tests for monthly attendance count
+- [x] Add tests for current streak
+- [x] Add tests for longest streak
+- [x] Add tests for missed practice handling
+- [x] Add tests for users with no attendance
+- [x] Update `docs/COMMANDS.md`
+- [x] Update `docs/OPERATIONS.md`
+- [x] Update `docs/PRODUCT_SPEC.md`
+- [x] Update `docs/ROADMAP_NEXT.md`
 
 ## Sprint 2.2: Practice Recap
 

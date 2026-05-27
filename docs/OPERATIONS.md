@@ -104,6 +104,32 @@ Main workflows:
 
 Admin setup and status replies should stay ephemeral unless a command intentionally posts public gameplay content, such as creating a red envelope or forcing a wild lion spawn.
 
+## Practice Attendance History Operations
+
+Practice attendance history is derived from the existing `PracticeSession` and `PracticeCheckIn` tables. It does not add new attendance tables or change `/practice end` XP reward behavior.
+
+Member-facing views:
+
+- `/practice history` shows recent completed practice sessions for the caller.
+- `/practice history member:@user` lets someone inspect another member's history, but the response remains ephemeral to the requester.
+- `/practice streaks` shows current streak, longest streak, total attended practices, current-month attendance, and last attended date.
+- `/practice leaderboard` shows top attendees for the current month by default, with optional last-30-days and all-time periods.
+
+Attendance rules:
+
+- Only ended practice sessions with an end time at or before the command time are counted.
+- `HERE` is the only status that counts as attended.
+- `NOT_HERE` is displayed neutrally and does not count as attended.
+- Missing check-ins are displayed as `No Response` and do not count as attended.
+- Future, scheduled, or still-active sessions are excluded from history, streaks, and leaderboards.
+
+Troubleshooting:
+
+- If no history appears, confirm the practice session was ended with `/practice end`.
+- If a user appears with `Not Here` or `No Response`, that state is informational and does not add attendance count, XP, or streak progress.
+- If the leaderboard is empty, there may be no completed sessions with `HERE` check-ins in the selected period.
+- `/botadmin health` includes a completed-practice-session database query so officers can confirm the attendance history source table is readable.
+
 ## Team Houses / House Cup Operations
 
 House setup:

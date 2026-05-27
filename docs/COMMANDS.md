@@ -10,6 +10,9 @@
 - `/daily`: claim the fixed daily coin reward
 - `/weekly challenges`: show the caller's current weekly challenge progress
 - `/weekly badges`: show the caller's earned LionDen badges
+- `/practice history [member] [limit]`: show recent completed practice attendance history; replies are ephemeral
+- `/practice leaderboard [period] [limit]`: show top practice attendees for the current month, last 30 days, or all time; replies are ephemeral
+- `/practice streaks [member]`: show current and longest completed-practice attendance streaks; replies are ephemeral
 - `/house join`: join an active Team House
 - `/house leave`: leave the caller's current Team House
 - `/house profile`: show the caller's House profile, including weekly and lifetime House points
@@ -69,3 +72,12 @@ LionDen also has public `~` text commands for red envelope claims and lion creat
 ## Scheduler and Interaction Notes
 
 See [OPERATIONS.md](OPERATIONS.md) for scheduler timing, maintenance mode, admin-only workflows, migrations, and health checks.
+
+## Practice Attendance Visibility
+
+- Practice history and streak commands default to the caller.
+- When a member is provided, the response still stays ephemeral to the requester.
+- Only completed practice sessions count for attendance history, streaks, and leaderboards.
+- `I'm Here` / `HERE` counts as attended.
+- `Not Here` / `NOT_HERE` and no attendance response do not count as attended.
+- Future, scheduled, or still-active practice sessions are excluded.

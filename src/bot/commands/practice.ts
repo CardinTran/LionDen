@@ -20,6 +20,17 @@ import {
   startPracticeSession,
   upsertPracticeSchedule
 } from "../../features/practice/practice.service.js";
+import {
+  getUserPracticeStreaks,
+  listPracticeAttendanceLeaderboard,
+  listUserPracticeAttendanceHistory
+} from "../../features/practice/practice-attendance.service.js";
+import {
+  formatPracticeAttendanceHistoryMessage,
+  formatPracticeAttendanceLeaderboardMessage,
+  formatPracticeStreaksMessage,
+  parsePracticeAttendancePeriod
+} from "../../features/practice/practice-attendance-formatting.js";
 import { recordWeeklyChallengeProgressSafely } from "../../features/challenges/weekly-challenge-hooks.js";
 import { prisma } from "../../lib/prisma.js";
 import type { SlashCommand } from "./types.js";
@@ -115,11 +126,15 @@ const requireManageGuild = async (
   return true;
 };
 
+const getDisplayName = (interaction: ChatInputCommandInteraction): string =>
+  interaction.member && "displayName" in interaction.member
+    ? interaction.member.displayName
+    : interaction.user.username;
+
 export const practiceCommand: SlashCommand = {
   data: new SlashCommandBuilder()
     .setName("practice")
     .setDescription("Manage LionDen practice attendance sessions.")
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addSubcommand((subcommand) =>
       subcommand
         .setName("configure")
@@ -136,6 +151,64 @@ export const practiceCommand: SlashCommand = {
       subcommand
         .setName("end")
         .setDescription("End the active practice attendance session.")
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("history")
+        .setDescription("View recent practice attendance history.")
+        .addUserOption((option) =>
+          option
+            .setName("member")
+            .setDescription("Optional member whose practice history to view.")
+        )
+        .addIntegerOption((option) =>
+          option
+            .setName("limit")
+            .setDescription("Number of recent practices to show, up to 25.")
+            .setMinValue(1)
+            .setMaxValue(25)
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("leaderboard")
+        .setDescription("View top practice attendees.")
+        .addStringOption((option) =>
+          option
+            .setName("period")
+            .setDescription("Attendance period.")
+            .addChoices(
+              {
+                name: "Current month",
+                value: "current_month"
+              },
+              {
+                name: "Last 30 days",
+                value: "last_30_days"
+              },
+              {
+                name: "All time",
+                value: "all_time"
+              }
+            )
+        )
+        .addIntegerOption((option) =>
+          option
+            .setName("limit")
+            .setDescription("Number of members to show, up to 25.")
+            .setMinValue(1)
+            .setMaxValue(25)
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("streaks")
+        .setDescription("View practice attendance streaks.")
+        .addUserOption((option) =>
+          option
+            .setName("member")
+            .setDescription("Optional member whose practice streaks to view.")
+        )
     ) as SlashCommandBuilder,
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     const guildId = interaction.guildId;
@@ -148,12 +221,73 @@ export const practiceCommand: SlashCommand = {
       return;
     }
 
+    const subcommand = interaction.options.getSubcommand(true);
+
+    if (subcommand === "history") {
+      const member = interaction.options.getUser("member") ?? interaction.user;
+      const view = await listUserPracticeAttendanceHistory(prisma, {
+        guildId,
+        userId: member.id,
+        now: new Date(),
+        limit: interaction.options.getInteger("limit")
+      });
+
+      await interaction.reply({
+        content: formatPracticeAttendanceHistoryMessage({
+          displayName:
+            member.id === interaction.user.id
+              ? getDisplayName(interaction)
+              : `<@${member.id}>`,
+          ...view
+        }),
+        ephemeral: true
+      });
+      return;
+    }
+
+    if (subcommand === "leaderboard") {
+      const leaderboard = await listPracticeAttendanceLeaderboard(prisma, {
+        guildId,
+        now: new Date(),
+        period: parsePracticeAttendancePeriod(
+          interaction.options.getString("period")
+        ),
+        limit: interaction.options.getInteger("limit")
+      });
+
+      await interaction.reply({
+        content: formatPracticeAttendanceLeaderboardMessage(leaderboard),
+        ephemeral: true
+      });
+      return;
+    }
+
+    if (subcommand === "streaks") {
+      const member = interaction.options.getUser("member") ?? interaction.user;
+      const streaks = await getUserPracticeStreaks(prisma, {
+        guildId,
+        userId: member.id,
+        now: new Date()
+      });
+
+      await interaction.reply({
+        content: formatPracticeStreaksMessage({
+          displayName:
+            member.id === interaction.user.id
+              ? getDisplayName(interaction)
+              : `<@${member.id}>`,
+          streaks
+        }),
+        ephemeral: true
+      });
+      return;
+    }
+
     if (!(await requireManageGuild(interaction))) {
       return;
     }
 
     const channel = interaction.channel;
-    const subcommand = interaction.options.getSubcommand(true);
 
     if (
       !channel ||
