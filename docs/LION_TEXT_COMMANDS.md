@@ -66,17 +66,23 @@ Handlers:
 
 - `src/bot/messages/lions/roster.handler.ts`
 - `src/bot/messages/lions/nickname.handler.ts`
+- `src/bot/messages/lions/favorite.handler.ts`
+- `src/bot/messages/lions/showcase.handler.ts`
 - `src/bot/messages/lions/release.handler.ts`
 
 Commands:
 
 - `~lions`: shows the caller's owned lion roster and saved team markers.
-- `~lion <id, code, slug, or name>`: inspects one owned lion.
+- `~lion <id, code, slug, name, or nickname>`: inspects one owned lion. Favorite lions are marked in the detail view.
 - `~nickname <lion> <name>`: sets an owned lion's nickname.
 - `~nickname <lion> clear`: clears an owned lion's nickname.
+- `~favorite <lion>`: sets the caller's favorite lion. The lion must belong to the caller.
+- `~favorite clear`: clears the caller's favorite lion.
+- `~showcase <lion>`: publicly posts a showcase message for one owned lion.
+- `~showcase`: publicly showcases the caller's favorite lion when one is set.
 - `~release <lion> confirm`: releases one owned lion for coins.
 
-`~release <lion>` without `confirm` shows the release preview first.
+`~release <lion>` without `confirm` shows the release preview first. Releasing a favorite lion clears the favorite state. Favorite and showcase commands are social/cosmetic only; they do not grant XP, coins, House points, weekly challenge progress, badges, combat bonuses, or economy rewards.
 
 ## Team and Battles
 

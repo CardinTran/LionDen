@@ -416,7 +416,27 @@ Implemented behavior:
 - Keep practice badges cosmetic only.
 - Preserve existing practice check-in, XP reward, House point, weekly challenge, recap, and economy behavior.
 
+Stage 3 Seasonal Events remain intentionally on hold.
+
+---
+
+# Stage 4: Lion Identity and Care
+
+## Sprint 4.2: Lion Showcase
+
+Status: implemented.
+
+Implemented behavior:
+
+- Add `FavoriteLion` persistence for one favorite owned lion per member and guild.
+- Add `~favorite <lion>` and `~favorite clear`.
+- Add `~showcase [lion]`, using the favorite lion when no argument is provided.
+- Show favorite lion context in `/profile`, `~lions`, and `~lion`.
+- Clear favorite state when the favorited lion is released.
+- Keep favorite and showcase behavior social/cosmetic only, with no XP, coin, House point, weekly challenge, badge, battle, or economy changes.
+
 Next recommended focus:
 
-- Stage 3.1 Seasonal Event Foundation.
+- Lion Bond Foundation if the next step should deepen member attachment to existing lions.
+- New Member Welcome Quests if onboarding is the higher product priority.
 - House title selection/display remains optional polish after the badge foundation.

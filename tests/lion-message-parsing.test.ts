@@ -28,6 +28,8 @@ describe("lion message command parsing", () => {
       "~catch",
       "~train",
       "~nickname",
+      "~favorite",
+      "~showcase",
       "~release",
       "~team",
       "~duel",

@@ -104,10 +104,24 @@ model UserLion {
   updatedAt         DateTime           @updatedAt
   species           LionSpecies        @relation(fields: [lionSpeciesId], references: [id])
   teamSlots         UserLionTeamSlot[]
+  favoriteFor       FavoriteLion[]
 
   @@index([guildId, userId])
   @@index([guildId, level])
   @@index([lionSpeciesId])
+}
+
+model FavoriteLion {
+  id        String   @id @default(cuid())
+  guildId   String
+  userId    String
+  lionId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  lion      UserLion @relation(fields: [lionId], references: [id], onDelete: Cascade)
+
+  @@unique([guildId, userId])
+  @@index([guildId, lionId])
 }
 
 model UserLionTeamSlot {

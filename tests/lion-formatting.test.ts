@@ -67,6 +67,8 @@ describe("lion formatting", () => {
 
     expect(message).toContain("~toplions");
     expect(message).toContain("~nickname");
+    expect(message).toContain("~favorite");
+    expect(message).toContain("~showcase");
     expect(message).toContain("~release");
     expect(message).toContain("~battle accept");
     expect(message).toContain("~duel @user");

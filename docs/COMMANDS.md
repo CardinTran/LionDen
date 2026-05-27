@@ -5,7 +5,7 @@
 ### Public
 
 - `/ping`: health check with round-trip latency
-- `/profile`: show the caller's level, XP, coins, and progress
+- `/profile`: show the caller's level, XP, coins, progress, and favorite lion when set
 - `/leaderboard`: show top server members by XP
 - `/daily`: claim the fixed daily coin reward
 - `/weekly challenges`: show the caller's current weekly challenge progress
@@ -70,7 +70,7 @@
 
 ## `~` Text Commands
 
-LionDen also has public `~` text commands for red envelope claims and lion creature gameplay. See [LION_TEXT_COMMANDS.md](LION_TEXT_COMMANDS.md) for the text-command surface, router entry points, handler files, and maintenance-mode behavior.
+LionDen also has public `~` text commands for red envelope claims and lion creature gameplay, including `~favorite <lion>` and `~showcase [lion]` for social lion identity. See [LION_TEXT_COMMANDS.md](LION_TEXT_COMMANDS.md) for the text-command surface, router entry points, handler files, and maintenance-mode behavior.
 
 ## Scheduler and Interaction Notes
 
