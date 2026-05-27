@@ -171,7 +171,7 @@ The roadmap for this next phase lives in:
 - [x] Add XP awarded count
 - [x] Add House points awarded section if Houses exist
 - [x] Add top streaks section if streaks exist
-- [ ] Consider auto-post after `/practice end`
+- [x] Consider auto-post after `/practice end`
 - [x] Add tests for recap generation
 - [x] Add tests for attendance categories
 - [x] Add tests for XP awarded count

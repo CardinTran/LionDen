@@ -59,6 +59,7 @@ export interface BotHealthPrismaClient {
     } | null>;
     count(args: unknown): Promise<number>;
   };
+  practiceRecapPost: CountDelegate;
   badgeDefinition: CountDelegate;
   redEnvelopeDropConfig: {
     findUnique(args: unknown): Promise<{
@@ -281,6 +282,19 @@ export const getBotHealthReport = async (
         label: "Completed practice sessions",
         status: "healthy",
         message: `${completedCount} completed practice session${completedCount === 1 ? "" : "s"} available for attendance history.`
+      };
+    }),
+    runHealthCheck("Practice recap post tracking", async () => {
+      const recapPostCount = await prisma.practiceRecapPost.count({
+        where: {
+          guildId: input.guildId
+        }
+      });
+
+      return {
+        label: "Practice recap post tracking",
+        status: "healthy",
+        message: `${recapPostCount} automatic practice recap post${recapPostCount === 1 ? "" : "s"} tracked.`
       };
     }),
     runHealthCheck("Practice badge definitions", async () => {

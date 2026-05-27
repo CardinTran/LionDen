@@ -459,6 +459,18 @@ model PracticeCheckIn {
   @@index([guildId, sessionId])
 }
 
+model PracticeRecapPost {
+  id         String   @id @default(cuid())
+  guildId    String
+  practiceId String
+  channelId  String
+  messageId  String?
+  postedAt   DateTime @default(now())
+
+  @@unique([guildId, practiceId])
+  @@index([guildId, postedAt])
+}
+
 enum PracticeSessionStatus {
   SCHEDULED
   ACTIVE

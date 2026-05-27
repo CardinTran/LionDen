@@ -138,7 +138,8 @@ Practice recaps summarize completed practice data without creating rewards, Hous
 Officer workflow:
 
 - End practice normally with `/practice end`.
-- Use `/practice recap` to post a public recap for the latest completed practice.
+- LionDen automatically posts a public recap after a successful `/practice end` when it can resolve a sendable channel.
+- Use `/practice recap` to manually post a public recap for the latest completed practice.
 - Use `/practice recap session_id:<id>` to recap a specific completed practice session when the ID is known.
 
 Recap sections:
@@ -148,12 +149,24 @@ Recap sections:
 - House Points: groups existing `PRACTICE_ATTENDANCE` House ledger entries whose source ID matches the practice session.
 - Streak Highlights: shows up to three attendees with current streaks of at least two practices.
 
+Auto-post behavior:
+
+- Auto-post runs only after practice ending succeeds and existing XP, House point, weekly challenge, and practice badge flows have completed.
+- Auto-post target resolution tries the practice session announcement channel, then the configured practice channel, then the channel where `/practice end` was run.
+- Automatic posts are tracked in `PracticeRecapPost` by `guildId` + `practiceId`.
+- Duplicate tracking prevents repeated automatic recap posts for the same practice session.
+- Manual `/practice recap` remains repeatable and does not create automatic post tracking records.
+- If auto-post sending or tracking fails, `/practice end` still succeeds and LionDen logs a warning.
+
 Troubleshooting:
 
 - If no recap is available, confirm that a practice session has been ended.
 - If House points are missing, the practice may predate the House point ledger hook or the attendees may not have belonged to active Houses.
 - If streak highlights are omitted, no attendee currently has a two-practice-or-longer streak.
-- Manual recap posting is intentionally repeatable. Automatic recap posting after `/practice end` is left as a future option with duplicate-post tracking.
+- If an automatic recap does not post, confirm LionDen can send in the session, configured practice, or command channel and review logs for target-channel warnings.
+- If a duplicate automatic recap is skipped, a `PracticeRecapPost` record already exists for that guild and practice session.
+- Manual recap posting is intentionally repeatable even when an automatic recap already exists.
+- Recap posting does not award XP, House points, weekly challenge progress, or practice badges.
 
 ## Practice Badge Operations
 
