@@ -13,6 +13,7 @@
 - `/practice history [member] [limit]`: show recent completed practice attendance history; replies are ephemeral
 - `/practice leaderboard [period] [limit]`: show top practice attendees for the current month, last 30 days, or all time; replies are ephemeral
 - `/practice streaks [member]`: show current and longest completed-practice attendance streaks; replies are ephemeral
+- `/practice badges [member]`: show earned practice badges; replies are ephemeral
 - `/house join`: join an active Team House
 - `/house leave`: leave the caller's current Team House
 - `/house profile`: show the caller's House profile, including weekly and lifetime House points
@@ -23,7 +24,7 @@
 ### Officer and Admin
 
 - `/botadmin status`: show maintenance-mode state
-- `/botadmin health`: show an ephemeral development checklist for Discord readiness, database access, maintenance mode, practice, red envelopes, lion spawns, Houses, and House badge definitions
+- `/botadmin health`: show an ephemeral development checklist for Discord readiness, database access, maintenance mode, practice, practice badge definitions, red envelopes, lion spawns, Houses, and House badge definitions
 - `/botadmin reloadpresence`: reapply presence from current state
 - `/botadmin maintenance`: enable or disable maintenance mode and update the message
 - `/coins add`: add coins to a member
@@ -51,6 +52,7 @@
 - `/practice configure`: set the scheduled practice channel
 - `/practice start`: start a manual practice session
 - `/practice end`: end the active practice session and award attendance XP
+- `/practice badge-sync`: sync default practice badge definitions and backfill badges from completed attendance history
 - `/practice recap [session_id]`: post a read-only recap for the latest completed practice, or a specific completed practice session ID
 - `/houseadmin create`: create a Team House
 - `/houseadmin assign`: assign or move a member to a House
@@ -83,3 +85,6 @@ See [OPERATIONS.md](OPERATIONS.md) for scheduler timing, maintenance mode, admin
 - `Not Here` / `NOT_HERE` and no attendance response do not count as attended.
 - Future, scheduled, or still-active practice sessions are excluded.
 - `/practice recap` is officer-only, posts publicly on success, and summarizes attendance, recorded XP, existing practice House points, and top active streak highlights without awarding new rewards.
+- Practice badges are cosmetic LionDen badges. They do not grant XP, coins, House points, combat bonuses, lion stats, or economy advantages.
+- Practice badge criteria: First Practice (1 attended practice), Three Practice Streak (3 in a row), Five Practice Streak (5 in a row), Perfect Week (attended every completed practice in a week with at least 1 completed practice), Practice Regular (10 attended practices), and Practice Veteran (25 attended practices).
+- `/practice badge-sync` is officer-only, idempotent, and useful when a server already has completed attendance history before practice badges were enabled.

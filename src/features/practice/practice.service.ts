@@ -1,6 +1,7 @@
 import { adjustXp } from "../progression/xp-adjustment.service.js";
 import { recordPracticeAttendanceHousePointsSafely } from "../houses/house-hooks.js";
 import type { UserProfileRecord } from "../profiles/profile.service.js";
+import { awardPracticeBadgesForCompletedSessionSafely } from "./practice-badge.service.js";
 
 export type PracticeSessionStatus = "SCHEDULED" | "ACTIVE" | "ENDED";
 export type PracticeSessionSource = "MANUAL" | "SCHEDULED";
@@ -529,6 +530,12 @@ export const endPracticeSession = async (
       rewardedCount += 1;
     }
   }
+
+  await awardPracticeBadgesForCompletedSessionSafely(store, {
+    guildId: input.guildId,
+    practiceId: session.id,
+    now: input.endedAt
+  });
 
   return {
     session,

@@ -571,6 +571,303 @@ describe("practice service", () => {
     expect(ledgers).toHaveLength(1);
   });
 
+  it("awards practice badges after ending practice without changing XP or House point behavior", async () => {
+    const endedAt = new Date("2026-05-13T02:00:00.000Z");
+    const endedSession = buildSession({
+      status: "ENDED",
+      endedAt,
+      endedByUserId: "officer_123"
+    });
+    const hereParticipant = buildCheckIn({
+      id: "checkin_here",
+      userId: "member_here",
+      attendanceStatus: "HERE"
+    });
+    const notHereParticipant = buildCheckIn({
+      id: "checkin_not_here",
+      userId: "member_not_here",
+      attendanceStatus: "NOT_HERE",
+      rewardXp: 0
+    });
+    const badgeAwards: unknown[] = [];
+    const houseLedgers: unknown[] = [];
+    const definitions: Array<{
+      id: string;
+      badgeKey: string;
+      title: string;
+      description: string;
+      isEnabled: boolean;
+      createdAt: Date;
+      updatedAt: Date;
+    }> = [];
+    const store = {
+      practiceSession: {
+        findFirst: vi.fn().mockResolvedValue(buildSession()),
+        findUnique: vi.fn(),
+        findMany: vi.fn().mockResolvedValue([endedSession]),
+        create: vi.fn(),
+        update: vi.fn().mockResolvedValue(endedSession)
+      },
+      practiceCheckIn: {
+        findUnique: vi.fn(),
+        findMany: vi.fn(async ({ where }) => {
+          if (where.rewardAppliedAt === null) {
+            return [hereParticipant];
+          }
+
+          if (where.attendanceStatus === "HERE") {
+            return [hereParticipant];
+          }
+
+          if (where.userId === "member_here") {
+            return [hereParticipant];
+          }
+
+          return [hereParticipant, notHereParticipant];
+        }),
+        upsert: vi.fn(),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        count: vi.fn().mockResolvedValue(1)
+      },
+      practiceSchedule: {
+        findMany: vi.fn(),
+        upsert: vi.fn()
+      },
+      userProfile: {
+        upsert: vi.fn(async ({ create, update }) => ({
+          id: "profile_here",
+          guildId: create.guildId,
+          userId: create.userId,
+          displayName: update.displayName,
+          xp: 90,
+          level: 1,
+          coins: 0,
+          lastMessageXpAt: null,
+          lastDailyClaimAt: null,
+          createdAt: endedAt,
+          updatedAt: endedAt
+        })),
+        update: vi.fn(async ({ data }) => ({
+          id: "profile_here",
+          guildId: "guild_123",
+          userId: "member_here",
+          displayName: data.displayName,
+          xp: data.xp,
+          level: data.level,
+          coins: 0,
+          lastMessageXpAt: null,
+          lastDailyClaimAt: null,
+          createdAt: endedAt,
+          updatedAt: endedAt
+        }))
+      },
+      house: {
+        findUnique: vi.fn(async () => ({
+          id: "house_123",
+          guildId: "guild_123",
+          houseKey: "red",
+          name: "Red House",
+          description: null,
+          emoji: null,
+          color: null,
+          isActive: true,
+          createdAt: endedAt,
+          updatedAt: endedAt
+        })),
+        findMany: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn(),
+        count: vi.fn()
+      },
+      houseMembership: {
+        findUnique: vi.fn(async () => ({
+          id: "membership_123",
+          guildId: "guild_123",
+          houseId: "house_123",
+          userId: "member_here",
+          joinedAt: endedAt,
+          updatedAt: endedAt
+        })),
+        findMany: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn()
+      },
+      housePointLedger: {
+        findUnique: vi.fn(async () => null),
+        findMany: vi.fn(async () => []),
+        create: vi.fn(async ({ data }) => {
+          houseLedgers.push(data);
+          return {
+            id: "ledger_123",
+            createdAt: endedAt,
+            ...data
+          };
+        })
+      },
+      badgeDefinition: {
+        upsert: vi.fn(async ({ where, create, update }) => {
+          const existing = definitions.find(
+            (definition) => definition.badgeKey === where.badgeKey
+          );
+
+          if (existing) {
+            Object.assign(existing, update);
+            return existing;
+          }
+
+          const definition = {
+            id: `definition_${definitions.length + 1}`,
+            createdAt: endedAt,
+            updatedAt: endedAt,
+            ...create
+          };
+          definitions.push(definition);
+          return definition;
+        }),
+        findUnique: vi.fn(async ({ where }) =>
+          definitions.find((definition) => definition.badgeKey === where.badgeKey) ??
+          null
+        ),
+        findMany: vi.fn(async () => definitions),
+        count: vi.fn()
+      },
+      userBadge: {
+        findUnique: vi.fn(async () => null),
+        findMany: vi.fn(async () => []),
+        create: vi.fn(async ({ data }) => {
+          badgeAwards.push(data);
+          return {
+            id: `award_${badgeAwards.length}`,
+            ...data
+          };
+        })
+      }
+    };
+
+    const result = await endPracticeSession(store, {
+      guildId: "guild_123",
+      endedByUserId: "officer_123",
+      endedAt
+    });
+
+    expect(result?.rewardedCount).toBe(1);
+    expect(houseLedgers).toHaveLength(1);
+    expect(badgeAwards).toEqual([
+      expect.objectContaining({
+        userId: "member_here",
+        badgeKey: "first-practice"
+      }),
+      expect.objectContaining({
+        userId: "member_here",
+        badgeKey: "perfect-week"
+      })
+    ]);
+    expect(
+      badgeAwards.some(
+        (award) =>
+          typeof award === "object" &&
+          award !== null &&
+          "userId" in award &&
+          award.userId === "member_not_here"
+      )
+    ).toBe(false);
+  });
+
+  it("continues ending practice if practice badge awarding fails", async () => {
+    const endedAt = new Date("2026-05-13T02:00:00.000Z");
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const store = {
+      practiceSession: {
+        findFirst: vi.fn().mockResolvedValue(buildSession()),
+        findUnique: vi.fn(),
+        findMany: vi.fn().mockResolvedValue([
+          buildSession({
+            status: "ENDED",
+            endedAt,
+            endedByUserId: "officer_123"
+          })
+        ]),
+        create: vi.fn(),
+        update: vi.fn().mockResolvedValue(
+          buildSession({
+            status: "ENDED",
+            endedAt,
+            endedByUserId: "officer_123"
+          })
+        )
+      },
+      practiceCheckIn: {
+        findUnique: vi.fn(),
+        findMany: vi.fn().mockResolvedValue([
+          buildCheckIn({
+            attendanceStatus: "HERE"
+          })
+        ]),
+        upsert: vi.fn(),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        count: vi.fn().mockResolvedValue(1)
+      },
+      practiceSchedule: {
+        findMany: vi.fn(),
+        upsert: vi.fn()
+      },
+      userProfile: {
+        upsert: vi.fn(async ({ create, update }) => ({
+          id: "profile_here",
+          guildId: create.guildId,
+          userId: create.userId,
+          displayName: update.displayName,
+          xp: 90,
+          level: 1,
+          coins: 0,
+          lastMessageXpAt: null,
+          lastDailyClaimAt: null,
+          createdAt: endedAt,
+          updatedAt: endedAt
+        })),
+        update: vi.fn(async ({ data }) => ({
+          id: "profile_here",
+          guildId: "guild_123",
+          userId: "member_123",
+          displayName: data.displayName,
+          xp: data.xp,
+          level: data.level,
+          coins: 0,
+          lastMessageXpAt: null,
+          lastDailyClaimAt: null,
+          createdAt: endedAt,
+          updatedAt: endedAt
+        }))
+      },
+      badgeDefinition: {
+        upsert: vi.fn(async () => {
+          throw new Error("badge table unavailable");
+        }),
+        findUnique: vi.fn(),
+        findMany: vi.fn(),
+        count: vi.fn()
+      },
+      userBadge: {
+        findUnique: vi.fn(),
+        findMany: vi.fn(),
+        create: vi.fn()
+      }
+    };
+
+    const result = await endPracticeSession(store, {
+      guildId: "guild_123",
+      endedByUserId: "officer_123",
+      endedAt
+    });
+
+    expect(result?.rewardedCount).toBe(1);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Practice badge awarding failed")
+    );
+    warnSpy.mockRestore();
+  });
+
   it("reuses a scheduled practice session for the same practice date", async () => {
     const existingScheduledSession = buildSession({
       source: "SCHEDULED",

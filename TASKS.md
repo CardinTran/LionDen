@@ -183,20 +183,20 @@ The roadmap for this next phase lives in:
 
 ## Sprint 2.3: Practice Badges
 
-- [ ] Add First Practice badge
-- [ ] Add Three Practice Streak badge
-- [ ] Add Five Practice Streak badge
-- [ ] Add Perfect Week badge
-- [ ] Add Practice Regular badge
-- [ ] Add Practice Veteran badge
-- [ ] Ensure practice badges are idempotent
-- [ ] Ensure no badge for `NOT_HERE`
-- [ ] Ensure no badge for no response
-- [ ] Add tests for each badge
-- [ ] Add tests for duplicate prevention
-- [ ] Update `docs/COMMANDS.md`
-- [ ] Update `docs/DATA_MODEL.md`
-- [ ] Update `docs/ROADMAP_NEXT.md`
+- [x] Add First Practice badge
+- [x] Add Three Practice Streak badge
+- [x] Add Five Practice Streak badge
+- [x] Add Perfect Week badge
+- [x] Add Practice Regular badge
+- [x] Add Practice Veteran badge
+- [x] Ensure practice badges are idempotent
+- [x] Ensure no badge for `NOT_HERE`
+- [x] Ensure no badge for no response
+- [x] Add tests for each badge
+- [x] Add tests for duplicate prevention
+- [x] Update `docs/COMMANDS.md`
+- [x] Update `docs/DATA_MODEL.md`
+- [x] Update `docs/ROADMAP_NEXT.md`
 
 ---
 

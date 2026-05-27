@@ -1,15 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
+  mockBackfillPracticeBadges,
   mockGetLatestPracticeRecap,
   mockGetPracticeRecapForSession,
   mockGetUserPracticeStreaks,
+  mockListUserPracticeBadges,
   mockListPracticeAttendanceLeaderboard,
   mockListUserPracticeAttendanceHistory
 } = vi.hoisted(() => ({
+  mockBackfillPracticeBadges: vi.fn(),
   mockGetLatestPracticeRecap: vi.fn(),
   mockGetPracticeRecapForSession: vi.fn(),
   mockGetUserPracticeStreaks: vi.fn(),
+  mockListUserPracticeBadges: vi.fn(),
   mockListPracticeAttendanceLeaderboard: vi.fn(),
   mockListUserPracticeAttendanceHistory: vi.fn()
 }));
@@ -36,6 +40,18 @@ vi.mock("../src/features/practice/practice-recap.service.js", async () => {
     ...actual,
     getLatestPracticeRecap: mockGetLatestPracticeRecap,
     getPracticeRecapForSession: mockGetPracticeRecapForSession
+  };
+});
+
+vi.mock("../src/features/practice/practice-badge.service.js", async () => {
+  const actual = await vi.importActual<
+    typeof import("../src/features/practice/practice-badge.service.js")
+  >("../src/features/practice/practice-badge.service.js");
+
+  return {
+    ...actual,
+    backfillPracticeBadges: mockBackfillPracticeBadges,
+    listUserPracticeBadges: mockListUserPracticeBadges
   };
 });
 
@@ -84,6 +100,14 @@ describe("practice command", () => {
     });
     mockGetLatestPracticeRecap.mockResolvedValue(null);
     mockGetPracticeRecapForSession.mockResolvedValue(null);
+    mockListUserPracticeBadges.mockResolvedValue([]);
+    mockBackfillPracticeBadges.mockResolvedValue({
+      definitionsSynced: 6,
+      usersEvaluated: 1,
+      awarded: 2,
+      alreadyAwarded: 0,
+      skipped: 0
+    });
   });
 
   it("exports the expected slash command metadata", () => {
@@ -98,6 +122,8 @@ describe("practice command", () => {
       "history",
       "leaderboard",
       "streaks",
+      "badges",
+      "badge-sync",
       "recap"
     ]);
     expect(practiceCommandJson.default_member_permissions).toBeUndefined();
@@ -242,6 +268,106 @@ describe("practice command", () => {
     });
   });
 
+  it("adds a compact practice badge summary to streaks when available", async () => {
+    mockListUserPracticeBadges.mockResolvedValue([
+      {
+        badge: {
+          id: "award_1",
+          guildId: "guild_123",
+          userId: "user_123",
+          badgeKey: "first-practice",
+          awardedAt: new Date("2026-05-27T12:00:00.000Z")
+        },
+        definition: {
+          id: "definition_1",
+          badgeKey: "first-practice",
+          title: "First Practice",
+          description: "Attend your first practice.",
+          isEnabled: true,
+          createdAt: new Date("2026-05-27T12:00:00.000Z"),
+          updatedAt: new Date("2026-05-27T12:00:00.000Z")
+        }
+      }
+    ]);
+    const interaction = createInteraction("streaks");
+
+    await practiceCommand.execute(interaction as never);
+
+    expect(interaction.reply).toHaveBeenCalledWith({
+      content: [
+        "Mira has no attended practices recorded yet.",
+        "Practice Badges: First Practice"
+      ].join("\n"),
+      ephemeral: true
+    });
+  });
+
+  it("shows practice badges for the caller and selected members", async () => {
+    const ownInteraction = createInteraction("badges");
+    const targetInteraction = createInteraction("badges", {
+      targetUser: {
+        id: "user_456",
+        username: "Kai"
+      }
+    });
+
+    await practiceCommand.execute(ownInteraction as never);
+    await practiceCommand.execute(targetInteraction as never);
+
+    expect(mockListUserPracticeBadges).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({
+        userId: "user_123"
+      })
+    );
+    expect(mockListUserPracticeBadges).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({
+        userId: "user_456"
+      })
+    );
+    expect(ownInteraction.reply).toHaveBeenCalledWith({
+      content: "Mira has not earned any practice badges yet.",
+      ephemeral: true
+    });
+    expect(targetInteraction.reply).toHaveBeenCalledWith({
+      content: "<@user_456> has not earned any practice badges yet.",
+      ephemeral: true
+    });
+  });
+
+  it("syncs and backfills practice badges for officers", async () => {
+    const interaction = createInteraction("badge-sync");
+
+    await practiceCommand.execute(interaction as never);
+
+    expect(mockBackfillPracticeBadges).toHaveBeenCalledWith(
+      {},
+      {
+        guildId: "guild_123",
+        now: expect.any(Date)
+      }
+    );
+    expect(interaction.reply).toHaveBeenCalledWith({
+      content: expect.stringContaining("Practice badge sync complete."),
+      ephemeral: true
+    });
+  });
+
+  it("requires Manage Guild for practice badge sync", async () => {
+    const interaction = createInteraction("badge-sync", {
+      canManageGuild: false
+    });
+
+    await practiceCommand.execute(interaction as never);
+
+    expect(mockBackfillPracticeBadges).not.toHaveBeenCalled();
+    expect(interaction.reply).toHaveBeenCalledWith({
+      content: "You do not have permission to manage practice sessions.",
+      ephemeral: true
+    });
+  });
+
   it("posts a practice recap for the latest completed practice", async () => {
     mockGetLatestPracticeRecap.mockResolvedValue(buildRecap());
     const interaction = createInteraction("recap");
@@ -305,7 +431,13 @@ describe("practice command", () => {
 });
 
 const createInteraction = (
-  subcommand: "history" | "leaderboard" | "streaks" | "recap",
+  subcommand:
+    | "history"
+    | "leaderboard"
+    | "streaks"
+    | "badges"
+    | "badge-sync"
+    | "recap",
   input: {
     canManageGuild?: boolean;
     sessionId?: string;

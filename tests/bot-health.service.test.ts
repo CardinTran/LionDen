@@ -36,6 +36,9 @@ const createHealthyStore = (): BotHealthPrismaClient => ({
     findFirst: async () => null,
     count: async () => 3
   },
+  badgeDefinition: {
+    count: async () => 6
+  },
   redEnvelopeDropConfig: {
     findUnique: async () => ({
       channelId: "red_channel",
@@ -127,6 +130,7 @@ describe("bot health service", () => {
     expect(output).toContain("Database:");
     expect(output).toContain("Practice:");
     expect(output).toContain("completed practice sessions");
+    expect(output).toContain("enabled practice badge definitions synced");
     expect(output).toContain("Red Envelopes:");
     expect(output).toContain("Lion Spawns:");
     expect(output).toContain("Houses:");
@@ -173,6 +177,7 @@ describe("bot health service", () => {
     store.redEnvelopeDropConfig.findUnique = async () => null;
     store.lionSpawnConfig.findUnique = async () => null;
     store.houseRecapConfig.findUnique = async () => null;
+    store.badgeDefinition.count = async () => 0;
     store.houseBadgeDefinition.count = async () => 0;
 
     const report = await getBotHealthReport(store, {
@@ -187,6 +192,7 @@ describe("bot health service", () => {
     expect(output).toContain("No red envelope drop config found.");
     expect(output).toContain("No lion spawn config found.");
     expect(output).toContain("No Weekly House Recap config found.");
+    expect(output).toContain("No enabled practice badge definitions found.");
     expect(output).toContain("No enabled House badge definitions found.");
   });
 });

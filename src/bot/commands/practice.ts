@@ -32,6 +32,15 @@ import {
   parsePracticeAttendancePeriod
 } from "../../features/practice/practice-attendance-formatting.js";
 import {
+  backfillPracticeBadges,
+  listUserPracticeBadges
+} from "../../features/practice/practice-badge.service.js";
+import {
+  formatCompactPracticeBadgeSummary,
+  formatPracticeBadgeListMessage,
+  formatPracticeBadgeSyncSummaryMessage
+} from "../../features/practice/practice-badge-formatting.js";
+import {
   getLatestPracticeRecap,
   getPracticeRecapForSession
 } from "../../features/practice/practice-recap.service.js";
@@ -220,6 +229,21 @@ export const practiceCommand: SlashCommand = {
     )
     .addSubcommand((subcommand) =>
       subcommand
+        .setName("badges")
+        .setDescription("View earned practice badges.")
+        .addUserOption((option) =>
+          option
+            .setName("member")
+            .setDescription("Optional member whose practice badges to view.")
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("badge-sync")
+        .setDescription("Sync and backfill practice badges from attendance history.")
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
         .setName("recap")
         .setDescription("Post a recap for a completed practice session.")
         .addStringOption((option) =>
@@ -284,19 +308,51 @@ export const practiceCommand: SlashCommand = {
 
     if (subcommand === "streaks") {
       const member = interaction.options.getUser("member") ?? interaction.user;
-      const streaks = await getUserPracticeStreaks(prisma, {
+      const [streaks, badges] = await Promise.all([
+        getUserPracticeStreaks(prisma, {
+          guildId,
+          userId: member.id,
+          now: new Date()
+        }),
+        listUserPracticeBadges(prisma, {
+          guildId,
+          userId: member.id
+        })
+      ]);
+      const badgeSummary = formatCompactPracticeBadgeSummary(badges);
+
+      await interaction.reply({
+        content: [
+          formatPracticeStreaksMessage({
+            displayName:
+              member.id === interaction.user.id
+                ? getDisplayName(interaction)
+                : `<@${member.id}>`,
+            streaks
+          }),
+          badgeSummary
+        ]
+          .filter(Boolean)
+          .join("\n"),
+        ephemeral: true
+      });
+      return;
+    }
+
+    if (subcommand === "badges") {
+      const member = interaction.options.getUser("member") ?? interaction.user;
+      const badges = await listUserPracticeBadges(prisma, {
         guildId,
-        userId: member.id,
-        now: new Date()
+        userId: member.id
       });
 
       await interaction.reply({
-        content: formatPracticeStreaksMessage({
+        content: formatPracticeBadgeListMessage({
           displayName:
             member.id === interaction.user.id
               ? getDisplayName(interaction)
               : `<@${member.id}>`,
-          streaks
+          badges
         }),
         ephemeral: true
       });
@@ -304,6 +360,19 @@ export const practiceCommand: SlashCommand = {
     }
 
     if (!(await requireManageGuild(interaction))) {
+      return;
+    }
+
+    if (subcommand === "badge-sync") {
+      const summary = await backfillPracticeBadges(prisma, {
+        guildId,
+        now: new Date()
+      });
+
+      await interaction.reply({
+        content: formatPracticeBadgeSyncSummaryMessage(summary),
+        ephemeral: true
+      });
       return;
     }
 
