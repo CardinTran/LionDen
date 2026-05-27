@@ -56,6 +56,7 @@ export interface BotHealthPrismaClient {
       announcementChannelId: string;
       source: string;
     } | null>;
+    count(args: unknown): Promise<number>;
   };
   redEnvelopeDropConfig: {
     findUnique(args: unknown): Promise<{
@@ -261,6 +262,23 @@ export const getBotHealthReport = async (
         message: session
           ? `Active practice session in <#${session.announcementChannelId}>.`
           : "No active practice session."
+      };
+    }),
+    runHealthCheck("Completed practice sessions", async () => {
+      const completedCount = await prisma.practiceSession.count({
+        where: {
+          guildId: input.guildId,
+          status: "ENDED",
+          endedAt: {
+            lte: input.now
+          }
+        }
+      });
+
+      return {
+        label: "Completed practice sessions",
+        status: "healthy",
+        message: `${completedCount} completed practice session${completedCount === 1 ? "" : "s"} available for attendance history.`
       };
     })
   ]);

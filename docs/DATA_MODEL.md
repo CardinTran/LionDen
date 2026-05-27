@@ -59,6 +59,8 @@ This document describes current Prisma models from `prisma/schema.prisma` only.
 - `PracticeSchedule`
   - Guild-level weekly practice posting configuration
 
+Practice attendance history uses the existing practice tables. Completed-practice views include `PracticeSession` rows whose status is `ENDED` and whose `endedAt` timestamp is not in the future. A `PracticeCheckIn.attendanceStatus` of `HERE` counts as attended; `NOT_HERE` and missing check-ins are retained as neutral history states but do not count toward attendance totals, streaks, or leaderboards.
+
 ### Weekly Challenges and Badges
 
 - `WeeklyChallengeDefinition`

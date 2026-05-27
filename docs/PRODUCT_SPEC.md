@@ -131,6 +131,17 @@ Current practice attendance rule:
 - `NOT_HERE`, or no attendance response, does not earn practice XP
 - each practice participant can only be rewarded once per session
 
+Current practice attendance history rule:
+
+- `/practice history` shows recent completed practice attendance for the caller, or for a selected member when provided
+- `/practice streaks` shows current streak, longest streak, total attended practices, current-month attendance, and last attended date
+- `/practice leaderboard` ranks members by attended completed practices for the current month by default, with last-30-days and all-time options
+- these views are based on completed practice sessions and existing check-in records; they do not change practice rewards or check-in behavior
+- `HERE` is the only status that counts as attended
+- `NOT_HERE` and no response are neutral non-attendance states and do not count toward streaks or leaderboards
+- future, scheduled, or active practice sessions are excluded
+- personal history and streak views reply ephemerally so attendance visibility is useful without public shaming
+
 Current weekly challenge and badge foundation rule:
 
 - `/weekly challenges` shows the caller's current weekly challenge progress
