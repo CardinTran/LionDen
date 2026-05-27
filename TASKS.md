@@ -163,23 +163,23 @@ The roadmap for this next phase lives in:
 
 ## Sprint 2.2: Practice Recap
 
-- [ ] Add practice recap generation service
-- [ ] Add `/practice recap`
-- [ ] Add attended count
-- [ ] Add `Not Here` count
-- [ ] Add no-response count
-- [ ] Add XP awarded count
-- [ ] Add House points awarded section if Houses exist
-- [ ] Add top streaks section if streaks exist
+- [x] Add practice recap generation service
+- [x] Add `/practice recap`
+- [x] Add attended count
+- [x] Add `Not Here` count
+- [x] Add no-response count
+- [x] Add XP awarded count
+- [x] Add House points awarded section if Houses exist
+- [x] Add top streaks section if streaks exist
 - [ ] Consider auto-post after `/practice end`
-- [ ] Add tests for recap generation
-- [ ] Add tests for attendance categories
-- [ ] Add tests for XP awarded count
-- [ ] Add tests for House point summary if integrated
-- [ ] Add tests for no active/closed session edge cases
-- [ ] Update `docs/COMMANDS.md`
-- [ ] Update `docs/OPERATIONS.md`
-- [ ] Update `docs/ROADMAP_NEXT.md`
+- [x] Add tests for recap generation
+- [x] Add tests for attendance categories
+- [x] Add tests for XP awarded count
+- [x] Add tests for House point summary if integrated
+- [x] Add tests for no active/closed session edge cases
+- [x] Update `docs/COMMANDS.md`
+- [x] Update `docs/OPERATIONS.md`
+- [x] Update `docs/ROADMAP_NEXT.md`
 
 ## Sprint 2.3: Practice Badges
 

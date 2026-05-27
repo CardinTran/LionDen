@@ -387,8 +387,22 @@ Implemented behavior:
 - Add a lightweight `/botadmin health` check that confirms completed practice sessions can be queried.
 - Preserve existing practice check-in, XP reward, House point, and weekly challenge behavior.
 
+## Sprint 2.2: Practice Recap
+
+Status: implemented.
+
+Implemented behavior:
+
+- Add reusable practice recap generation for completed sessions.
+- Add `/practice recap` for officer-posted public recaps.
+- Include attended, `Not Here`, and `No Response` counts with neutral wording.
+- Summarize persisted attendance XP records without awarding XP.
+- Summarize existing practice-attendance House ledger points without adding House points.
+- Highlight top active attendee streaks when meaningful.
+- Keep automatic recap posting after `/practice end` as a follow-up until duplicate-post tracking is designed.
+- Preserve existing practice check-in, XP reward, House point, weekly challenge, and badge behavior.
+
 Next recommended focus:
 
-- Sprint 2.2: Practice Recap.
-- Practice Badges remain Sprint 2.3.
+- Sprint 2.3: Practice Badges.
 - House title selection/display remains optional polish after the badge foundation.

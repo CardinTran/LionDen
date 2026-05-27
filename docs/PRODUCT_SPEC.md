@@ -142,6 +142,17 @@ Current practice attendance history rule:
 - future, scheduled, or active practice sessions are excluded
 - personal history and streak views reply ephemerally so attendance visibility is useful without public shaming
 
+Current practice recap rule:
+
+- `/practice recap` is an officer command that posts a public recap for the latest completed practice by default
+- officers can provide a practice session ID to recap a specific completed session
+- recaps include attended, `Not Here`, and `No Response` counts using neutral language
+- recaps summarize persisted attendance XP records but do not award XP
+- recaps summarize existing `PRACTICE_ATTENDANCE` House point ledger entries but do not add House points
+- recaps show up to three active streak highlights among attendees when those streaks are at least two practices long
+- active, scheduled, future, or missing practice sessions do not produce recaps
+- automatic recap posting after `/practice end` is deferred until duplicate-post tracking is designed
+
 Current weekly challenge and badge foundation rule:
 
 - `/weekly challenges` shows the caller's current weekly challenge progress

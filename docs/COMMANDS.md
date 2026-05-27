@@ -51,6 +51,7 @@
 - `/practice configure`: set the scheduled practice channel
 - `/practice start`: start a manual practice session
 - `/practice end`: end the active practice session and award attendance XP
+- `/practice recap [session_id]`: post a read-only recap for the latest completed practice, or a specific completed practice session ID
 - `/houseadmin create`: create a Team House
 - `/houseadmin assign`: assign or move a member to a House
 - `/houseadmin remove`: remove a member from their House
@@ -81,3 +82,4 @@ See [OPERATIONS.md](OPERATIONS.md) for scheduler timing, maintenance mode, admin
 - `I'm Here` / `HERE` counts as attended.
 - `Not Here` / `NOT_HERE` and no attendance response do not count as attended.
 - Future, scheduled, or still-active practice sessions are excluded.
+- `/practice recap` is officer-only, posts publicly on success, and summarizes attendance, recorded XP, existing practice House points, and top active streak highlights without awarding new rewards.

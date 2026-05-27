@@ -37,6 +37,7 @@ Active development happens on `develop`. This repo currently includes:
 - practice sessions with separate RSVP and attendance posts plus weekly scheduling
 - practice-end XP rewards for members marked `I'm Here`
 - practice attendance history, streaks, and leaderboards for completed sessions
+- officer-posted practice recaps for completed sessions
 - Team Houses / House Cup foundation with activity point hooks, Weekly House Recaps, and House badges
 - coin balance foundation stored on user profiles
 - `/daily` fixed coin reward with once-per-day claims
