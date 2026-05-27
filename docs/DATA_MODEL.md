@@ -35,6 +35,10 @@ This document describes current Prisma models from `prisma/schema.prisma` only.
   - Master definition table for catchable lion species
 - `UserLion`
   - A user's owned lion instance, including level, XP, and nickname
+- `FavoriteLion`
+  - One favorite owned lion per `guildId` + `userId`
+  - Points to `UserLion` with cascade delete so releasing the lion clears the favorite record
+  - Supports `/profile`, `~lions`, `~lion`, `~favorite`, and `~showcase` social display without changing lion power
 - `UserLionTeamSlot`
   - Team composition slots that point to owned lions
 - `ActiveLionSpawn`

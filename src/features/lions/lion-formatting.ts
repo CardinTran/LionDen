@@ -18,6 +18,12 @@ import type {
   UserLionTeamSlotWithLionRecord,
   UserLionWithSpeciesRecord
 } from "./lion-creature.service.js";
+import type {
+  ClearFavoriteLionResult,
+  LionShowcase,
+  SetFavoriteLionResult,
+  ShowcaseOwnedLionResult
+} from "./lion-showcase.service.js";
 import {
   getOwnedLionDisplayName,
   getOwnedLionShortReference,
@@ -103,6 +109,9 @@ export const formatLionHelpMessage = (): string =>
     "- `~catch <ball>` catch a wild lion",
     "- `~train <lion>` train one of your lions for XP",
     "- `~nickname <lion> <name>` nickname one of your lions",
+    "- `~favorite <lion>` set your favorite lion",
+    "- `~favorite clear` clear your favorite lion",
+    "- `~showcase [lion]` publicly show off one owned lion, or your favorite lion when no lion is provided",
     "- `~release <lion> confirm` release one owned lion for coins",
     "- `~team` view your battle team",
     "- `~team set <lion1> <lion2> <lion3>` set up to 3 team slots",
@@ -138,6 +147,7 @@ export const formatUserLionsMessage = (input: {
   lions: UserLionWithSpeciesRecord[];
   displayName: string;
   team?: UserLionTeamSlotWithLionRecord[];
+  favoriteLionId?: string | null;
 }): string => {
   if (input.lions.length === 0) {
     return `${input.displayName} has not caught any lions yet.`;
@@ -152,8 +162,9 @@ export const formatUserLionsMessage = (input: {
     ...input.lions.map((lion, index) => {
       const teamSlot = teamSlotByLionId.get(lion.id);
       const teamLabel = teamSlot ? ` - team slot ${teamSlot}` : "";
+      const favoriteLabel = input.favoriteLionId === lion.id ? "[favorite] " : "";
 
-      return `${formatCompactLionLine(lion, `${index + 1}. `)} (${lion.species.rarity})${teamLabel}`;
+      return `${formatCompactLionLine(lion, `${index + 1}. ${favoriteLabel}`)} (${lion.species.rarity})${teamLabel}`;
     })
   ].join("\n");
 };
@@ -211,7 +222,10 @@ export const formatClearUserLionTeamMessage = (clearedCount: number): string =>
 
 export const formatOwnedLionMessage = (
   lion: UserLionWithSpeciesRecord,
-  ownerDisplayName?: string
+  ownerDisplayName?: string,
+  options: {
+    isFavorite?: boolean;
+  } = {}
 ): string => {
   const stats = deriveLionStats(lion.species, lion.level);
   const progress = getLionExperienceProgress(lion.experience);
@@ -223,6 +237,7 @@ export const formatOwnedLionMessage = (
   return [
     `${getOwnedLionDisplayName(lion)} \`${lion.species.publicId}\``,
     ownerDisplayName ? `Owner: ${ownerDisplayName}` : null,
+    options.isFavorite ? "Favorite Lion: yes" : null,
     `Slug: \`${lion.species.slug}\` | Lion ID: \`${getOwnedLionShortReference(lion)}\``,
     lion.nickname ? `Nickname: ${lion.nickname}` : null,
     `Rarity: ${lion.species.rarity}`,
@@ -237,6 +252,91 @@ export const formatOwnedLionMessage = (
   ]
     .filter(Boolean)
     .join("\n");
+};
+
+export const formatFavoriteLionSummary = (
+  lion: UserLionWithSpeciesRecord | null
+): string | null => {
+  if (!lion) {
+    return null;
+  }
+
+  return `Favorite Lion: ${getOwnedLionDisplayName(lion)} - ${lion.species.rarity} ${lion.species.name}, Lv. ${lion.level}`;
+};
+
+export const formatSetFavoriteLionMessage = (
+  result: SetFavoriteLionResult
+): string => {
+  if (result.outcome === "no_lions") {
+    return "You have not caught any lions yet. Catch one with `~catch <ball>` first.";
+  }
+
+  if (result.outcome === "lion_not_found") {
+    return "I could not find that lion in your roster. Try `~lions` to see your owned IDs.";
+  }
+
+  if (result.outcome === "set") {
+    return `${getOwnedLionDisplayName(result.favorite.lion)} is now your favorite lion. Use \`~showcase\` to show it off.`;
+  }
+
+  return "That favorite lion could not be set right now.";
+};
+
+export const formatClearFavoriteLionMessage = (
+  result: ClearFavoriteLionResult
+): string =>
+  result.outcome === "cleared"
+    ? "Your favorite lion has been cleared."
+    : "You do not have a favorite lion set yet.";
+
+export const formatLionShowcaseMessage = (
+  showcase: LionShowcase
+): string => {
+  const lion = showcase.lion;
+  const stats = deriveLionStats(lion.species, lion.level);
+  const progress = getLionExperienceProgress(lion.experience);
+
+  return [
+    "Lion Showcase",
+    `Owner: <@${showcase.ownerUserId}> (${showcase.ownerDisplayName})`,
+    showcase.isFavorite ? "Favorite Lion: yes" : null,
+    `Name: ${getOwnedLionDisplayName(lion)}`,
+    lion.nickname ? `Nickname: ${lion.nickname}` : null,
+    `Species: ${lion.species.name}`,
+    `Rarity: ${lion.species.rarity}`,
+    `Type: ${lion.species.primaryType}${lion.species.secondaryType ? ` / ${lion.species.secondaryType}` : ""}`,
+    `Level: ${lion.level}`,
+    `XP: ${lion.experience} (${progress.xpNeededForNextLevel} to next level)`,
+    `Stats: ${stats.hp} HP | ${stats.attack} ATK | ${stats.defense} DEF | ${stats.speed} SPD`,
+    `Team: ${showcase.teamSlot ? `Slot ${showcase.teamSlot}` : "Not on saved team"}`,
+    `Caught: ${formatDiscordTimestamp(lion.acquiredAt, "t")}`,
+    `Lion ID: \`${getOwnedLionShortReference(lion)}\` | Code: \`${lion.species.publicId}\``,
+    `A proud member of <@${showcase.ownerUserId}>'s den.`
+  ]
+    .filter(Boolean)
+    .join("\n");
+};
+
+export const formatShowcaseOwnedLionMessage = (
+  result: ShowcaseOwnedLionResult
+): string => {
+  if (result.outcome === "no_favorite") {
+    return "Use `~showcase <lion>` to show one of your lions, or set a favorite first with `~favorite <lion>`.";
+  }
+
+  if (result.outcome === "no_lions") {
+    return "You have not caught any lions yet. Catch one with `~catch <ball>` first.";
+  }
+
+  if (result.outcome === "lion_not_found") {
+    return `I could not find \`${result.failedQuery ?? "that lion"}\` in your roster. Try \`~lions\` to see your owned IDs.`;
+  }
+
+  if (result.outcome === "showcase") {
+    return formatLionShowcaseMessage(result.showcase);
+  }
+
+  return "That lion could not be showcased right now.";
 };
 
 const formatExperienceAwardLine = (

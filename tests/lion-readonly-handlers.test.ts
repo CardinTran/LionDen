@@ -12,6 +12,7 @@ const mockListTopLionBattleTrainers = vi.fn();
 const mockListTopOwnedLions = vi.fn();
 const mockListUserLions = vi.fn();
 const mockListUserLionTeam = vi.fn();
+const mockGetFavoriteLion = vi.fn();
 
 const mockFormatLionBattleBoardMessage = vi.fn();
 const mockFormatLionBattleHistoryMessage = vi.fn();
@@ -36,6 +37,10 @@ vi.mock("../src/features/lions/lion-creature.service.js", () => ({
   listTopOwnedLions: mockListTopOwnedLions,
   listUserLions: mockListUserLions,
   listUserLionTeam: mockListUserLionTeam
+}));
+
+vi.mock("../src/features/lions/lion-showcase.service.js", () => ({
+  getFavoriteLion: mockGetFavoriteLion
 }));
 
 vi.mock("../src/features/lions/lion-formatting.js", () => ({
@@ -146,6 +151,7 @@ describe("read-only lion message handlers", () => {
     mockFormatTopLionsMessage.mockReturnValue("top lions");
     mockFormatUserLionsMessage.mockReturnValue("user lions");
     mockFormatWildLionStatusMessage.mockReturnValue("wild lions");
+    mockGetFavoriteLion.mockResolvedValue(null);
   });
 
   it("routes ~lions through roster and team lookups", async () => {
@@ -183,7 +189,8 @@ describe("read-only lion message handlers", () => {
     expect(mockFormatUserLionsMessage).toHaveBeenCalledWith({
       lions,
       displayName: "Mira Lee",
-      team
+      team,
+      favoriteLionId: null
     });
     expect(context.message.reply).toHaveBeenCalledWith("user lions");
   });
@@ -222,10 +229,9 @@ describe("read-only lion message handlers", () => {
       }
     );
     expect(mockFindUserLionFromList).toHaveBeenCalledWith(lions, "L001");
-    expect(mockFormatOwnedLionMessage).toHaveBeenCalledWith(
-      ownedLion,
-      "Mira Lee"
-    );
+    expect(mockFormatOwnedLionMessage).toHaveBeenCalledWith(ownedLion, "Mira Lee", {
+      isFavorite: false
+    });
     expect(context.message.reply).toHaveBeenCalledWith("owned lion");
   });
 

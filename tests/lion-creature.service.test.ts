@@ -832,6 +832,7 @@ describe("lion creature service", () => {
     });
     const deleteMock = vi.fn().mockResolvedValue(lion);
     const updateMock = vi.fn().mockResolvedValue(updatedProfile);
+    const favoriteDeleteMock = vi.fn().mockResolvedValue({ count: 1 });
 
     const result = await releaseUserLion(
       {
@@ -842,6 +843,9 @@ describe("lion creature service", () => {
         userProfile: {
           upsert: vi.fn().mockResolvedValue(profile),
           update: updateMock
+        },
+        favoriteLion: {
+          deleteMany: favoriteDeleteMock
         }
       } as never,
       {
@@ -861,6 +865,13 @@ describe("lion creature service", () => {
         }
       })
     );
+    expect(favoriteDeleteMock).toHaveBeenCalledWith({
+      where: {
+        guildId: "guild_123",
+        userId: "user_123",
+        lionId: "owned_123"
+      }
+    });
     expect(updateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({

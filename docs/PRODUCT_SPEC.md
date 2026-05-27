@@ -116,6 +116,11 @@ Current lion creature foundation rule:
 - catch success uses species catch difficulty plus the selected ball modifier
 - caught lions are stored as persistent user-owned creatures with level and XP fields reserved for future growth
 - `~wild` shows active wild lions and channel locations
+- `~favorite <lion>` lets a member choose one owned lion as their favorite, and `~favorite clear` removes that selection
+- `~showcase <lion>` posts a public, social showcase for one owned lion; `~showcase` without an argument uses the member's favorite lion
+- favorite lions appear in `/profile`, `~lions`, and `~lion` when available
+- favorite and showcase behavior is cosmetic only and does not award XP, coins, House points, weekly challenge progress, badges, combat bonuses, lion stats, or economy rewards
+- releasing a favorite lion clears the favorite state
 
 Current practice attendance rule:
 

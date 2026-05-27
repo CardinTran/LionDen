@@ -3,6 +3,7 @@ import {
   listUserLionTeam,
   listUserLions
 } from "../../../features/lions/lion-creature.service.js";
+import { getFavoriteLion } from "../../../features/lions/lion-showcase.service.js";
 import {
   formatOwnedLionMessage,
   formatUserLionsMessage
@@ -18,13 +19,17 @@ export const handleRosterLionMessage: LionMessageCommandHandler = async ({
   args
 }) => {
   if (normalizedCommand === "~lions") {
-    const [lions, team] = await Promise.all([
+    const [lions, team, favorite] = await Promise.all([
       listUserLions(prisma, {
         guildId,
         userId: message.author.id,
         limit: 20
       }),
       listUserLionTeam(prisma, {
+        guildId,
+        userId: message.author.id
+      }),
+      getFavoriteLion(prisma, {
         guildId,
         userId: message.author.id
       })
@@ -34,7 +39,8 @@ export const handleRosterLionMessage: LionMessageCommandHandler = async ({
       formatUserLionsMessage({
         lions,
         displayName: getDisplayName(message),
-        team
+        team,
+        favoriteLionId: favorite?.lionId ?? null
       })
     );
     return true;
@@ -55,12 +61,20 @@ export const handleRosterLionMessage: LionMessageCommandHandler = async ({
     limit: 100
   });
   const lion = findUserLionFromList(lions, args.join(" "));
+  const favorite = await getFavoriteLion(prisma, {
+    guildId,
+    userId: message.author.id
+  });
 
   if (!lion) {
     await message.reply("I could not find that lion in your roster.");
     return true;
   }
 
-  await message.reply(formatOwnedLionMessage(lion, getDisplayName(message)));
+  await message.reply(
+    formatOwnedLionMessage(lion, getDisplayName(message), {
+      isFavorite: favorite?.lionId === lion.id
+    })
+  );
   return true;
 };

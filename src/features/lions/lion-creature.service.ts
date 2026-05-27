@@ -190,6 +190,9 @@ interface LionCreatureStore {
   lionChannelEffect: any;
   lionBattleRecord: any;
   lionBattleChallenge: any;
+  favoriteLion?: {
+    deleteMany(args: unknown): Promise<{ count: number }>;
+  };
   userProfile: {
     upsert(args: {
       where: {
@@ -443,6 +446,9 @@ export const normalizeLionItemKey = (rawItemKey: string): string =>
 export const normalizeLionSearchQuery = (rawQuery: string): string =>
   normalizeLionItemKey(rawQuery).replace(/^#/, "");
 
+export const normalizeLionReferenceQuery = (rawQuery: string): string =>
+  rawQuery.trim().replace(/^["'](.+)["']$/, "$1");
+
 export const getOwnedLionShortReference = (
   lion: Pick<UserLionRecord, "id">
 ): string => `#${lion.id.slice(0, 8)}`;
@@ -493,8 +499,9 @@ export const findUserLionFromList = (
   lions: UserLionWithSpeciesRecord[],
   rawQuery: string
 ): UserLionWithSpeciesRecord | null => {
-  const query = rawQuery.trim().toLowerCase();
-  const normalizedQuery = normalizeLionSearchQuery(rawQuery);
+  const normalizedReference = normalizeLionReferenceQuery(rawQuery);
+  const query = normalizedReference.toLowerCase();
+  const normalizedQuery = normalizeLionSearchQuery(normalizedReference);
 
   if (!query) {
     return null;
@@ -1593,7 +1600,7 @@ export const calculateLionReleaseCoins = (
   );
 
 export const releaseUserLion = async (
-  store: Pick<LionCreatureStore, "userLion" | "userProfile">,
+  store: Pick<LionCreatureStore, "userLion" | "userProfile" | "favoriteLion">,
   input: {
     guildId: string;
     userId: string;
@@ -1628,6 +1635,14 @@ export const releaseUserLion = async (
     coins: profile.coins + coinsAwarded,
     lastMessageXpAt: profile.lastMessageXpAt,
     lastDailyClaimAt: profile.lastDailyClaimAt
+  });
+
+  await store.favoriteLion?.deleteMany({
+    where: {
+      guildId: input.guildId,
+      userId: input.userId,
+      lionId: lion.id
+    }
   });
 
   await store.userLion.delete({

@@ -290,19 +290,19 @@ The roadmap for this next phase lives in:
 
 ## Sprint 4.2: Lion Showcase
 
-- [ ] Add favorite lion support
-- [ ] Add `~favorite <lion>`
-- [ ] Add `~showcase <lion>`
-- [ ] Add favorite lion display to profile or roster if appropriate
-- [ ] Add public lion showcase formatting
-- [ ] Add tests for setting favorite lion
-- [ ] Add tests for changing favorite lion
-- [ ] Add tests for showcasing owned lion
-- [ ] Add tests for invalid lion query
-- [ ] Update `docs/LION_TEXT_COMMANDS.md`
-- [ ] Update `docs/COMMANDS.md`
-- [ ] Update `docs/DATA_MODEL.md`
-- [ ] Update `docs/ROADMAP_NEXT.md`
+- [x] Add favorite lion support
+- [x] Add `~favorite <lion>`
+- [x] Add `~showcase <lion>`
+- [x] Add favorite lion display to profile or roster if appropriate
+- [x] Add public lion showcase formatting
+- [x] Add tests for setting favorite lion
+- [x] Add tests for changing favorite lion
+- [x] Add tests for showcasing owned lion
+- [x] Add tests for invalid lion query
+- [x] Update `docs/LION_TEXT_COMMANDS.md`
+- [x] Update `docs/COMMANDS.md`
+- [x] Update `docs/DATA_MODEL.md`
+- [x] Update `docs/ROADMAP_NEXT.md`
 
 ---
 
