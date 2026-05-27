@@ -17,6 +17,14 @@ import {
   renameHouse
 } from "../../features/houses/house.service.js";
 import {
+  awardHouseBadge,
+  syncDefaultHouseBadgeDefinitions
+} from "../../features/houses/house-achievement.service.js";
+import {
+  formatHouseBadgeGrantMessage,
+  formatHouseBadgeSyncMessage
+} from "../../features/houses/house-achievement-formatting.js";
+import {
   configureHouseRecap,
   disableHouseRecap,
   getHouseRecapConfig,
@@ -307,6 +315,45 @@ export const houseAdminCommand: SlashCommand = {
             .setName("disable")
             .setDescription("Disable automatic Weekly House Recaps.")
         )
+    )
+    .addSubcommandGroup((group) =>
+      group
+        .setName("badge")
+        .setDescription("Manage House badge definitions and awards.")
+        .addSubcommand((subcommand) =>
+          subcommand
+            .setName("sync")
+            .setDescription("Sync default House badge definitions.")
+        )
+        .addSubcommand((subcommand) =>
+          subcommand
+            .setName("grant")
+            .setDescription("Grant a House badge to a member.")
+            .addUserOption((option) =>
+              option
+                .setName("member")
+                .setDescription("Member to receive the badge.")
+                .setRequired(true)
+            )
+            .addStringOption((option) =>
+              option
+                .setName("badge")
+                .setDescription("House badge key, such as house-founder.")
+                .setRequired(true)
+                .setMaxLength(64)
+            )
+            .addStringOption((option) =>
+              addHouseKeyOption(option)
+                .setDescription("Optional House key to associate with the award.")
+                .setMaxLength(64)
+            )
+            .addStringOption((option) =>
+              option
+                .setName("reason")
+                .setDescription("Optional award reason.")
+                .setMaxLength(200)
+            )
+        )
     ) as SlashCommandBuilder,
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     const guildId = interaction.guildId;
@@ -447,6 +494,73 @@ export const houseAdminCommand: SlashCommand = {
             outcome: result.outcome,
             weekKey: result.weekKey,
             channelId: channel.id
+          }),
+          ephemeral: true
+        });
+        return;
+      }
+    }
+
+    if (subcommandGroup === "badge") {
+      if (subcommand === "sync") {
+        const definitions = await syncDefaultHouseBadgeDefinitions(prisma);
+
+        logger.info("House badge definitions synced by admin", {
+          guildId,
+          adminUserId: interaction.user.id,
+          badgeCount: definitions.length
+        });
+
+        await interaction.reply({
+          content: formatHouseBadgeSyncMessage(definitions),
+          ephemeral: true
+        });
+        return;
+      }
+
+      if (subcommand === "grant") {
+        await syncDefaultHouseBadgeDefinitions(prisma);
+        const member = interaction.options.getUser("member", true);
+        const houseKey = interaction.options.getString("house");
+        const house = houseKey
+          ? await getHouseByKey(prisma, {
+              guildId,
+              houseKey
+            })
+          : null;
+
+        if (houseKey && !house) {
+          await interaction.reply({
+            content: "I could not find that House.",
+            ephemeral: true
+          });
+          return;
+        }
+
+        const result = await awardHouseBadge(prisma, {
+          guildId,
+          userId: member.id,
+          badgeKey: interaction.options.getString("badge", true),
+          houseId: house?.id ?? null,
+          awardedAt: new Date(),
+          reason:
+            interaction.options.getString("reason") ??
+            `Manually granted by ${interaction.user.id}.`
+        });
+
+        logger.info("House badge grant used", {
+          guildId,
+          userId: member.id,
+          houseId: house?.id,
+          badgeKey: interaction.options.getString("badge", true),
+          adminUserId: interaction.user.id,
+          outcome: result.outcome
+        });
+
+        await interaction.reply({
+          content: formatHouseBadgeGrantMessage({
+            targetName: member.username,
+            result
           }),
           ephemeral: true
         });

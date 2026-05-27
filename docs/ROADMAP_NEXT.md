@@ -353,8 +353,23 @@ Implemented behavior:
 
 ## Sprint 1.4: House Badges and Titles
 
-Next focus:
+Status: implemented for badges; titles deferred.
 
-- Add House badge definitions for durable team achievements.
-- Consider House titles only where they reinforce participation without cluttering profiles.
-- Keep badge awarding ledger-based or recap-aware where practical.
+Implemented behavior:
+
+- Add House badge definitions and user House badge awards.
+- Sync default House badge definitions idempotently.
+- Award weekly recap badges from official recap posts without changing House point totals.
+- Award House Champion, Weekly Contributor, Practice Powerhouse, Red Envelope Raider, Lion Handler, and Duel Defender from recap data.
+- Keep House Founder as a synced definition and manual officer grant.
+- Show House badges through `/house badges` and compact recent badge highlights in `/house profile`.
+- Add officer `/houseadmin badge sync` and `/houseadmin badge grant`.
+- Keep badge awards idempotent for weekly and lifetime awards.
+- Add a lightweight `/botadmin health` check for enabled House badge definitions.
+
+Titles were intentionally left as follow-up so badge durability could land without adding profile flair or title-selection complexity.
+
+Next recommended focus:
+
+- Stage 2.1: Practice Attendance History.
+- Alternatively, add House title selection/display as a small polish PR if the team wants visible flair before Stage 2.

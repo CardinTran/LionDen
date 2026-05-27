@@ -169,6 +169,18 @@ Current Weekly House Recap rule:
 - normal weekly recap posts are de-duplicated by guild and week key
 - empty states are valid: no Houses, no points, or no contributors should produce readable recap text
 
+Current House achievement rule:
+
+- House badges are durable, social proof of House participation and weekly recap accomplishments
+- House badges are cosmetic only and do not affect combat, XP, coins, economy rewards, or House point totals
+- default House badge definitions are synced through `/houseadmin badge sync` or automatically before recap/manual award flows
+- `/house badges` shows earned House badges, and `/house profile` includes a compact recent badge summary
+- official weekly recap posts award weekly House badges once per guild/user/badge/week
+- forced recap reposts and duplicate skipped recaps do not create duplicate badge awards
+- current default badges are House Founder, House Champion, Weekly Contributor, Practice Powerhouse, Red Envelope Raider, Lion Handler, and Duel Defender
+- House Founder is definition/manual-award only in this foundation PR
+- House titles are intentionally deferred until title selection and display rules can stay clean
+
 ## Roadmap
 
 1. Phase 0: repo foundation, toolchain, CI, `/ping`

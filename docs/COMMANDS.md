@@ -13,13 +13,14 @@
 - `/house join`: join an active Team House
 - `/house leave`: leave the caller's current Team House
 - `/house profile`: show the caller's House profile, including weekly and lifetime House points
+- `/house badges`: show the caller's earned House badges, or another member's badges when a member is provided
 - `/house leaderboard`: show current House Cup standings
 - `/house roster`: show members currently assigned to a House
 
 ### Officer and Admin
 
 - `/botadmin status`: show maintenance-mode state
-- `/botadmin health`: show an ephemeral development checklist for Discord readiness, database access, maintenance mode, practice, red envelopes, lion spawns, and Houses
+- `/botadmin health`: show an ephemeral development checklist for Discord readiness, database access, maintenance mode, practice, red envelopes, lion spawns, Houses, and House badge definitions
 - `/botadmin reloadpresence`: reapply presence from current state
 - `/botadmin maintenance`: enable or disable maintenance mode and update the message
 - `/coins add`: add coins to a member
@@ -58,6 +59,8 @@
 - `/houseadmin recap postnow`: post the current Weekly House Recap, skipping duplicates unless forced
 - `/houseadmin recap status`: inspect recap config, schedule, current week, and posted state
 - `/houseadmin recap disable`: disable automatic Weekly House Recaps without deleting config or history
+- `/houseadmin badge sync`: sync default House badge definitions
+- `/houseadmin badge grant`: manually grant a House badge to a member
 
 ## `~` Text Commands
 

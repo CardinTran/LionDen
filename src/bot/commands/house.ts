@@ -11,6 +11,8 @@ import {
   listHouseLeaderboard,
   listHouseRoster
 } from "../../features/houses/house.service.js";
+import { listUserHouseBadges } from "../../features/houses/house-achievement.service.js";
+import { formatUserHouseBadgesMessage } from "../../features/houses/house-achievement-formatting.js";
 import {
   formatHouseJoinMessage,
   formatHouseLeaderboardMessage,
@@ -53,6 +55,16 @@ export const houseCommand: SlashCommand = {
           option
             .setName("member")
             .setDescription("Optional member whose House profile to view.")
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("badges")
+        .setDescription("View earned House badges.")
+        .addUserOption((option) =>
+          option
+            .setName("member")
+            .setDescription("Optional member whose House badges to view.")
         )
     )
     .addSubcommand((subcommand) =>
@@ -114,11 +126,18 @@ export const houseCommand: SlashCommand = {
 
     if (subcommand === "profile") {
       const member = interaction.options.getUser("member") ?? interaction.user;
-      const profile = await getHouseProfile(prisma, {
-        guildId,
-        userId: member.id,
-        now: new Date()
-      });
+      const [profile, recentBadges] = await Promise.all([
+        getHouseProfile(prisma, {
+          guildId,
+          userId: member.id,
+          now: new Date()
+        }),
+        listUserHouseBadges(prisma, {
+          guildId,
+          userId: member.id,
+          take: 3
+        })
+      ]);
 
       await interaction.reply({
         content: formatHouseProfileMessage({
@@ -126,7 +145,28 @@ export const houseCommand: SlashCommand = {
             member.id === interaction.user.id
               ? getDisplayName(interaction)
               : member.username,
-          profile
+          profile,
+          recentBadges
+        }),
+        ephemeral: true
+      });
+      return;
+    }
+
+    if (subcommand === "badges") {
+      const member = interaction.options.getUser("member") ?? interaction.user;
+      const badges = await listUserHouseBadges(prisma, {
+        guildId,
+        userId: member.id
+      });
+
+      await interaction.reply({
+        content: formatUserHouseBadgesMessage({
+          displayName:
+            member.id === interaction.user.id
+              ? getDisplayName(interaction)
+              : member.username,
+          badges
         }),
         ephemeral: true
       });

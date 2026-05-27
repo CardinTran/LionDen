@@ -99,10 +99,21 @@ This document describes current Prisma models from `prisma/schema.prisma` only.
   - Records Weekly House Recap posts by guild and week key
   - `guildId` + `weekKey` is unique, preventing normal duplicate weekly recap posts
   - Stores the channel, optional Discord message id, and post timestamp
+- `HouseBadgeDefinition`
+  - Seeded House achievement definitions keyed by `badgeKey`
+  - Stores title, description, category, enabled state, and timestamps
+  - Categories are social/cosmetic only and do not affect combat, XP, coins, economy, or House points
+- `UserHouseBadge`
+  - Per-guild, per-user awarded House badges
+  - Stores the badge key, optional House context, optional weekly recap `weekKey`, awarded timestamp, and reason
+  - `guildId` + `userId` + `badgeKey` + `weekKey` is unique for weekly badge awards
+  - Lifetime badge idempotency is enforced in service logic because SQLite allows multiple `NULL` values inside composite unique indexes
+- `HouseBadgeCategory`
+  - Enum for House badge grouping: membership, weekly recap, practice, red envelope, lion activity, battle/duel, and contribution
 
 ## Planned Models
 
-No planned or future-only Prisma models are documented here today.
+House title models are intentionally deferred until title selection and display rules are clearer.
 
 ## Relationship Summary
 
@@ -113,6 +124,7 @@ No planned or future-only Prisma models are documented here today.
 - Weekly challenge progress and badges are scoped by `guildId` + `userId`
 - `House` has many `HouseMembership` and `HousePointLedger` records
 - `HouseMembership` is unique per `guildId` + `userId`
+- `House` can be associated with many `UserHouseBadge` awards as historical badge context
 
 ## Indexing Patterns
 

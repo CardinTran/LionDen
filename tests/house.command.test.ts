@@ -5,6 +5,7 @@ const mockJoinHouse = vi.fn();
 const mockLeaveHouse = vi.fn();
 const mockListHouseLeaderboard = vi.fn();
 const mockListHouseRoster = vi.fn();
+const mockListUserHouseBadges = vi.fn();
 
 vi.mock("../src/features/houses/house.service.js", async () => {
   const actual = await vi.importActual<
@@ -25,6 +26,10 @@ vi.mock("../src/lib/prisma.js", () => ({
   prisma: {}
 }));
 
+vi.mock("../src/features/houses/house-achievement.service.js", () => ({
+  listUserHouseBadges: mockListUserHouseBadges
+}));
+
 const { houseCommand, houseCommandJson } =
   await import("../src/bot/commands/house.js");
 
@@ -42,7 +47,13 @@ const buildHouse = () => ({
 });
 
 const createInteraction = (
-  subcommand: "join" | "leave" | "profile" | "leaderboard" | "roster"
+  subcommand:
+    | "join"
+    | "leave"
+    | "profile"
+    | "badges"
+    | "leaderboard"
+    | "roster"
 ) => {
   const user = {
     id: "user_123",
@@ -122,6 +133,7 @@ describe("house command", () => {
         }
       ]
     });
+    mockListUserHouseBadges.mockResolvedValue([]);
   });
 
   it("exports the expected slash command metadata", () => {
@@ -130,6 +142,7 @@ describe("house command", () => {
       "join",
       "leave",
       "profile",
+      "badges",
       "leaderboard",
       "roster"
     ]);
@@ -185,8 +198,104 @@ describe("house command", () => {
         now: expect.any(Date)
       }
     );
+    expect(mockListUserHouseBadges).toHaveBeenCalledWith(
+      {},
+      {
+        guildId: "guild_123",
+        userId: "user_123",
+        take: 3
+      }
+    );
     expect(interaction.reply).toHaveBeenCalledWith({
       content: expect.stringContaining("Mira's House profile"),
+      ephemeral: true
+    });
+  });
+
+  it("shows recent House badges in a House profile", async () => {
+    mockListUserHouseBadges.mockResolvedValue([
+      {
+        award: {
+          id: "award_123",
+          guildId: "guild_123",
+          userId: "user_123",
+          badgeKey: "house-champion",
+          houseId: "house_123",
+          weekKey: "2026-W22",
+          awardedAt: new Date("2026-05-26T12:00:00.000Z"),
+          reason: null
+        },
+        definition: {
+          id: "definition_123",
+          badgeKey: "house-champion",
+          title: "House Champion",
+          description: "Won the week.",
+          category: "WEEKLY_RECAP",
+          isEnabled: true,
+          createdAt: new Date("2026-05-26T12:00:00.000Z"),
+          updatedAt: new Date("2026-05-26T12:00:00.000Z")
+        }
+      }
+    ]);
+    const interaction = createInteraction("profile");
+
+    await houseCommand.execute(interaction as never);
+
+    expect(interaction.reply).toHaveBeenCalledWith({
+      content: expect.stringContaining(
+        "Recent House Badges: House Champion"
+      ),
+      ephemeral: true
+    });
+  });
+
+  it("shows House badges and handles no badges", async () => {
+    const emptyInteraction = createInteraction("badges");
+
+    await houseCommand.execute(emptyInteraction as never);
+
+    expect(mockListUserHouseBadges).toHaveBeenCalledWith(
+      {},
+      {
+        guildId: "guild_123",
+        userId: "user_123"
+      }
+    );
+    expect(emptyInteraction.reply).toHaveBeenCalledWith({
+      content: "Mira has not earned any House badges yet.",
+      ephemeral: true
+    });
+
+    mockListUserHouseBadges.mockResolvedValue([
+      {
+        award: {
+          id: "award_123",
+          guildId: "guild_123",
+          userId: "user_123",
+          badgeKey: "house-champion",
+          houseId: "house_123",
+          weekKey: "2026-W22",
+          awardedAt: new Date("2026-05-26T12:00:00.000Z"),
+          reason: null
+        },
+        definition: {
+          id: "definition_123",
+          badgeKey: "house-champion",
+          title: "House Champion",
+          description: "Won the week.",
+          category: "WEEKLY_RECAP",
+          isEnabled: true,
+          createdAt: new Date("2026-05-26T12:00:00.000Z"),
+          updatedAt: new Date("2026-05-26T12:00:00.000Z")
+        }
+      }
+    ]);
+    const earnedInteraction = createInteraction("badges");
+
+    await houseCommand.execute(earnedInteraction as never);
+
+    expect(earnedInteraction.reply).toHaveBeenCalledWith({
+      content: expect.stringContaining("House Champion"),
       ephemeral: true
     });
   });
