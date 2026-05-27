@@ -31,6 +31,14 @@ import {
   formatPracticeStreaksMessage,
   parsePracticeAttendancePeriod
 } from "../../features/practice/practice-attendance-formatting.js";
+import {
+  getLatestPracticeRecap,
+  getPracticeRecapForSession
+} from "../../features/practice/practice-recap.service.js";
+import {
+  formatNoPracticeRecapMessage,
+  formatPracticeRecapMessage
+} from "../../features/practice/practice-recap-formatting.js";
 import { recordWeeklyChallengeProgressSafely } from "../../features/challenges/weekly-challenge-hooks.js";
 import { prisma } from "../../lib/prisma.js";
 import type { SlashCommand } from "./types.js";
@@ -209,6 +217,18 @@ export const practiceCommand: SlashCommand = {
             .setName("member")
             .setDescription("Optional member whose practice streaks to view.")
         )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("recap")
+        .setDescription("Post a recap for a completed practice session.")
+        .addStringOption((option) =>
+          option
+            .setName("session_id")
+            .setDescription(
+              "Optional practice session ID. Defaults to the latest completed practice."
+            )
+        )
     ) as SlashCommandBuilder,
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     const guildId = interaction.guildId;
@@ -284,6 +304,33 @@ export const practiceCommand: SlashCommand = {
     }
 
     if (!(await requireManageGuild(interaction))) {
+      return;
+    }
+
+    if (subcommand === "recap") {
+      const sessionId = interaction.options.getString("session_id");
+      const recap = sessionId
+        ? await getPracticeRecapForSession(prisma, {
+            guildId,
+            sessionId,
+            now: new Date()
+          })
+        : await getLatestPracticeRecap(prisma, {
+            guildId,
+            now: new Date()
+          });
+
+      if (!recap) {
+        await interaction.reply({
+          content: formatNoPracticeRecapMessage(),
+          ephemeral: true
+        });
+        return;
+      }
+
+      await interaction.reply({
+        content: formatPracticeRecapMessage(recap)
+      });
       return;
     }
 

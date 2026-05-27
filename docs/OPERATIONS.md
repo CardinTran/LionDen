@@ -95,7 +95,7 @@ Main workflows:
 - `/botadmin maintenance`: enable or disable maintenance mode.
 - `/redenvelope configure`, `/redenvelope pause`, `/redenvelope dropnow`, `/redenvelope clearopen`, `/redenvelope status`: configure, pause, force, clear, and inspect red envelope automation.
 - `/lionadmin configure`, `/lionadmin pause`, `/lionadmin resume`, `/lionadmin dropnow`, `/lionadmin clearspawn`, `/lionadmin cleareffects`, `/lionadmin grantitem`, `/lionadmin species ...`, `/lionadmin item ...`, `/lionadmin status`: manage wild lion automation, catalog state, active spawns, channel effects, and item grants.
-- `/practice configure`, `/practice start`, `/practice end`: configure scheduled practice posts, start a manual session, and close the active session.
+- `/practice configure`, `/practice start`, `/practice end`, `/practice recap`: configure scheduled practice posts, start a manual session, close the active session, and post a read-only recap for a completed session.
 - `/coins ...` and `/xp ...`: adjust member balances and XP.
 - `/houseadmin create`, `/houseadmin assign`, `/houseadmin remove`, `/houseadmin rename`, `/houseadmin deactivate`: create Houses, move members, remove memberships, and retire Houses without deleting history.
 - `/houseadmin points add` and `/houseadmin points remove`: add signed ledger entries for officer corrections. These commands never mutate a stored House total directly.
@@ -129,6 +129,30 @@ Troubleshooting:
 - If a user appears with `Not Here` or `No Response`, that state is informational and does not add attendance count, XP, or streak progress.
 - If the leaderboard is empty, there may be no completed sessions with `HERE` check-ins in the selected period.
 - `/botadmin health` includes a completed-practice-session database query so officers can confirm the attendance history source table is readable.
+
+## Practice Recap Operations
+
+Practice recaps summarize completed practice data without creating rewards, House points, weekly challenge progress, or badge awards.
+
+Officer workflow:
+
+- End practice normally with `/practice end`.
+- Use `/practice recap` to post a public recap for the latest completed practice.
+- Use `/practice recap session_id:<id>` to recap a specific completed practice session when the ID is known.
+
+Recap sections:
+
+- Attendance: counts `HERE`, `NOT_HERE`, and attendance records with no attendance response.
+- Rewards: summarizes persisted `rewardXp` values on practice check-ins.
+- House Points: groups existing `PRACTICE_ATTENDANCE` House ledger entries whose source ID matches the practice session.
+- Streak Highlights: shows up to three attendees with current streaks of at least two practices.
+
+Troubleshooting:
+
+- If no recap is available, confirm that a practice session has been ended.
+- If House points are missing, the practice may predate the House point ledger hook or the attendees may not have belonged to active Houses.
+- If streak highlights are omitted, no attendee currently has a two-practice-or-longer streak.
+- Manual recap posting is intentionally repeatable. Automatic recap posting after `/practice end` is left as a future option with duplicate-post tracking.
 
 ## Team Houses / House Cup Operations
 

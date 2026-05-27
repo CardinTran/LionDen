@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
+  mockGetLatestPracticeRecap,
+  mockGetPracticeRecapForSession,
   mockGetUserPracticeStreaks,
   mockListPracticeAttendanceLeaderboard,
   mockListUserPracticeAttendanceHistory
 } = vi.hoisted(() => ({
+  mockGetLatestPracticeRecap: vi.fn(),
+  mockGetPracticeRecapForSession: vi.fn(),
   mockGetUserPracticeStreaks: vi.fn(),
   mockListPracticeAttendanceLeaderboard: vi.fn(),
   mockListUserPracticeAttendanceHistory: vi.fn()
@@ -20,6 +24,18 @@ vi.mock("../src/features/practice/practice-attendance.service.js", async () => {
     getUserPracticeStreaks: mockGetUserPracticeStreaks,
     listPracticeAttendanceLeaderboard: mockListPracticeAttendanceLeaderboard,
     listUserPracticeAttendanceHistory: mockListUserPracticeAttendanceHistory
+  };
+});
+
+vi.mock("../src/features/practice/practice-recap.service.js", async () => {
+  const actual = await vi.importActual<
+    typeof import("../src/features/practice/practice-recap.service.js")
+  >("../src/features/practice/practice-recap.service.js");
+
+  return {
+    ...actual,
+    getLatestPracticeRecap: mockGetLatestPracticeRecap,
+    getPracticeRecapForSession: mockGetPracticeRecapForSession
   };
 });
 
@@ -66,6 +82,8 @@ describe("practice command", () => {
       attendedInCurrentMonth: 0,
       lastAttendedAt: null
     });
+    mockGetLatestPracticeRecap.mockResolvedValue(null);
+    mockGetPracticeRecapForSession.mockResolvedValue(null);
   });
 
   it("exports the expected slash command metadata", () => {
@@ -79,7 +97,8 @@ describe("practice command", () => {
       "end",
       "history",
       "leaderboard",
-      "streaks"
+      "streaks",
+      "recap"
     ]);
     expect(practiceCommandJson.default_member_permissions).toBeUndefined();
   });
@@ -222,11 +241,74 @@ describe("practice command", () => {
       ephemeral: true
     });
   });
+
+  it("posts a practice recap for the latest completed practice", async () => {
+    mockGetLatestPracticeRecap.mockResolvedValue(buildRecap());
+    const interaction = createInteraction("recap");
+
+    await practiceCommand.execute(interaction as never);
+
+    expect(mockGetLatestPracticeRecap).toHaveBeenCalledWith(
+      {},
+      {
+        guildId: "guild_123",
+        now: expect.any(Date)
+      }
+    );
+    expect(interaction.reply).toHaveBeenCalledWith({
+      content: expect.stringContaining("Practice Recap - May 21, 2026")
+    });
+  });
+
+  it("posts a practice recap for a selected session", async () => {
+    mockGetPracticeRecapForSession.mockResolvedValue(buildRecap());
+    const interaction = createInteraction("recap", {
+      sessionId: "session_456"
+    });
+
+    await practiceCommand.execute(interaction as never);
+
+    expect(mockGetPracticeRecapForSession).toHaveBeenCalledWith(
+      {},
+      {
+        guildId: "guild_123",
+        sessionId: "session_456",
+        now: expect.any(Date)
+      }
+    );
+  });
+
+  it("handles no completed practice recap privately", async () => {
+    const interaction = createInteraction("recap");
+
+    await practiceCommand.execute(interaction as never);
+
+    expect(interaction.reply).toHaveBeenCalledWith({
+      content: "No completed practice session is available for a recap yet.",
+      ephemeral: true
+    });
+  });
+
+  it("requires Manage Guild for practice recap", async () => {
+    const interaction = createInteraction("recap", {
+      canManageGuild: false
+    });
+
+    await practiceCommand.execute(interaction as never);
+
+    expect(mockGetLatestPracticeRecap).not.toHaveBeenCalled();
+    expect(interaction.reply).toHaveBeenCalledWith({
+      content: "You do not have permission to manage practice sessions.",
+      ephemeral: true
+    });
+  });
 });
 
 const createInteraction = (
-  subcommand: "history" | "leaderboard" | "streaks",
+  subcommand: "history" | "leaderboard" | "streaks" | "recap",
   input: {
+    canManageGuild?: boolean;
+    sessionId?: string;
     targetUser?: {
       id: string;
       username: string;
@@ -243,11 +325,52 @@ const createInteraction = (
   member: {
     displayName: "Mira"
   },
+  memberPermissions: {
+    has: vi.fn(() => input.canManageGuild ?? true)
+  },
   options: {
     getSubcommand: vi.fn(() => subcommand),
     getUser: vi.fn(() => input.targetUser ?? null),
     getInteger: vi.fn(() => input.limit ?? null),
-    getString: vi.fn(() => input.period ?? null)
+    getString: vi.fn((name: string) =>
+      name === "session_id" ? input.sessionId ?? null : input.period ?? null
+    )
   },
   reply: vi.fn()
+});
+
+const buildRecap = () => ({
+  session: {
+    id: "session_123",
+    guildId: "guild_123",
+    startedByUserId: "coach_123",
+    startedByDisplayName: "Coach",
+    announcementChannelId: "channel_123",
+    source: "MANUAL" as const,
+    scheduledDateKey: null,
+    scheduledStartAt: null,
+    scheduledEndAt: null,
+    rsvpMessageId: null,
+    rsvpPostedAt: null,
+    attendanceMessageId: null,
+    attendancePostedAt: null,
+    status: "ENDED" as const,
+    startedAt: new Date("2026-05-20T23:00:00.000Z"),
+    endedAt: new Date("2026-05-21T01:00:00.000Z"),
+    endedByUserId: "coach_123"
+  },
+  sessionLabel: "May 21, 2026",
+  attendance: {
+    attended: 1,
+    notHere: 0,
+    noResponse: 0,
+    trackedResponses: 1
+  },
+  rewards: {
+    rewardedCount: 1,
+    xpPerMember: 30,
+    totalXpAwarded: 30
+  },
+  housePoints: [],
+  streakHighlights: []
 });
