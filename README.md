@@ -36,7 +36,7 @@ Active development happens on `develop`. This repo currently includes:
 - lion creature foundation with shop items, wild spawns, catches, and roster commands
 - practice sessions with separate RSVP and attendance posts plus weekly scheduling
 - practice-end XP rewards for members marked `I'm Here`
-- Team Houses / House Cup foundation with practice and weekly challenge point hooks
+- Team Houses / House Cup foundation with activity point hooks and Weekly House Recaps
 - coin balance foundation stored on user profiles
 - `/daily` fixed coin reward with once-per-day claims
 - starter docs and CI

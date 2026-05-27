@@ -362,6 +362,31 @@ model HousePointLedger {
   @@index([guildId, sourceType, createdAt])
 }
 
+model HouseRecapConfig {
+  id        String   @id @default(cuid())
+  guildId   String   @unique
+  channelId String?
+  isEnabled Boolean  @default(false)
+  weekday   Int      @default(0)
+  hour      Int      @default(18)
+  minute    Int      @default(0)
+  timezone  String   @default("America/Chicago")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model HouseRecapPost {
+  id        String   @id @default(cuid())
+  guildId   String
+  weekKey   String
+  channelId String
+  messageId String?
+  postedAt  DateTime @default(now())
+
+  @@unique([guildId, weekKey])
+  @@index([guildId, postedAt])
+}
+
 model PracticeSession {
   id                    String                @id @default(cuid())
   guildId               String

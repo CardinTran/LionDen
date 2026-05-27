@@ -99,6 +99,7 @@ Main workflows:
 - `/coins ...` and `/xp ...`: adjust member balances and XP.
 - `/houseadmin create`, `/houseadmin assign`, `/houseadmin remove`, `/houseadmin rename`, `/houseadmin deactivate`: create Houses, move members, remove memberships, and retire Houses without deleting history.
 - `/houseadmin points add` and `/houseadmin points remove`: add signed ledger entries for officer corrections. These commands never mutate a stored House total directly.
+- `/houseadmin recap configure`, `/houseadmin recap status`, `/houseadmin recap postnow`, `/houseadmin recap disable`: configure, inspect, manually post, and pause Weekly House Recaps.
 
 Admin setup and status replies should stay ephemeral unless a command intentionally posts public gameplay content, such as creating a red envelope or forcing a wild lion spawn.
 
@@ -125,6 +126,17 @@ House point hooks are best-effort. If House point recording fails, LionDen logs 
 
 Message activity does not currently award House points. That remains a future design item because spam prevention needs a capped, intentional mechanism.
 
+Weekly House Recaps turn the House point ledger into a weekly social summary:
+
+- `/houseadmin recap configure` enables automatic recaps in a channel. `weekday` uses `0` for Sunday through `6` for Saturday, and the default schedule is Sunday 18:00 America/Chicago.
+- `/houseadmin recap status` shows whether recaps are enabled, the configured channel and schedule, the current week key, whether that week has already posted, and the last post.
+- `/houseadmin recap postnow` posts the current recap to the configured channel or a provided channel. It skips the current week if already posted unless `force` is true.
+- `/houseadmin recap disable` pauses automatic posting without deleting config or post history.
+- The scheduler checks enabled recap configs once per minute and posts only when the configured local weekday/hour/minute is due.
+- Recap week keys reuse the weekly challenge ISO-style UTC week labels, such as `2026-W22`.
+- Normal recap posts are de-duplicated by `guildId` + `weekKey` in `HouseRecapPost`.
+- A forced manual repost can send another message, but it does not create a second normal posted-week record.
+
 Manual corrections:
 
 - Use `/houseadmin points add` for positive corrections.
@@ -138,6 +150,8 @@ Troubleshooting missing House points:
 - Confirm the House is still active.
 - Check `/botadmin health`; the Houses section warns when no active Houses are configured.
 - Check logs for House point hook warnings with `guildId`, `userId`, `sourceType`, and `sourceId`.
+- If no recap posted, check `/houseadmin recap status`, confirm the channel is configured, and review logs for scheduler warnings.
+- If a manual recap says it was skipped, the current week already has a normal post recorded.
 
 ## Migrations
 

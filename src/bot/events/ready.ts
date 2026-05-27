@@ -1,9 +1,8 @@
 import { Events, type Client } from "discord.js";
 
-import {
-  ensureBotGuildConfig
-} from "../../features/admin/bot-config.service.js";
+import { ensureBotGuildConfig } from "../../features/admin/bot-config.service.js";
 import { startRedEnvelopeScheduler } from "../../features/economy/red-envelope-scheduler.js";
+import { startHouseRecapScheduler } from "../../features/houses/house-recap-scheduler.js";
 import { startLionSpawnScheduler } from "../../features/lions/lion-spawn-scheduler.js";
 import { startPracticeScheduler } from "../../features/practice/practice-scheduler.js";
 import { env } from "../../config/env.js";
@@ -25,6 +24,7 @@ export const registerReadyEvent = (client: Client): void => {
       startPracticeScheduler(client);
       startRedEnvelopeScheduler(client);
       startLionSpawnScheduler(client);
+      startHouseRecapScheduler(client);
     })().catch((error) => {
       logger.error("Failed to initialize bot runtime controls", { error });
     });

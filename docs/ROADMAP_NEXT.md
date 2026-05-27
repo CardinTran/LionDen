@@ -339,9 +339,22 @@ Message activity House points remain a future consideration. They should wait fo
 
 ## Sprint 1.3: Weekly House Recap
 
-Next focus:
+Status: implemented.
+
+Implemented behavior:
 
 - Aggregate weekly House standings from the point ledger.
 - Show top Houses, top contributors, and source breakdowns.
 - Add officer controls for configuring, previewing, and posting recaps.
 - Prevent duplicate recap posts for the same guild and week.
+- Schedule enabled recaps by configured weekday, time, and timezone.
+- Track posted weeks in `HouseRecapPost`.
+- Keep message activity House points as a future capped design item.
+
+## Sprint 1.4: House Badges and Titles
+
+Next focus:
+
+- Add House badge definitions for durable team achievements.
+- Consider House titles only where they reinforce participation without cluttering profiles.
+- Keep badge awarding ledger-based or recap-aware where practical.

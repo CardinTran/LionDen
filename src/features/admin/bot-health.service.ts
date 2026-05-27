@@ -1,6 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 
 import { RED_ENVELOPE_EXPIRY_MINUTES } from "../economy/red-envelope.service.js";
+import { getCurrentHouseRecapWeekKey } from "../houses/house-recap.service.js";
 import type { BotGuildConfigRecord } from "./bot-config.service.js";
 
 export type BotHealthStatus = "healthy" | "warning" | "error";
@@ -72,6 +73,23 @@ export interface BotHealthPrismaClient {
   };
   activeLionSpawn: CountDelegate;
   house: CountDelegate;
+  houseRecapConfig: {
+    findUnique(args: unknown): Promise<{
+      channelId: string | null;
+      isEnabled: boolean;
+      weekday: number;
+      hour: number;
+      minute: number;
+      timezone: string;
+    } | null>;
+  };
+  houseRecapPost: {
+    findUnique(args: unknown): Promise<{
+      weekKey: string;
+      channelId: string;
+      postedAt: Date;
+    } | null>;
+  };
 }
 
 export interface GetBotHealthReportInput {
@@ -366,6 +384,48 @@ export const getBotHealthReport = async (
             ? `${activeHouseCount} active House${activeHouseCount === 1 ? "" : "s"} configured.`
             : "No active Houses configured."
       };
+    }),
+    runHealthCheck("Weekly House Recap", async () => {
+      const weekKey = getCurrentHouseRecapWeekKey(input.now);
+      const [config, currentPost] = await Promise.all([
+        prisma.houseRecapConfig.findUnique({
+          where: {
+            guildId: input.guildId
+          }
+        }),
+        prisma.houseRecapPost.findUnique({
+          where: {
+            guildId_weekKey: {
+              guildId: input.guildId,
+              weekKey
+            }
+          }
+        })
+      ]);
+
+      if (!config) {
+        return {
+          label: "Weekly House Recap",
+          status: "warning",
+          message: "No Weekly House Recap config found."
+        };
+      }
+
+      if (config.isEnabled && !config.channelId) {
+        return {
+          label: "Weekly House Recap",
+          status: "warning",
+          message: "Weekly House Recap enabled but missing a channel."
+        };
+      }
+
+      return {
+        label: "Weekly House Recap",
+        status: config.isEnabled ? "healthy" : "warning",
+        message: config.isEnabled
+          ? `Enabled for <#${config.channelId}>; current week ${weekKey} ${currentPost ? "already posted" : "not posted yet"}.`
+          : "Configured but disabled."
+      };
     })
   ]);
 
@@ -408,6 +468,7 @@ export const getBotHealthReport = async (
       "Run `/redenvelope configure` if random drops should be active.",
       "Run `/lionadmin configure` if wild spawns should be active.",
       "Run `/houseadmin create` to configure Team Houses.",
+      "Run `/houseadmin recap configure` if Weekly House Recaps should be active.",
       "Run `npm run prisma:migrate:deploy` if database table checks fail."
     ]
   };
