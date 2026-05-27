@@ -52,10 +52,15 @@ export interface UserLionRecord {
   nickname: string | null;
   level: number;
   experience: number;
+  bondXp?: number;
+  bondLevel?: number;
   sourceType: string;
   sourceReferenceId: string | null;
   lastTrainedAt: Date | null;
   lastBattledAt: Date | null;
+  lastFedAt?: Date | null;
+  lastGroomedAt?: Date | null;
+  lastBondedAt?: Date | null;
   acquiredAt: Date;
   createdAt: Date;
   updatedAt: Date;

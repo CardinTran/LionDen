@@ -29,6 +29,7 @@ import {
   getOwnedLionShortReference,
   HIGH_LEVEL_WILD_LION_THRESHOLD
 } from "./lion-creature.service.js";
+import { formatLionBondCompactSummary } from "./lion-bond-formatting.js";
 import type {
   LionAutoBattleResult,
   LionBattleRound,
@@ -112,6 +113,9 @@ export const formatLionHelpMessage = (): string =>
     "- `~favorite <lion>` set your favorite lion",
     "- `~favorite clear` clear your favorite lion",
     "- `~showcase [lion]` publicly show off one owned lion, or your favorite lion when no lion is provided",
+    "- `~bond [lion]` view cosmetic bond level, mood, and care cooldowns",
+    "- `~feed [lion]` feed one owned lion for bond XP (6h per-lion cooldown)",
+    "- `~groom [lion]` groom one owned lion for bond XP (6h per-lion cooldown)",
     "- `~release <lion> confirm` release one owned lion for coins",
     "- `~team` view your battle team",
     "- `~team set <lion1> <lion2> <lion3>` set up to 3 team slots",
@@ -245,6 +249,7 @@ export const formatOwnedLionMessage = (
     `Ability: ${lion.species.abilityName}`,
     `Passive: ${lion.species.abilityDescription}`,
     `Level: ${lion.level}`,
+    formatLionBondCompactSummary(lion),
     `XP: ${lion.experience} (${progress.xpNeededForNextLevel} to next level)`,
     `Stats: ${stats.hp} HP | ${stats.attack} ATK | ${stats.defense} DEF | ${stats.speed} SPD`,
     `Acquired: ${source} ${formatDiscordTimestamp(lion.acquiredAt, "t")}`,
@@ -261,7 +266,7 @@ export const formatFavoriteLionSummary = (
     return null;
   }
 
-  return `Favorite Lion: ${getOwnedLionDisplayName(lion)} - ${lion.species.rarity} ${lion.species.name}, Lv. ${lion.level}`;
+  return `Favorite Lion: ${getOwnedLionDisplayName(lion)} - ${lion.species.rarity} ${lion.species.name}, Lv. ${lion.level} | ${formatLionBondCompactSummary(lion)}`;
 };
 
 export const formatSetFavoriteLionMessage = (
@@ -306,6 +311,7 @@ export const formatLionShowcaseMessage = (
     `Rarity: ${lion.species.rarity}`,
     `Type: ${lion.species.primaryType}${lion.species.secondaryType ? ` / ${lion.species.secondaryType}` : ""}`,
     `Level: ${lion.level}`,
+    formatLionBondCompactSummary(lion),
     `XP: ${lion.experience} (${progress.xpNeededForNextLevel} to next level)`,
     `Stats: ${stats.hp} HP | ${stats.attack} ATK | ${stats.defense} DEF | ${stats.speed} SPD`,
     `Team: ${showcase.teamSlot ? `Slot ${showcase.teamSlot}` : "Not on saved team"}`,

@@ -198,6 +198,32 @@ Troubleshooting:
 - If a badge was already awarded, sync and future practice ends skip the duplicate.
 - `/botadmin health` reports whether enabled practice badge definitions are present.
 
+## Lion Bond Operations
+
+Lion Bond adds cosmetic care state to owned lions without changing combat, economy, House points, weekly challenges, badges, or user progression.
+
+Member behavior:
+
+- `~bond [lion]` displays bond level, XP progress, mood, and feed/groom cooldown readiness.
+- `~feed [lion]` grants +5 bond XP on success.
+- `~groom [lion]` grants +5 bond XP on success.
+- If no lion argument is provided, LionDen uses the member's favorite lion when one is set.
+- If no favorite is set, LionDen suggests `~favorite <lion>`.
+
+Cooldowns:
+
+- Feeding and grooming each have a separate 6-hour cooldown per owned lion.
+- Feeding one lion does not block grooming that same lion, and neither action blocks care for a different owned lion.
+- Cooldown failures do not mutate bond XP or timestamps.
+
+Troubleshooting:
+
+- If a member cannot bond/feed/groom, confirm the lion belongs to them and can be found with `~lions`.
+- If no-argument care fails, confirm the member set a favorite lion with `~favorite <lion>`.
+- If a cooldown message appears, wait for the displayed remaining time.
+- Releasing a lion deletes its bond fields because bond state lives on `UserLion`.
+- Bond care does not grant user XP, coins, House points, weekly challenge progress, badges, combat bonuses, or lion stat bonuses.
+
 ## Team Houses / House Cup Operations
 
 House setup:

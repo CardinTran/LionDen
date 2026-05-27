@@ -68,6 +68,7 @@ Handlers:
 - `src/bot/messages/lions/nickname.handler.ts`
 - `src/bot/messages/lions/favorite.handler.ts`
 - `src/bot/messages/lions/showcase.handler.ts`
+- `src/bot/messages/lions/bond.handler.ts`
 - `src/bot/messages/lions/release.handler.ts`
 
 Commands:
@@ -80,9 +81,15 @@ Commands:
 - `~favorite clear`: clears the caller's favorite lion.
 - `~showcase <lion>`: publicly posts a showcase message for one owned lion.
 - `~showcase`: publicly showcases the caller's favorite lion when one is set.
+- `~bond <lion>`: shows cosmetic bond level, progress, mood, and care cooldowns for one owned lion.
+- `~bond`: shows bond status for the caller's favorite lion when one is set.
+- `~feed <lion>`: feeds one owned lion for +5 bond XP. Feeding has a 6-hour per-lion cooldown.
+- `~feed`: feeds the caller's favorite lion when one is set.
+- `~groom <lion>`: grooms one owned lion for +5 bond XP. Grooming has a separate 6-hour per-lion cooldown.
+- `~groom`: grooms the caller's favorite lion when one is set.
 - `~release <lion> confirm`: releases one owned lion for coins.
 
-`~release <lion>` without `confirm` shows the release preview first. Releasing a favorite lion clears the favorite state. Favorite and showcase commands are social/cosmetic only; they do not grant XP, coins, House points, weekly challenge progress, badges, combat bonuses, or economy rewards.
+`~release <lion>` without `confirm` shows the release preview first. Releasing a favorite lion clears the favorite state. Favorite, showcase, bond, feed, and groom commands are social/cosmetic only; they do not grant user XP, coins, House points, weekly challenge progress, badges, combat bonuses, lion stat bonuses, or economy rewards. `~bond` is display-only and does not grant bond XP. If `~bond`, `~feed`, or `~groom` is run without a lion argument and no favorite lion is set, LionDen suggests `~favorite <lion>`.
 
 ## Team and Battles
 
