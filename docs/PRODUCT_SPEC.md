@@ -151,7 +151,10 @@ Current practice recap rule:
 - recaps summarize existing `PRACTICE_ATTENDANCE` House point ledger entries but do not add House points
 - recaps show up to three active streak highlights among attendees when those streaks are at least two practices long
 - active, scheduled, future, or missing practice sessions do not produce recaps
-- automatic recap posting after `/practice end` is deferred until duplicate-post tracking is designed
+- after `/practice end` succeeds, LionDen automatically posts the recap when a sendable practice, configured, or command channel can be resolved
+- automatic recap posts are tracked once per guild and practice session to prevent duplicate auto-posts on retries
+- manual `/practice recap` remains available and repeatable for officers
+- automatic recap posting is read-only apart from the post-tracking record; it does not award XP, House points, weekly challenge progress, or practice badges
 
 Current practice badge rule:
 

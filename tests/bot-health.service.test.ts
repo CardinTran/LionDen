@@ -36,6 +36,9 @@ const createHealthyStore = (): BotHealthPrismaClient => ({
     findFirst: async () => null,
     count: async () => 3
   },
+  practiceRecapPost: {
+    count: async () => 2
+  },
   badgeDefinition: {
     count: async () => 6
   },
@@ -130,6 +133,7 @@ describe("bot health service", () => {
     expect(output).toContain("Database:");
     expect(output).toContain("Practice:");
     expect(output).toContain("completed practice sessions");
+    expect(output).toContain("automatic practice recap posts tracked");
     expect(output).toContain("enabled practice badge definitions synced");
     expect(output).toContain("Red Envelopes:");
     expect(output).toContain("Lion Spawns:");

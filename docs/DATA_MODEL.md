@@ -58,8 +58,14 @@ This document describes current Prisma models from `prisma/schema.prisma` only.
   - RSVP and attendance state per user per session
 - `PracticeSchedule`
   - Guild-level weekly practice posting configuration
+- `PracticeRecapPost`
+  - Records automatic practice recap posts created after `/practice end`
+  - `guildId` + `practiceId` is unique, preventing duplicate automatic recap posts for the same practice session
+  - Stores the channel, optional Discord message id, and post timestamp
 
 Practice attendance history uses the existing practice tables. Completed-practice views include `PracticeSession` rows whose status is `ENDED` and whose `endedAt` timestamp is not in the future. A `PracticeCheckIn.attendanceStatus` of `HERE` counts as attended; `NOT_HERE` and missing check-ins are retained as neutral history states but do not count toward attendance totals, streaks, or leaderboards.
+
+Practice recap auto-posting summarizes existing practice data only. It reads completed practice sessions, check-ins, XP reward fields, House point ledger rows, and streak history, then writes a `PracticeRecapPost` row only after the Discord recap message sends successfully. Manual `/practice recap` output is intentionally repeatable and does not require a `PracticeRecapPost` record.
 
 ### Weekly Challenges and Badges
 
@@ -125,6 +131,7 @@ House title models are intentionally deferred until title selection and display 
 - `LionSpecies` has many `UserLion` and `ActiveLionSpawn`
 - `UserLion` has many `UserLionTeamSlot`
 - `PracticeSession` has many `PracticeCheckIn`
+- `PracticeRecapPost` tracks automatic recap delivery for one completed practice session per guild
 - `UserProfile` is the central per-user record for XP and coins
 - Weekly challenge progress and badges are scoped by `guildId` + `userId`
 - `House` has many `HouseMembership` and `HousePointLedger` records

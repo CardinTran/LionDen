@@ -45,6 +45,10 @@ import {
   getPracticeRecapForSession
 } from "../../features/practice/practice-recap.service.js";
 import {
+  autoPostPracticeRecapAfterEnd,
+  type PracticeRecapAutoPostOutcome
+} from "../../features/practice/practice-recap-autopost.service.js";
+import {
   formatNoPracticeRecapMessage,
   formatPracticeRecapMessage
 } from "../../features/practice/practice-recap-formatting.js";
@@ -147,6 +151,22 @@ const getDisplayName = (interaction: ChatInputCommandInteraction): string =>
   interaction.member && "displayName" in interaction.member
     ? interaction.member.displayName
     : interaction.user.username;
+
+const formatPracticeEndAutoPostSuffix = (
+  outcome: PracticeRecapAutoPostOutcome
+): string => {
+  switch (outcome.outcome) {
+    case "posted":
+    case "posted_untracked":
+      return " Practice recap posted.";
+    case "skipped_duplicate":
+      return " Practice recap was already posted.";
+    case "skipped_missing_channel":
+    case "skipped_no_recap":
+    case "failed":
+      return " Recap auto-post could not be sent.";
+  }
+};
 
 export const practiceCommand: SlashCommand = {
   data: new SlashCommandBuilder()
@@ -489,10 +509,11 @@ export const practiceCommand: SlashCommand = {
       return;
     }
 
+    const endedAt = new Date();
     const result = await endPracticeSession(prisma, {
       guildId,
       endedByUserId: interaction.user.id,
-      endedAt: new Date()
+      endedAt
     });
 
     if (!result) {
@@ -545,8 +566,17 @@ export const practiceCommand: SlashCommand = {
       // Best-effort update only; the session is already closed in the database.
     }
 
+    const autoPostResult = await autoPostPracticeRecapAfterEnd(prisma, {
+      guildId,
+      practiceId: result.session.id,
+      session: result.session,
+      now: endedAt,
+      commandChannel: channel,
+      client: interaction.client
+    });
+
     await interaction.reply({
-      content: `Practice session ended with ${result.checkInCount} member${result.checkInCount === 1 ? "" : "s"} marked here. Awarded ${PRACTICE_ATTENDANCE_XP} XP to ${result.rewardedCount} attendee${result.rewardedCount === 1 ? "" : "s"}.`,
+      content: `Practice session ended with ${result.checkInCount} member${result.checkInCount === 1 ? "" : "s"} marked here. Awarded ${PRACTICE_ATTENDANCE_XP} XP to ${result.rewardedCount} attendee${result.rewardedCount === 1 ? "" : "s"}.${formatPracticeEndAutoPostSuffix(autoPostResult)}`,
       ephemeral: true
     });
   }

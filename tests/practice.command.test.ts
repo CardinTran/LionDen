@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
+  mockAutoPostPracticeRecapAfterEnd,
   mockBackfillPracticeBadges,
+  mockEndPracticeSession,
   mockGetLatestPracticeRecap,
   mockGetPracticeRecapForSession,
   mockGetUserPracticeStreaks,
@@ -9,7 +11,9 @@ const {
   mockListPracticeAttendanceLeaderboard,
   mockListUserPracticeAttendanceHistory
 } = vi.hoisted(() => ({
+  mockAutoPostPracticeRecapAfterEnd: vi.fn(),
   mockBackfillPracticeBadges: vi.fn(),
+  mockEndPracticeSession: vi.fn(),
   mockGetLatestPracticeRecap: vi.fn(),
   mockGetPracticeRecapForSession: vi.fn(),
   mockGetUserPracticeStreaks: vi.fn(),
@@ -43,6 +47,17 @@ vi.mock("../src/features/practice/practice-recap.service.js", async () => {
   };
 });
 
+vi.mock("../src/features/practice/practice.service.js", async () => {
+  const actual = await vi.importActual<
+    typeof import("../src/features/practice/practice.service.js")
+  >("../src/features/practice/practice.service.js");
+
+  return {
+    ...actual,
+    endPracticeSession: mockEndPracticeSession
+  };
+});
+
 vi.mock("../src/features/practice/practice-badge.service.js", async () => {
   const actual = await vi.importActual<
     typeof import("../src/features/practice/practice-badge.service.js")
@@ -54,6 +69,10 @@ vi.mock("../src/features/practice/practice-badge.service.js", async () => {
     listUserPracticeBadges: mockListUserPracticeBadges
   };
 });
+
+vi.mock("../src/features/practice/practice-recap-autopost.service.js", () => ({
+  autoPostPracticeRecapAfterEnd: mockAutoPostPracticeRecapAfterEnd
+}));
 
 vi.mock("../src/lib/prisma.js", () => ({
   prisma: {}
@@ -100,6 +119,12 @@ describe("practice command", () => {
     });
     mockGetLatestPracticeRecap.mockResolvedValue(null);
     mockGetPracticeRecapForSession.mockResolvedValue(null);
+    mockEndPracticeSession.mockResolvedValue(null);
+    mockAutoPostPracticeRecapAfterEnd.mockResolvedValue({
+      outcome: "posted",
+      channelId: "channel_123",
+      messageId: "message_123"
+    });
     mockListUserPracticeBadges.mockResolvedValue([]);
     mockBackfillPracticeBadges.mockResolvedValue({
       definitionsSynced: 6,
@@ -384,6 +409,7 @@ describe("practice command", () => {
     expect(interaction.reply).toHaveBeenCalledWith({
       content: expect.stringContaining("Practice Recap - May 21, 2026")
     });
+    expect(mockAutoPostPracticeRecapAfterEnd).not.toHaveBeenCalled();
   });
 
   it("posts a practice recap for a selected session", async () => {
@@ -428,6 +454,72 @@ describe("practice command", () => {
       ephemeral: true
     });
   });
+
+  it("auto-posts a practice recap after ending practice", async () => {
+    mockEndPracticeSession.mockResolvedValue(buildEndResult());
+    const interaction = createInteraction("end");
+
+    await practiceCommand.execute(interaction as never);
+
+    expect(mockEndPracticeSession).toHaveBeenCalledWith(
+      {},
+      {
+        guildId: "guild_123",
+        endedByUserId: "user_123",
+        endedAt: expect.any(Date)
+      }
+    );
+    expect(mockAutoPostPracticeRecapAfterEnd).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({
+        guildId: "guild_123",
+        practiceId: "session_123",
+        session: expect.objectContaining({
+          id: "session_123"
+        }),
+        commandChannel: expect.objectContaining({
+          id: "channel_123"
+        }),
+        client: interaction.client
+      })
+    );
+    expect(interaction.reply).toHaveBeenCalledWith({
+      content: expect.stringContaining("Practice recap posted."),
+      ephemeral: true
+    });
+  });
+
+  it("does not auto-post when practice end has no active session", async () => {
+    const interaction = createInteraction("end");
+
+    await practiceCommand.execute(interaction as never);
+
+    expect(mockAutoPostPracticeRecapAfterEnd).not.toHaveBeenCalled();
+    expect(interaction.reply).toHaveBeenCalledWith({
+      content: "There is no active practice session to end.",
+      ephemeral: true
+    });
+  });
+
+  it("keeps practice end successful when recap auto-post fails", async () => {
+    mockEndPracticeSession.mockResolvedValue(buildEndResult());
+    mockAutoPostPracticeRecapAfterEnd.mockResolvedValue({
+      outcome: "failed",
+      error: new Error("cannot post")
+    });
+    const interaction = createInteraction("end");
+
+    await practiceCommand.execute(interaction as never);
+
+    expect(interaction.reply).toHaveBeenCalledWith({
+      content: expect.stringContaining("Recap auto-post could not be sent."),
+      ephemeral: true
+    });
+    expect(interaction.reply).toHaveBeenCalledWith({
+      content: expect.stringContaining("Awarded 30 XP to 1 attendee."),
+      ephemeral: true
+    });
+  });
 });
 
 const createInteraction = (
@@ -437,7 +529,8 @@ const createInteraction = (
     | "streaks"
     | "badges"
     | "badge-sync"
-    | "recap",
+    | "recap"
+    | "end",
   input: {
     canManageGuild?: boolean;
     sessionId?: string;
@@ -467,6 +560,20 @@ const createInteraction = (
     getString: vi.fn((name: string) =>
       name === "session_id" ? input.sessionId ?? null : input.period ?? null
     )
+  },
+  channel: {
+    id: "channel_123",
+    type: 0,
+    isTextBased: vi.fn(() => true),
+    send: vi.fn()
+  },
+  client: {
+    channels: {
+      fetch: vi.fn(async () => ({
+        id: "channel_123",
+        isTextBased: () => true
+      }))
+    }
   },
   reply: vi.fn()
 });
@@ -505,4 +612,11 @@ const buildRecap = () => ({
   },
   housePoints: [],
   streakHighlights: []
+});
+
+const buildEndResult = () => ({
+  session: buildRecap().session,
+  checkInCount: 1,
+  rewardedCount: 1,
+  rewardXpPerMember: 30
 });

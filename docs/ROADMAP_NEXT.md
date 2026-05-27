@@ -399,7 +399,7 @@ Implemented behavior:
 - Summarize persisted attendance XP records without awarding XP.
 - Summarize existing practice-attendance House ledger points without adding House points.
 - Highlight top active attendee streaks when meaningful.
-- Keep automatic recap posting after `/practice end` as a follow-up until duplicate-post tracking is designed.
+- Automatically post a practice recap after successful `/practice end` with duplicate tracking by guild and practice session.
 - Preserve existing practice check-in, XP reward, House point, weekly challenge, and badge behavior.
 
 ## Sprint 2.3: Practice Badges
@@ -418,6 +418,5 @@ Implemented behavior:
 
 Next recommended focus:
 
-- Small follow-up: Practice Recap auto-post with duplicate-post tracking.
-- Larger roadmap step: Stage 3.1 Seasonal Event Foundation.
+- Stage 3.1 Seasonal Event Foundation.
 - House title selection/display remains optional polish after the badge foundation.
