@@ -158,6 +158,17 @@ Current Team Houses / House Cup foundation rule:
 - members without Houses do not receive House points and do not break existing flows
 - message activity does not award House points yet; it needs a capped anti-spam design before implementation
 
+Current Weekly House Recap rule:
+
+- officers configure recaps with `/houseadmin recap configure`
+- recaps summarize the existing House point ledger; they do not mutate House totals or add new point sources
+- recaps include weekly standings, top contributors, category highlights, and point source breakdowns
+- category highlights cover practice, weekly challenges, red envelopes, lion activity, battle/duel activity, and admin adjustments
+- `/houseadmin recap postnow` lets officers manually post the current recap
+- automatic recap posting is controlled by the configured channel, weekday, hour, minute, and timezone
+- normal weekly recap posts are de-duplicated by guild and week key
+- empty states are valid: no Houses, no points, or no contributors should produce readable recap text
+
 ## Roadmap
 
 1. Phase 0: repo foundation, toolchain, CI, `/ping`

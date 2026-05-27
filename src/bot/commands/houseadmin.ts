@@ -1,5 +1,6 @@
 import {
   ChatInputCommandInteraction,
+  ChannelType,
   PermissionFlagsBits,
   SlashCommandBuilder,
   type RESTPostAPIChatInputApplicationCommandsJSONBody
@@ -16,11 +17,28 @@ import {
   renameHouse
 } from "../../features/houses/house.service.js";
 import {
+  configureHouseRecap,
+  disableHouseRecap,
+  getHouseRecapConfig,
+  getHouseRecapStatus
+} from "../../features/houses/house-recap.service.js";
+import {
+  fetchHouseRecapChannel,
+  postWeeklyHouseRecapNow
+} from "../../features/houses/house-recap-scheduler.js";
+import {
   formatHouseAdminMembershipMessage,
   formatHouseCreateMessage,
   formatHousePointAdjustmentMessage,
   formatHouseUpdateMessage
 } from "../../features/houses/house-formatting.js";
+import {
+  formatHouseRecapConfiguredMessage,
+  formatHouseRecapDisabledMessage,
+  formatHouseRecapPostResultMessage,
+  formatHouseRecapStatusMessage
+} from "../../features/houses/house-recap-formatting.js";
+import { logger } from "../../lib/logger.js";
 import { prisma } from "../../lib/prisma.js";
 import type { SlashCommand } from "./types.js";
 
@@ -217,6 +235,78 @@ export const houseAdminCommand: SlashCommand = {
               option.setName("member").setDescription("Optional member source.")
             )
         )
+    )
+    .addSubcommandGroup((group) =>
+      group
+        .setName("recap")
+        .setDescription("Configure and post Weekly House Recaps.")
+        .addSubcommand((subcommand) =>
+          subcommand
+            .setName("configure")
+            .setDescription("Enable Weekly House Recaps in a channel.")
+            .addChannelOption((option) =>
+              option
+                .setName("channel")
+                .setDescription("Channel where weekly recaps should post.")
+                .addChannelTypes(ChannelType.GuildText)
+                .setRequired(true)
+            )
+            .addIntegerOption((option) =>
+              option
+                .setName("weekday")
+                .setDescription(
+                  "Posting weekday, where 0 is Sunday and 6 is Saturday."
+                )
+                .setMinValue(0)
+                .setMaxValue(6)
+            )
+            .addIntegerOption((option) =>
+              option
+                .setName("hour")
+                .setDescription("Posting hour in the configured timezone.")
+                .setMinValue(0)
+                .setMaxValue(23)
+            )
+            .addIntegerOption((option) =>
+              option
+                .setName("minute")
+                .setDescription("Posting minute in the configured timezone.")
+                .setMinValue(0)
+                .setMaxValue(59)
+            )
+            .addStringOption((option) =>
+              option
+                .setName("timezone")
+                .setDescription("IANA timezone, default America/Chicago.")
+                .setMaxLength(64)
+            )
+        )
+        .addSubcommand((subcommand) =>
+          subcommand
+            .setName("postnow")
+            .setDescription("Post the current Weekly House Recap now.")
+            .addChannelOption((option) =>
+              option
+                .setName("channel")
+                .setDescription("Optional channel override.")
+                .addChannelTypes(ChannelType.GuildText)
+            )
+            .addBooleanOption((option) =>
+              option
+                .setName("force")
+                .setDescription("Post even if this week was already posted.")
+            )
+        )
+        .addSubcommand((subcommand) =>
+          subcommand
+            .setName("status")
+            .setDescription("Show Weekly House Recap status.")
+        )
+        .addSubcommand((subcommand) =>
+          subcommand
+            .setName("disable")
+            .setDescription("Disable automatic Weekly House Recaps.")
+        )
     ) as SlashCommandBuilder,
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     const guildId = interaction.guildId;
@@ -252,6 +342,116 @@ export const houseAdminCommand: SlashCommand = {
         ephemeral: true
       });
       return;
+    }
+
+    if (subcommandGroup === "recap") {
+      if (subcommand === "configure") {
+        const channel = interaction.options.getChannel("channel", true);
+        const config = await configureHouseRecap(prisma, {
+          guildId,
+          channelId: channel.id,
+          weekday: interaction.options.getInteger("weekday"),
+          hour: interaction.options.getInteger("hour"),
+          minute: interaction.options.getInteger("minute"),
+          timezone: interaction.options.getString("timezone")
+        });
+
+        logger.info("Weekly House Recap configured", {
+          guildId,
+          channelId: config.channelId,
+          adminUserId: interaction.user.id
+        });
+
+        await interaction.reply({
+          content: formatHouseRecapConfiguredMessage(config),
+          ephemeral: true
+        });
+        return;
+      }
+
+      if (subcommand === "status") {
+        await interaction.reply({
+          content: formatHouseRecapStatusMessage(
+            await getHouseRecapStatus(prisma, {
+              guildId,
+              now: new Date()
+            })
+          ),
+          ephemeral: true
+        });
+        return;
+      }
+
+      if (subcommand === "disable") {
+        const config = await disableHouseRecap(prisma, guildId);
+
+        logger.info("Weekly House Recap disabled", {
+          guildId,
+          adminUserId: interaction.user.id
+        });
+
+        await interaction.reply({
+          content: formatHouseRecapDisabledMessage(config),
+          ephemeral: true
+        });
+        return;
+      }
+
+      if (subcommand === "postnow") {
+        const selectedChannel = interaction.options.getChannel("channel");
+        const config = await getHouseRecapConfig(prisma, guildId);
+        const channelId = selectedChannel?.id ?? config?.channelId;
+
+        if (!channelId) {
+          await interaction.reply({
+            content:
+              "Configure Weekly House Recap first or provide a channel option.",
+            ephemeral: true
+          });
+          return;
+        }
+
+        const channel =
+          selectedChannel && "send" in selectedChannel
+            ? (selectedChannel as {
+                id: string;
+                send(args: { content: string }): Promise<{ id: string }>;
+              })
+            : await fetchHouseRecapChannel(interaction.client, channelId);
+
+        if (!channel) {
+          await interaction.reply({
+            content: "I could not access that recap channel.",
+            ephemeral: true
+          });
+          return;
+        }
+
+        const result = await postWeeklyHouseRecapNow(prisma, {
+          guildId,
+          channel,
+          now: new Date(),
+          force: interaction.options.getBoolean("force") ?? false
+        });
+
+        logger.info("Weekly House Recap postnow used", {
+          guildId,
+          channelId: channel.id,
+          adminUserId: interaction.user.id,
+          outcome: result.outcome,
+          weekKey: result.weekKey
+        });
+
+        await interaction.reply({
+          content: formatHouseRecapPostResultMessage({
+            outcome: result.outcome,
+            weekKey: result.weekKey,
+            channelId: channel.id
+          }),
+          ephemeral: true
+        });
+        return;
+      }
     }
 
     if (subcommandGroup === "points") {

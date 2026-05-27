@@ -91,6 +91,14 @@ This document describes current Prisma models from `prisma/schema.prisma` only.
   - Current implemented hook sources are `PRACTICE_ATTENDANCE`, `WEEKLY_CHALLENGE`, `RED_ENVELOPE_CLAIM`, `LION_CATCH`, `LION_TRAINING`, `TRAINING_BATTLE`, and `DUEL_COMPLETION`
   - `ADMIN_ADJUSTMENT` is used by `/houseadmin points add` and `/houseadmin points remove`
   - `MESSAGE_ACTIVITY` is reserved for later capped activity design
+- `HouseRecapConfig`
+  - One guild-scoped Weekly House Recap configuration per guild
+  - Stores recap channel, enabled state, weekday, hour, minute, timezone, and timestamps
+  - `weekday` uses `0` for Sunday through `6` for Saturday
+- `HouseRecapPost`
+  - Records Weekly House Recap posts by guild and week key
+  - `guildId` + `weekKey` is unique, preventing normal duplicate weekly recap posts
+  - Stores the channel, optional Discord message id, and post timestamp
 
 ## Planned Models
 

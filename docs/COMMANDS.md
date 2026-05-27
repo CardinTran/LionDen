@@ -54,6 +54,10 @@
 - `/houseadmin deactivate`: deactivate a House so it cannot receive new public joins
 - `/houseadmin points add`: add manual House points through the ledger
 - `/houseadmin points remove`: remove manual House points through the ledger
+- `/houseadmin recap configure`: enable Weekly House Recaps in a channel
+- `/houseadmin recap postnow`: post the current Weekly House Recap, skipping duplicates unless forced
+- `/houseadmin recap status`: inspect recap config, schedule, current week, and posted state
+- `/houseadmin recap disable`: disable automatic Weekly House Recaps without deleting config or history
 
 ## `~` Text Commands
 

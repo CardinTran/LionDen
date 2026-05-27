@@ -5,6 +5,7 @@ const mockEnsureBotGuildConfig = vi.fn();
 const mockStartPracticeScheduler = vi.fn();
 const mockStartRedEnvelopeScheduler = vi.fn();
 const mockStartLionSpawnScheduler = vi.fn();
+const mockStartHouseRecapScheduler = vi.fn();
 const mockApplyBotPresence = vi.fn();
 const mockLoggerInfo = vi.fn();
 const mockLoggerError = vi.fn();
@@ -23,6 +24,10 @@ vi.mock("../src/features/economy/red-envelope-scheduler.js", () => ({
 
 vi.mock("../src/features/lions/lion-spawn-scheduler.js", () => ({
   startLionSpawnScheduler: mockStartLionSpawnScheduler
+}));
+
+vi.mock("../src/features/houses/house-recap-scheduler.js", () => ({
+  startHouseRecapScheduler: mockStartHouseRecapScheduler
 }));
 
 vi.mock("../src/bot/presence.js", () => ({
@@ -108,6 +113,7 @@ describe("ready event routing", () => {
       expect(mockStartPracticeScheduler).toHaveBeenCalledWith(client);
       expect(mockStartRedEnvelopeScheduler).toHaveBeenCalledWith(client);
       expect(mockStartLionSpawnScheduler).toHaveBeenCalledWith(client);
+      expect(mockStartHouseRecapScheduler).toHaveBeenCalledWith(client);
     });
 
     expect(mockLoggerInfo).toHaveBeenCalledWith("Discord client ready", {
@@ -138,5 +144,6 @@ describe("ready event routing", () => {
     expect(mockStartPracticeScheduler).not.toHaveBeenCalled();
     expect(mockStartRedEnvelopeScheduler).not.toHaveBeenCalled();
     expect(mockStartLionSpawnScheduler).not.toHaveBeenCalled();
+    expect(mockStartHouseRecapScheduler).not.toHaveBeenCalled();
   });
 });

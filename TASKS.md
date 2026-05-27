@@ -95,24 +95,24 @@ The roadmap for this next phase lives in:
 
 ## Sprint 1.3: Weekly House Recap
 
-- [ ] Add weekly House recap aggregation service
-- [ ] Add top House standings for recap
-- [ ] Add top contributor standings for recap
-- [ ] Add category breakdown for recap
-- [ ] Add `/houseadmin recap configure`
-- [ ] Add `/houseadmin recap postnow`
-- [ ] Add `/houseadmin recap status`
-- [ ] Add scheduler if needed
-- [ ] Prevent duplicate recap posts
-- [ ] Log recap scheduler startup and failures
-- [ ] Add tests for recap aggregation
-- [ ] Add tests for top contributors
-- [ ] Add tests for category breakdown
-- [ ] Add tests for post-now command
-- [ ] Add tests for scheduler behavior if scheduler is added
-- [ ] Update `docs/COMMANDS.md`
-- [ ] Update `docs/OPERATIONS.md`
-- [ ] Update `docs/ROADMAP_NEXT.md`
+- [x] Add weekly House recap aggregation service
+- [x] Add top House standings for recap
+- [x] Add top contributor standings for recap
+- [x] Add category breakdown for recap
+- [x] Add `/houseadmin recap configure`
+- [x] Add `/houseadmin recap postnow`
+- [x] Add `/houseadmin recap status`
+- [x] Add scheduler if needed
+- [x] Prevent duplicate recap posts
+- [x] Log recap scheduler startup and failures
+- [x] Add tests for recap aggregation
+- [x] Add tests for top contributors
+- [x] Add tests for category breakdown
+- [x] Add tests for post-now command
+- [x] Add tests for scheduler behavior if scheduler is added
+- [x] Update `docs/COMMANDS.md`
+- [x] Update `docs/OPERATIONS.md`
+- [x] Update `docs/ROADMAP_NEXT.md`
 
 ## Sprint 1.4: House Badges and Titles
 

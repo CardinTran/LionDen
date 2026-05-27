@@ -9,6 +9,12 @@ const mockGetHouseByKey = vi.fn();
 const mockRemoveHousePoints = vi.fn();
 const mockRemoveUserFromHouse = vi.fn();
 const mockRenameHouse = vi.fn();
+const mockConfigureHouseRecap = vi.fn();
+const mockDisableHouseRecap = vi.fn();
+const mockGetHouseRecapConfig = vi.fn();
+const mockGetHouseRecapStatus = vi.fn();
+const mockFetchHouseRecapChannel = vi.fn();
+const mockPostWeeklyHouseRecapNow = vi.fn();
 
 vi.mock("../src/features/houses/house.service.js", async () => {
   const actual = await vi.importActual<
@@ -30,6 +36,33 @@ vi.mock("../src/features/houses/house.service.js", async () => {
 
 vi.mock("../src/lib/prisma.js", () => ({
   prisma: {}
+}));
+
+vi.mock("../src/features/houses/house-recap.service.js", async () => {
+  const actual = await vi.importActual<
+    typeof import("../src/features/houses/house-recap.service.js")
+  >("../src/features/houses/house-recap.service.js");
+
+  return {
+    ...actual,
+    configureHouseRecap: mockConfigureHouseRecap,
+    disableHouseRecap: mockDisableHouseRecap,
+    getHouseRecapConfig: mockGetHouseRecapConfig,
+    getHouseRecapStatus: mockGetHouseRecapStatus
+  };
+});
+
+vi.mock("../src/features/houses/house-recap-scheduler.js", () => ({
+  fetchHouseRecapChannel: mockFetchHouseRecapChannel,
+  postWeeklyHouseRecapNow: mockPostWeeklyHouseRecapNow
+}));
+
+vi.mock("../src/lib/logger.js", () => ({
+  logger: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn()
+  }
 }));
 
 const { houseAdminCommand, houseAdminCommandJson } =
@@ -74,7 +107,11 @@ const createInteraction = (
     | "rename"
     | "deactivate"
     | "add"
-    | "removePoints",
+    | "removePoints"
+    | "recapConfigure"
+    | "recapStatus"
+    | "recapPostNow"
+    | "recapDisable",
   subcommandGroup: string | null = null
 ) => {
   const member = {
@@ -93,10 +130,17 @@ const createInteraction = (
         (permission: bigint) => permission === PermissionFlagsBits.ManageGuild
       )
     },
+    client: {
+      channels: {
+        fetch: vi.fn()
+      }
+    },
     options: {
       getSubcommandGroup: vi.fn(() => subcommandGroup),
       getSubcommand: vi.fn(() =>
-        subcommand === "removePoints" ? "remove" : subcommand
+        subcommand === "removePoints"
+          ? "remove"
+          : subcommand.replace("recap", "").toLowerCase()
       ),
       getString: vi.fn((name: string) => {
         const values: Record<string, string> = {
@@ -108,7 +152,24 @@ const createInteraction = (
         return values[name] ?? null;
       }),
       getUser: vi.fn((name: string) => (name === "member" ? member : null)),
-      getInteger: vi.fn(() => 10)
+      getInteger: vi.fn((name: string) => {
+        const values: Record<string, number> = {
+          amount: 10,
+          weekday: 0,
+          hour: 18,
+          minute: 0
+        };
+        return values[name] ?? null;
+      }),
+      getChannel: vi.fn((name: string) =>
+        name === "channel"
+          ? {
+              id: "recap_channel",
+              send: vi.fn()
+            }
+          : null
+      ),
+      getBoolean: vi.fn(() => false)
     },
     reply: vi.fn()
   };
@@ -170,6 +231,43 @@ describe("houseadmin command", () => {
       },
       house
     });
+    const recapConfig = {
+      id: "recap_config_123",
+      guildId: "guild_123",
+      channelId: "recap_channel",
+      isEnabled: true,
+      weekday: 0,
+      hour: 18,
+      minute: 0,
+      timezone: "America/Chicago",
+      createdAt: house.createdAt,
+      updatedAt: house.updatedAt
+    };
+    mockConfigureHouseRecap.mockResolvedValue(recapConfig);
+    mockDisableHouseRecap.mockResolvedValue({
+      ...recapConfig,
+      isEnabled: false,
+      updatedAt: house.updatedAt
+    });
+    mockGetHouseRecapConfig.mockResolvedValue(recapConfig);
+    mockGetHouseRecapStatus.mockResolvedValue({
+      config: recapConfig,
+      weekKey: "2026-W22",
+      alreadyPosted: false,
+      currentWeekPost: null,
+      lastPost: null
+    });
+    mockPostWeeklyHouseRecapNow.mockResolvedValue({
+      outcome: "posted",
+      weekKey: "2026-W22",
+      messageId: "message_123",
+      post: null,
+      alreadyPosted: null
+    });
+    mockFetchHouseRecapChannel.mockResolvedValue({
+      id: "recap_channel",
+      send: vi.fn()
+    });
   });
 
   it("exports the expected slash command metadata", () => {
@@ -178,7 +276,7 @@ describe("houseadmin command", () => {
       String(PermissionFlagsBits.ManageGuild)
     );
     expect(houseAdminCommandJson.options?.map((option) => option.name)).toEqual(
-      ["create", "assign", "remove", "rename", "deactivate", "points"]
+      ["create", "assign", "remove", "rename", "deactivate", "points", "recap"]
     );
   });
 
@@ -285,6 +383,79 @@ describe("houseadmin command", () => {
     });
     expect(removeInteraction.reply).toHaveBeenCalledWith({
       content: "Removed 10 House points for Red House `red-house`.",
+      ephemeral: true
+    });
+  });
+
+  it("configures Weekly House Recaps", async () => {
+    const interaction = createInteraction("recapConfigure", "recap");
+
+    await houseAdminCommand.execute(interaction as never);
+
+    expect(mockConfigureHouseRecap).toHaveBeenCalledWith(
+      {},
+      {
+        guildId: "guild_123",
+        channelId: "recap_channel",
+        weekday: 0,
+        hour: 18,
+        minute: 0,
+        timezone: null
+      }
+    );
+    expect(interaction.reply).toHaveBeenCalledWith({
+      content: expect.stringContaining("Weekly House Recap enabled"),
+      ephemeral: true
+    });
+  });
+
+  it("shows Weekly House Recap status", async () => {
+    const interaction = createInteraction("recapStatus", "recap");
+
+    await houseAdminCommand.execute(interaction as never);
+
+    expect(mockGetHouseRecapStatus).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({
+        guildId: "guild_123"
+      })
+    );
+    expect(interaction.reply).toHaveBeenCalledWith({
+      content: expect.stringContaining("Weekly House Recap Status"),
+      ephemeral: true
+    });
+  });
+
+  it("posts Weekly House Recaps now", async () => {
+    const interaction = createInteraction("recapPostNow", "recap");
+
+    await houseAdminCommand.execute(interaction as never);
+
+    expect(mockPostWeeklyHouseRecapNow).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({
+        guildId: "guild_123",
+        channel: expect.objectContaining({
+          id: "recap_channel"
+        }),
+        force: false
+      })
+    );
+    expect(interaction.reply).toHaveBeenCalledWith({
+      content: "Posted Weekly House Recap for 2026-W22 to <#recap_channel>.",
+      ephemeral: true
+    });
+  });
+
+  it("disables Weekly House Recaps", async () => {
+    const interaction = createInteraction("recapDisable", "recap");
+
+    await houseAdminCommand.execute(interaction as never);
+
+    expect(mockDisableHouseRecap).toHaveBeenCalledWith({}, "guild_123");
+    expect(interaction.reply).toHaveBeenCalledWith({
+      content:
+        "Weekly House Recap disabled. Existing config and post history were kept.",
       ephemeral: true
     });
   });
