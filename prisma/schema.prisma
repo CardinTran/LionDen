@@ -95,10 +95,15 @@ model UserLion {
   nickname          String?
   level             Int                @default(1)
   experience        Int                @default(0)
+  bondXp            Int                @default(0)
+  bondLevel         Int                @default(1)
   sourceType        String
   sourceReferenceId String?
   lastTrainedAt     DateTime?
   lastBattledAt     DateTime?
+  lastFedAt         DateTime?
+  lastGroomedAt     DateTime?
+  lastBondedAt      DateTime?
   acquiredAt        DateTime           @default(now())
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt

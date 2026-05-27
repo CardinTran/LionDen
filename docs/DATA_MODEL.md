@@ -34,7 +34,12 @@ This document describes current Prisma models from `prisma/schema.prisma` only.
 - `LionSpecies`
   - Master definition table for catchable lion species
 - `UserLion`
-  - A user's owned lion instance, including level, XP, and nickname
+  - A user's owned lion instance, including level, XP, nickname, cosmetic bond XP, cosmetic bond level, and care cooldown timestamps
+  - `bondXp` starts at `0`; `bondLevel` starts at `1`
+  - `lastFedAt` and `lastGroomedAt` enforce separate per-lion care cooldowns for `~feed` and `~groom`
+  - `lastBondedAt` is reserved for future bond-action expansion; current `~bond` is display-only
+  - Bond fields live on `UserLion`, so releasing a lion naturally removes its bond state
+  - Bond and care fields do not affect combat, user XP, coins, House points, weekly challenge progress, badges, lion stats, or economy rewards
 - `FavoriteLion`
   - One favorite owned lion per `guildId` + `userId`
   - Points to `UserLion` with cascade delete so releasing the lion clears the favorite record

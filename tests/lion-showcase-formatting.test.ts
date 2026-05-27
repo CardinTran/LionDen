@@ -78,6 +78,7 @@ describe("lion showcase formatting", () => {
     expect(message).toContain("Name: Thunder (Southern Lion)");
     expect(message).toContain("Rarity: RARE");
     expect(message).toContain("Level: 7");
+    expect(message).toContain("Bond: Level 1 - Curious");
     expect(message).toContain("Stats:");
     expect(message).toContain("Team: Slot 1");
     expect(message).toContain("Lion ID: `#lion_123`");
@@ -85,7 +86,7 @@ describe("lion showcase formatting", () => {
 
   it("formats favorite summaries and empty showcase guidance", () => {
     expect(formatFavoriteLionSummary(buildLion())).toBe(
-      "Favorite Lion: Thunder (Southern Lion) - RARE Southern Lion, Lv. 7"
+      "Favorite Lion: Thunder (Southern Lion) - RARE Southern Lion, Lv. 7 | Bond: Level 1 - Curious"
     );
     expect(formatFavoriteLionSummary(null)).toBeNull();
     expect(

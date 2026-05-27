@@ -119,7 +119,11 @@ Current lion creature foundation rule:
 - `~favorite <lion>` lets a member choose one owned lion as their favorite, and `~favorite clear` removes that selection
 - `~showcase <lion>` posts a public, social showcase for one owned lion; `~showcase` without an argument uses the member's favorite lion
 - favorite lions appear in `/profile`, `~lions`, and `~lion` when available
-- favorite and showcase behavior is cosmetic only and does not award XP, coins, House points, weekly challenge progress, badges, combat bonuses, lion stats, or economy rewards
+- `~bond <lion>` shows cosmetic bond level, XP progress, mood, and care cooldowns for one owned lion; `~bond` without an argument uses the member's favorite lion when available
+- `~feed <lion>` and `~groom <lion>` each grant +5 cosmetic bond XP to one owned lion and use separate 6-hour per-lion cooldowns
+- bond levels are cosmetic and use deterministic XP thresholds: Level 1 at 0 XP, Level 2 at 25 XP, Level 3 at 75 XP, Level 4 at 150 XP, Level 5 at 250 XP, and continuing to a Level 10 cap
+- bond moods are flavor labels by level, such as Curious, Comfortable, Proud, Loyal, and Legendary Partner
+- favorite, showcase, bond, feed, and groom behavior is cosmetic only and does not award user XP, coins, House points, weekly challenge progress, badges, combat bonuses, lion stats, or economy rewards
 - releasing a favorite lion clears the favorite state
 
 Current practice attendance rule:

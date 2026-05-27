@@ -422,6 +422,20 @@ Stage 3 Seasonal Events remain intentionally on hold.
 
 # Stage 4: Lion Identity and Care
 
+## Sprint 4.1: Lion Bond Foundation
+
+Status: implemented.
+
+Implemented behavior:
+
+- Add cosmetic bond XP, bond level, and care cooldown fields to owned lions.
+- Add `~bond [lion]` for owned-lion bond status, using the favorite lion when no argument is provided.
+- Add `~feed [lion]` and `~groom [lion]` for +5 cosmetic bond XP care actions.
+- Use separate 6-hour per-lion cooldowns for feeding and grooming.
+- Use deterministic bond thresholds up to a Level 10 cap, with mood labels such as Curious, Comfortable, Proud, Loyal, and Legendary Partner.
+- Show compact bond flavor in `~showcase`, `~lion`, and favorite-lion `/profile` summaries.
+- Keep bond and care behavior social/cosmetic only, with no user XP, coin, House point, weekly challenge, badge, battle, lion stat, or economy changes.
+
 ## Sprint 4.2: Lion Showcase
 
 Status: implemented.
@@ -437,6 +451,6 @@ Implemented behavior:
 
 Next recommended focus:
 
-- Lion Bond Foundation if the next step should deepen member attachment to existing lions.
 - New Member Welcome Quests if onboarding is the higher product priority.
+- Performance Planning if the next need is practical event coordination.
 - House title selection/display remains optional polish after the badge foundation.

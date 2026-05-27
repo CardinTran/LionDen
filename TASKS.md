@@ -269,24 +269,24 @@ The roadmap for this next phase lives in:
 
 ## Sprint 4.1: Lion Bond Foundation
 
-- [ ] Add bond XP or bond level fields/models
-- [ ] Add care cooldown tracking
-- [ ] Add `~bond <lion>`
-- [ ] Add `~feed <lion>`
-- [ ] Add `~groom <lion>`
-- [ ] Add bond gain logic
-- [ ] Add bond level calculation
-- [ ] Add mostly cosmetic bond rewards
-- [ ] Ensure cooldowns prevent spam
-- [ ] Ensure bond does not create major combat advantage
-- [ ] Add tests for cooldowns
-- [ ] Add tests for bond gain
-- [ ] Add tests for bond level calculation
-- [ ] Add tests for invalid lion query
-- [ ] Add tests for no owned lion edge cases
-- [ ] Update `docs/LION_TEXT_COMMANDS.md`
-- [ ] Update `docs/DATA_MODEL.md`
-- [ ] Update `docs/ROADMAP_NEXT.md`
+- [x] Add bond XP or bond level fields/models
+- [x] Add care cooldown tracking
+- [x] Add `~bond <lion>`
+- [x] Add `~feed <lion>`
+- [x] Add `~groom <lion>`
+- [x] Add bond gain logic
+- [x] Add bond level calculation
+- [x] Add mostly cosmetic bond rewards
+- [x] Ensure cooldowns prevent spam
+- [x] Ensure bond does not create major combat advantage
+- [x] Add tests for cooldowns
+- [x] Add tests for bond gain
+- [x] Add tests for bond level calculation
+- [x] Add tests for invalid lion query
+- [x] Add tests for no owned lion edge cases
+- [x] Update `docs/LION_TEXT_COMMANDS.md`
+- [x] Update `docs/DATA_MODEL.md`
+- [x] Update `docs/ROADMAP_NEXT.md`
 
 ## Sprint 4.2: Lion Showcase
 

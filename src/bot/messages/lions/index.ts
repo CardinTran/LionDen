@@ -1,5 +1,6 @@
 import type { Message } from "discord.js";
 
+import { handleBondLionMessage } from "./bond.handler.js";
 import { handleBattleHistoryLionMessage } from "./battle-history.handler.js";
 import { handleBattleLionMessage } from "./battle.handler.js";
 import { handleCatchLionMessage } from "./catch.handler.js";
@@ -31,6 +32,7 @@ const lionMessageHandlers: LionMessageCommandHandler[] = [
   handleNicknameLionMessage,
   handleFavoriteLionMessage,
   handleShowcaseLionMessage,
+  handleBondLionMessage,
   handleReleaseLionMessage,
   handleTeamLionMessage,
   handleDuelLionMessage,
