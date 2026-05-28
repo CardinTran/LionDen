@@ -14,6 +14,7 @@ import {
   createWildLionSpawn,
   calculateLionReleaseCoins,
   generateWildLionSpawnLevel,
+  findLionSpeciesByQuery,
   getOwnedLionDisplayName,
   getUserLionBattleCooldown,
   listTopLionBattleTrainers,
@@ -282,6 +283,92 @@ describe("lion creature service", () => {
     expect(chooseWeightedLionSpecies([common, rare], () => 0.999)?.id).toBe(
       "rare"
     );
+  });
+
+  it("finds enabled species by public ID regardless of case", async () => {
+    const target = buildSpecies({
+      id: "species_006",
+      publicId: "L006",
+      slug: "rdl-lion-006",
+      name: "RDL Lion 006"
+    });
+    const store = {
+      lionSpecies: {
+        findMany: vi.fn().mockResolvedValue([target])
+      }
+    };
+
+    await expect(findLionSpeciesByQuery(store, "L006")).resolves.toBe(target);
+    await expect(findLionSpeciesByQuery(store, "l006")).resolves.toBe(target);
+    expect(store.lionSpecies.findMany).toHaveBeenCalledWith({
+      where: {
+        isEnabled: true
+      }
+    });
+  });
+
+  it("finds enabled species by normalized slug", async () => {
+    const target = buildSpecies({
+      id: "species_006",
+      publicId: "L006",
+      slug: "rdl-lion-006",
+      name: "RDL Lion 006"
+    });
+
+    await expect(
+      findLionSpeciesByQuery(
+        {
+          lionSpecies: {
+            findMany: vi.fn().mockResolvedValue([target])
+          }
+        },
+        "rdl-lion-006"
+      )
+    ).resolves.toBe(target);
+  });
+
+  it("finds enabled species by official name regardless of case", async () => {
+    const target = buildSpecies({
+      id: "species_name",
+      publicId: "L099",
+      slug: "catalog-special",
+      name: "Special Lion"
+    });
+
+    await expect(
+      findLionSpeciesByQuery(
+        {
+          lionSpecies: {
+            findMany: vi.fn().mockResolvedValue([target])
+          }
+        },
+        "special lion"
+      )
+    ).resolves.toBe(target);
+  });
+
+  it("does not return disabled or blank species lookups", async () => {
+    const disabled = buildSpecies({
+      id: "species_disabled",
+      publicId: "L006",
+      slug: "rdl-lion-006",
+      name: "RDL Lion 006",
+      isEnabled: false
+    });
+    const findMany = vi.fn((args: { where: { isEnabled: boolean } }) =>
+      Promise.resolve(
+        [disabled].filter((entry) => entry.isEnabled === args.where.isEnabled)
+      )
+    );
+    const store = {
+      lionSpecies: {
+        findMany
+      }
+    };
+
+    await expect(findLionSpeciesByQuery(store, "L006")).resolves.toBeNull();
+    await expect(findLionSpeciesByQuery(store, "   ")).resolves.toBeNull();
+    expect(findMany).toHaveBeenCalledTimes(1);
   });
 
   it("generates wild lion levels from conservative rarity tiers", () => {

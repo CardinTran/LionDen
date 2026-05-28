@@ -74,7 +74,8 @@ Handlers:
 Commands:
 
 - `~lions`: shows the caller's owned lion roster and saved team markers.
-- `~lion <id, code, slug, name, or nickname>`: inspects one owned lion. Favorite lions are marked in the detail view.
+- `~lion <code, slug, or species name>`: shows public base species details for that lion, even if the caller does not own it.
+- `~lion <owned ID or nickname>`: when no catalog species matches, inspects one of the caller's owned lions. Favorite lions are marked in the owned detail view.
 - `~nickname <lion> <name>`: sets an owned lion's nickname.
 - `~nickname <lion> clear`: clears an owned lion's nickname.
 - `~favorite <lion>`: sets the caller's favorite lion. The lion must belong to the caller.

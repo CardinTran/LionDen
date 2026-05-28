@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   formatLionHelpMessage,
+  formatLionSpeciesMessage,
   formatTeamBattleLionMessage
 } from "../src/features/lions/lion-formatting.js";
 import type {
@@ -77,10 +78,57 @@ describe("lion formatting", () => {
     expect(message).toContain("~battlehistory");
     expect(message).toContain("~battleboard");
     expect(message).toContain("~rarecatches");
+    expect(message).toContain(
+      "~lion <code, slug, name, owned ID, or nickname>"
+    );
     expect(message).toContain("team battles currently resolve automatically");
     expect(message).toContain("does not affect team battle history yet");
     expect(message).not.toContain("/lionadmin");
     expect(message).not.toContain("Admin command");
+  });
+
+  it("formats public lion species details without owned-lion state", () => {
+    const message = formatLionSpeciesMessage(
+      buildSpecies({
+        publicId: "L006",
+        slug: "rdl-lion-006",
+        name: "RDL Lion 006",
+        rarity: "RARE",
+        primaryType: "EARTH",
+        secondaryType: "WATER",
+        baseCatchRate: 65,
+        baseValue: 7,
+        baseHp: 50,
+        baseAttack: 11,
+        baseDefense: 11,
+        baseSpeed: 11,
+        abilityName: "Steady Heart",
+        abilityDescription:
+          "A dependable passive trait reserved for future battle effects.",
+        description:
+          "A prototype LionDen creature seeded from the local RDL photo set."
+      })
+    );
+
+    expect(message).toContain("RDL Lion 006 `L006`");
+    expect(message).toContain("Slug: `rdl-lion-006`");
+    expect(message).toContain("Rarity: RARE");
+    expect(message).toContain("Type: EARTH / WATER");
+    expect(message).toContain("Ability: Steady Heart");
+    expect(message).toContain(
+      "Passive: A dependable passive trait reserved for future battle effects."
+    );
+    expect(message).toContain("Base catch rate: 65%");
+    expect(message).toContain("Base value: 7 coins");
+    expect(message).toContain("Base stats: 50 HP | 11 ATK | 11 DEF | 11 SPD");
+    expect(message).toContain(
+      "A prototype LionDen creature seeded from the local RDL photo set."
+    );
+    expect(message).not.toContain("Owner:");
+    expect(message).not.toContain("Nickname:");
+    expect(message).not.toContain("Acquired:");
+    expect(message).not.toContain("XP:");
+    expect(message).not.toContain("Favorite Lion:");
   });
 
   it("formats team battles with transparent round logs and winner reasoning", () => {

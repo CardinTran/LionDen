@@ -490,7 +490,8 @@ export const validateLionNickname = (
   if (/[`@#\n\r]/.test(nickname)) {
     return {
       nickname: null,
-      error: "Nicknames cannot include mentions, tags, backticks, or line breaks."
+      error:
+        "Nicknames cannot include mentions, tags, backticks, or line breaks."
     };
   }
 
@@ -518,6 +519,32 @@ export const findUserLionFromList = (
     lions.find((lion) => lion.species.slug === normalizedQuery) ??
     lions.find((lion) => lion.species.name.toLowerCase() === query) ??
     lions.find((lion) => lion.nickname?.toLowerCase() === query) ??
+    null
+  );
+};
+
+export const findLionSpeciesByQuery = async (
+  store: Pick<LionCreatureStore, "lionSpecies">,
+  rawQuery: string
+): Promise<LionSpeciesRecord | null> => {
+  const normalizedReference = normalizeLionReferenceQuery(rawQuery);
+  const query = normalizedReference.toLowerCase();
+  const normalizedQuery = normalizeLionSearchQuery(normalizedReference);
+
+  if (!query) {
+    return null;
+  }
+
+  const species: LionSpeciesRecord[] = await store.lionSpecies.findMany({
+    where: {
+      isEnabled: true
+    }
+  });
+
+  return (
+    species.find((entry) => entry.publicId.toLowerCase() === query) ??
+    species.find((entry) => entry.slug === normalizedQuery) ??
+    species.find((entry) => entry.name.toLowerCase() === query) ??
     null
   );
 };
@@ -1186,19 +1213,18 @@ export const createWildLionSpawn = async (
     (effect) => effect.effectType === "LEVEL_BOOST"
   );
 
-  const weightedSpecies =
-    rarityBoost
-      ? species.map((entry: LionSpeciesRecord) => ({
-          ...entry,
-          spawnWeight: Math.max(
-            1,
-            Math.floor(
-              entry.spawnWeight *
-                getRarityWeightBonus(entry.rarity, rarityBoost.effectValue)
-            )
+  const weightedSpecies = rarityBoost
+    ? species.map((entry: LionSpeciesRecord) => ({
+        ...entry,
+        spawnWeight: Math.max(
+          1,
+          Math.floor(
+            entry.spawnWeight *
+              getRarityWeightBonus(entry.rarity, rarityBoost.effectValue)
           )
-        }))
-      : species;
+        )
+      }))
+    : species;
 
   const selectedSpecies = chooseWeightedLionSpecies(
     weightedSpecies,
@@ -1599,10 +1625,7 @@ export const setUserLionNickname = async (
 export const calculateLionReleaseCoins = (
   lion: UserLionWithSpeciesRecord
 ): number =>
-  Math.max(
-    1,
-    Math.floor(lion.species.baseValue * 5 + Math.max(1, lion.level))
-  );
+  Math.max(1, Math.floor(lion.species.baseValue * 5 + Math.max(1, lion.level)));
 
 export const releaseUserLion = async (
   store: Pick<LionCreatureStore, "userLion" | "userProfile" | "favoriteLion">,
