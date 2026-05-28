@@ -1,10 +1,12 @@
 import {
+  findLionSpeciesByQuery,
   findUserLionFromList,
   listUserLionTeam,
   listUserLions
 } from "../../../features/lions/lion-creature.service.js";
 import { getFavoriteLion } from "../../../features/lions/lion-showcase.service.js";
 import {
+  formatLionSpeciesMessage,
   formatOwnedLionMessage,
   formatUserLionsMessage
 } from "../../../features/lions/lion-formatting.js";
@@ -51,7 +53,17 @@ export const handleRosterLionMessage: LionMessageCommandHandler = async ({
   }
 
   if (args.length === 0) {
-    await message.reply("Use `~lion <id or name>` to inspect one of your lions.");
+    await message.reply(
+      "Use `~lion <code, slug, name, owned ID, or nickname>` to inspect a lion."
+    );
+    return true;
+  }
+
+  const query = args.join(" ");
+  const species = await findLionSpeciesByQuery(prisma, query);
+
+  if (species) {
+    await message.reply(formatLionSpeciesMessage(species));
     return true;
   }
 
@@ -60,14 +72,16 @@ export const handleRosterLionMessage: LionMessageCommandHandler = async ({
     userId: message.author.id,
     limit: 100
   });
-  const lion = findUserLionFromList(lions, args.join(" "));
+  const lion = findUserLionFromList(lions, query);
   const favorite = await getFavoriteLion(prisma, {
     guildId,
     userId: message.author.id
   });
 
   if (!lion) {
-    await message.reply("I could not find that lion in your roster.");
+    await message.reply(
+      "I could not find that lion in the LionDen catalog or your roster."
+    );
     return true;
   }
 

@@ -5,6 +5,7 @@ import type {
   LionBattleRecord,
   LionExperienceAwardResult,
   LionShopItemRecord,
+  LionSpeciesRecord,
   ReleaseUserLionResult,
   LionTrainerBattleStats,
   LionTrainerBattleStatsEntry,
@@ -133,7 +134,7 @@ export const formatLionHelpMessage = (): string =>
     "- `~toplions` view the strongest lions in this server",
     "- `~rarecatches` view recent rare or high-level catches",
     "- `~lions` view your roster",
-    "- `~lion <id or name>` inspect one lion",
+    "- `~lion <code, slug, name, owned ID, or nickname>` inspect a public species or one of your owned lions",
     "- `~wild` view active wild lions",
     "Start here: buy balls with `~buy basic-ball 3`, wait for wild lions, catch them, train them, set a team, then battle."
   ].join("\n");
@@ -166,11 +167,33 @@ export const formatUserLionsMessage = (input: {
     ...input.lions.map((lion, index) => {
       const teamSlot = teamSlotByLionId.get(lion.id);
       const teamLabel = teamSlot ? ` - team slot ${teamSlot}` : "";
-      const favoriteLabel = input.favoriteLionId === lion.id ? "[favorite] " : "";
+      const favoriteLabel =
+        input.favoriteLionId === lion.id ? "[favorite] " : "";
 
       return `${formatCompactLionLine(lion, `${index + 1}. ${favoriteLabel}`)} (${lion.species.rarity})${teamLabel}`;
     })
   ].join("\n");
+};
+
+export const formatLionSpeciesMessage = (
+  species: LionSpeciesRecord
+): string => {
+  const levelOneStats = deriveLionStats(species, 1);
+
+  return [
+    `${species.name} \`${species.publicId}\``,
+    `Slug: \`${species.slug}\``,
+    `Rarity: ${species.rarity}`,
+    `Type: ${species.primaryType}${species.secondaryType ? ` / ${species.secondaryType}` : ""}`,
+    `Ability: ${species.abilityName}`,
+    `Passive: ${species.abilityDescription}`,
+    `Base catch rate: ${species.baseCatchRate}%`,
+    `Base value: ${species.baseValue} coins`,
+    `Base stats: ${levelOneStats.hp} HP | ${levelOneStats.attack} ATK | ${levelOneStats.defense} DEF | ${levelOneStats.speed} SPD`,
+    species.description
+  ]
+    .filter(Boolean)
+    .join("\n");
 };
 
 export const formatUserLionTeamMessage = (input: {
@@ -294,9 +317,7 @@ export const formatClearFavoriteLionMessage = (
     ? "Your favorite lion has been cleared."
     : "You do not have a favorite lion set yet.";
 
-export const formatLionShowcaseMessage = (
-  showcase: LionShowcase
-): string => {
+export const formatLionShowcaseMessage = (showcase: LionShowcase): string => {
   const lion = showcase.lion;
   const stats = deriveLionStats(lion.species, lion.level);
   const progress = getLionExperienceProgress(lion.experience);

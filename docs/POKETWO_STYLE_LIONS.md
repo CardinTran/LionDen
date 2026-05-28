@@ -197,7 +197,7 @@ Possible version 1 commands:
 - `~bag`
 - `~catch <ball>`
 - `~lions`
-- `~lion <id or name>`
+- `~lion <code, slug, name, owned ID, or nickname>`
 - `~team`
 - `~team set <lion1> <lion2> <lion3>`
 - `~battle @user`
@@ -486,12 +486,12 @@ Output:
 
 Goal:
 
-- let users view what they own
+- let users view public species details and what they own
 
 Tasks:
 
 - implement `~lions`
-- implement `~lion <id or name>`
+- implement `~lion <code, slug, name, owned ID, or nickname>`
 - show species info, rarity, and level
 - show acquisition source if helpful
 

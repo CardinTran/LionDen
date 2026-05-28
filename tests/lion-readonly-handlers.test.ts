@@ -3,6 +3,7 @@ import type { Message } from "discord.js";
 
 import type { LionMessageCommandContext } from "../src/bot/messages/lions/types.js";
 
+const mockFindLionSpeciesByQuery = vi.fn();
 const mockFindUserLionFromList = vi.fn();
 const mockGetLionTrainerBattleStats = vi.fn();
 const mockListActiveWildLionSpawns = vi.fn();
@@ -17,6 +18,7 @@ const mockGetFavoriteLion = vi.fn();
 const mockFormatLionBattleBoardMessage = vi.fn();
 const mockFormatLionBattleHistoryMessage = vi.fn();
 const mockFormatLionTrainerBattleStatsMessage = vi.fn();
+const mockFormatLionSpeciesMessage = vi.fn();
 const mockFormatOwnedLionMessage = vi.fn();
 const mockFormatRecentNotableLionCatchesMessage = vi.fn();
 const mockFormatTopLionsMessage = vi.fn();
@@ -28,6 +30,7 @@ vi.mock("../src/lib/prisma.js", () => ({
 }));
 
 vi.mock("../src/features/lions/lion-creature.service.js", () => ({
+  findLionSpeciesByQuery: mockFindLionSpeciesByQuery,
   findUserLionFromList: mockFindUserLionFromList,
   getLionTrainerBattleStats: mockGetLionTrainerBattleStats,
   listActiveWildLionSpawns: mockListActiveWildLionSpawns,
@@ -47,6 +50,7 @@ vi.mock("../src/features/lions/lion-formatting.js", () => ({
   formatLionBattleBoardMessage: mockFormatLionBattleBoardMessage,
   formatLionBattleHistoryMessage: mockFormatLionBattleHistoryMessage,
   formatLionTrainerBattleStatsMessage: mockFormatLionTrainerBattleStatsMessage,
+  formatLionSpeciesMessage: mockFormatLionSpeciesMessage,
   formatOwnedLionMessage: mockFormatOwnedLionMessage,
   formatRecentNotableLionCatchesMessage:
     mockFormatRecentNotableLionCatchesMessage,
@@ -55,18 +59,14 @@ vi.mock("../src/features/lions/lion-formatting.js", () => ({
   formatWildLionStatusMessage: mockFormatWildLionStatusMessage
 }));
 
-const { handleBattleHistoryLionMessage } = await import(
-  "../src/bot/messages/lions/battle-history.handler.js"
-);
-const { handleLeaderboardsLionMessage } = await import(
-  "../src/bot/messages/lions/leaderboards.handler.js"
-);
-const { handleRosterLionMessage } = await import(
-  "../src/bot/messages/lions/roster.handler.js"
-);
-const { handleWildLionMessage } = await import(
-  "../src/bot/messages/lions/wild.handler.js"
-);
+const { handleBattleHistoryLionMessage } =
+  await import("../src/bot/messages/lions/battle-history.handler.js");
+const { handleLeaderboardsLionMessage } =
+  await import("../src/bot/messages/lions/leaderboards.handler.js");
+const { handleRosterLionMessage } =
+  await import("../src/bot/messages/lions/roster.handler.js");
+const { handleWildLionMessage } =
+  await import("../src/bot/messages/lions/wild.handler.js");
 
 const createdAt = new Date("2026-05-25T12:00:00.000Z");
 
@@ -140,17 +140,26 @@ const ownedLion = {
   }
 };
 
+const species = {
+  id: "species_006",
+  name: "RDL Lion 006",
+  publicId: "L006",
+  slug: "rdl-lion-006"
+};
+
 describe("read-only lion message handlers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockFormatLionBattleBoardMessage.mockReturnValue("battle board");
     mockFormatLionBattleHistoryMessage.mockReturnValue("battle history");
     mockFormatLionTrainerBattleStatsMessage.mockReturnValue("battle stats");
+    mockFormatLionSpeciesMessage.mockReturnValue("species lion");
     mockFormatOwnedLionMessage.mockReturnValue("owned lion");
     mockFormatRecentNotableLionCatchesMessage.mockReturnValue("rare catches");
     mockFormatTopLionsMessage.mockReturnValue("top lions");
     mockFormatUserLionsMessage.mockReturnValue("user lions");
     mockFormatWildLionStatusMessage.mockReturnValue("wild lions");
+    mockFindLionSpeciesByQuery.mockResolvedValue(null);
     mockGetFavoriteLion.mockResolvedValue(null);
   });
 
@@ -192,6 +201,7 @@ describe("read-only lion message handlers", () => {
       team,
       favoriteLionId: null
     });
+    expect(mockFindLionSpeciesByQuery).not.toHaveBeenCalled();
     expect(context.message.reply).toHaveBeenCalledWith("user lions");
   });
 
@@ -205,21 +215,71 @@ describe("read-only lion message handlers", () => {
 
     expect(mockListUserLions).not.toHaveBeenCalled();
     expect(context.message.reply).toHaveBeenCalledWith(
-      "Use `~lion <id or name>` to inspect one of your lions."
+      "Use `~lion <code, slug, name, owned ID, or nickname>` to inspect a lion."
     );
   });
 
-  it("routes ~lion through roster lookup and owned-lion formatting", async () => {
-    const lions = [ownedLion];
+  it("routes ~lion public IDs through catalog species formatting", async () => {
     const context = createContext({
       normalizedCommand: "~lion",
-      args: ["L001"]
+      args: ["L006"]
     });
-    mockListUserLions.mockResolvedValue(lions);
-    mockFindUserLionFromList.mockReturnValue(ownedLion);
+    mockFindLionSpeciesByQuery.mockResolvedValue(species);
 
     await expect(handleRosterLionMessage(context)).resolves.toBe(true);
 
+    expect(mockFindLionSpeciesByQuery).toHaveBeenCalledWith({}, "L006");
+    expect(mockFormatLionSpeciesMessage).toHaveBeenCalledWith(species);
+    expect(mockListUserLions).not.toHaveBeenCalled();
+    expect(mockFindUserLionFromList).not.toHaveBeenCalled();
+    expect(context.message.reply).toHaveBeenCalledWith("species lion");
+  });
+
+  it("routes ~lion species slugs through catalog species formatting", async () => {
+    const context = createContext({
+      normalizedCommand: "~lion",
+      args: ["rdl-lion-006"]
+    });
+    mockFindLionSpeciesByQuery.mockResolvedValue(species);
+
+    await expect(handleRosterLionMessage(context)).resolves.toBe(true);
+
+    expect(mockFindLionSpeciesByQuery).toHaveBeenCalledWith({}, "rdl-lion-006");
+    expect(mockFormatLionSpeciesMessage).toHaveBeenCalledWith(species);
+    expect(mockListUserLions).not.toHaveBeenCalled();
+    expect(context.message.reply).toHaveBeenCalledWith("species lion");
+  });
+
+  it("routes ~lion official species names through catalog species formatting", async () => {
+    const context = createContext({
+      normalizedCommand: "~lion",
+      args: ["RDL", "Lion", "006"]
+    });
+    mockFindLionSpeciesByQuery.mockResolvedValue(species);
+
+    await expect(handleRosterLionMessage(context)).resolves.toBe(true);
+
+    expect(mockFindLionSpeciesByQuery).toHaveBeenCalledWith({}, "RDL Lion 006");
+    expect(mockFormatLionSpeciesMessage).toHaveBeenCalledWith(species);
+    expect(mockListUserLions).not.toHaveBeenCalled();
+    expect(context.message.reply).toHaveBeenCalledWith("species lion");
+  });
+
+  it("routes ~lion owned nicknames through roster fallback when no species matches", async () => {
+    const lions = [ownedLion];
+    const context = createContext({
+      normalizedCommand: "~lion",
+      args: ["Big", "Tony"]
+    });
+    mockListUserLions.mockResolvedValue(lions);
+    mockFindUserLionFromList.mockReturnValue(ownedLion);
+    mockGetFavoriteLion.mockResolvedValue({
+      lionId: "lion_123"
+    });
+
+    await expect(handleRosterLionMessage(context)).resolves.toBe(true);
+
+    expect(mockFindLionSpeciesByQuery).toHaveBeenCalledWith({}, "Big Tony");
     expect(mockListUserLions).toHaveBeenCalledWith(
       {},
       {
@@ -228,14 +288,41 @@ describe("read-only lion message handlers", () => {
         limit: 100
       }
     );
-    expect(mockFindUserLionFromList).toHaveBeenCalledWith(lions, "L001");
-    expect(mockFormatOwnedLionMessage).toHaveBeenCalledWith(ownedLion, "Mira Lee", {
-      isFavorite: false
-    });
+    expect(mockFindUserLionFromList).toHaveBeenCalledWith(lions, "Big Tony");
+    expect(mockFormatOwnedLionMessage).toHaveBeenCalledWith(
+      ownedLion,
+      "Mira Lee",
+      {
+        isFavorite: true
+      }
+    );
     expect(context.message.reply).toHaveBeenCalledWith("owned lion");
   });
 
-  it("keeps ~lion not-found messaging", async () => {
+  it("routes ~lion owned short IDs through roster fallback when no species matches", async () => {
+    const lions = [ownedLion];
+    const context = createContext({
+      normalizedCommand: "~lion",
+      args: ["#lion_123"]
+    });
+    mockListUserLions.mockResolvedValue(lions);
+    mockFindUserLionFromList.mockReturnValue(ownedLion);
+
+    await expect(handleRosterLionMessage(context)).resolves.toBe(true);
+
+    expect(mockFindLionSpeciesByQuery).toHaveBeenCalledWith({}, "#lion_123");
+    expect(mockFindUserLionFromList).toHaveBeenCalledWith(lions, "#lion_123");
+    expect(mockFormatOwnedLionMessage).toHaveBeenCalledWith(
+      ownedLion,
+      "Mira Lee",
+      {
+        isFavorite: false
+      }
+    );
+    expect(context.message.reply).toHaveBeenCalledWith("owned lion");
+  });
+
+  it("keeps ~lion not-found messaging across catalog and roster", async () => {
     const context = createContext({
       normalizedCommand: "~lion",
       args: ["Missing"]
@@ -245,8 +332,9 @@ describe("read-only lion message handlers", () => {
 
     await expect(handleRosterLionMessage(context)).resolves.toBe(true);
 
+    expect(mockFindLionSpeciesByQuery).toHaveBeenCalledWith({}, "Missing");
     expect(context.message.reply).toHaveBeenCalledWith(
-      "I could not find that lion in your roster."
+      "I could not find that lion in the LionDen catalog or your roster."
     );
   });
 
