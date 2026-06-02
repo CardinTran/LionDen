@@ -242,7 +242,7 @@ describe("lion battle message routing", () => {
       },
       ownedLion: {
         id: "owned_123",
-        level: 4,
+        level: 1,
         species: {
           name: "Test Lion",
           publicId: "L001",
@@ -265,7 +265,7 @@ describe("lion battle message routing", () => {
       }
     );
     expect(message.reply).toHaveBeenCalledWith(
-      expect.stringContaining("caught Lv. 4")
+      expect.stringContaining("caught Lv. 1")
     );
   });
 

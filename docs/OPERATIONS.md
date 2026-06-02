@@ -86,11 +86,19 @@ Wild lion spawn scheduler:
 
 - Uses each guild's lion spawn configuration from `/lionadmin configure`.
 - Defaults to a 120-240 minute interval when the spawn config is created by current service defaults.
+- Posts naturally spawned wild lions at level 1.
 - Skips posting when maintenance mode is enabled for the guild.
 - Expires active wild spawns before checking whether a new spawn is due.
 - Does not post a new automated wild lion while an active wild lion exists in the guild.
 - Prefers active spawn-boost channel effects, then active channels from the same 60-minute and 5-message activity pattern.
 - If no eligible channel is available, schedules the next spawn window without posting.
+
+Wild lion progression:
+
+- Successful catches always create level 1 owned lions with 0 XP.
+- Owned lion levels are earned through training and battle XP.
+- Officer-forced event drops may still request an encounter level, but that level does not transfer into the caught lion.
+- Legacy `LEVEL_BOOST` / `level-lure` definitions are disabled during lion-data sync and active legacy effects do not change new spawns.
 
 ## Maintenance Mode
 

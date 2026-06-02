@@ -424,23 +424,6 @@ export const LION_TRAINING_NPC_DISPLAY_NAME = "Training Hall";
 export const MAX_LION_TEAM_SIZE = 3;
 export const MAX_LION_NICKNAME_LENGTH = 24;
 export const HIGH_LEVEL_WILD_LION_THRESHOLD = 25;
-export const WILD_LION_LEVEL_TIERS = [
-  {
-    maxRollExclusive: 0.75,
-    minLevel: 1,
-    maxLevel: 10
-  },
-  {
-    maxRollExclusive: 0.95,
-    minLevel: 11,
-    maxLevel: 25
-  },
-  {
-    maxRollExclusive: 1,
-    minLevel: 26,
-    maxLevel: 50
-  }
-] as const;
 
 export const normalizeLionItemKey = (rawItemKey: string): string =>
   rawItemKey
@@ -606,20 +589,14 @@ export const chooseWeightedLionSpecies = (
 
 export const generateWildLionSpawnLevel = (input: {
   random: () => number;
-  levelBonus?: number;
   minLevel?: number;
   maxLevel?: number;
 }): number => {
-  const tierRoll = input.random();
-  const tier =
-    WILD_LION_LEVEL_TIERS.find((entry) => tierRoll < entry.maxRollExclusive) ??
-    WILD_LION_LEVEL_TIERS[0];
-  const minLevel = input.minLevel ?? tier.minLevel;
-  const maxLevel = input.maxLevel ?? tier.maxLevel;
-  const baseLevel = getRandomIntInclusive(minLevel, maxLevel, input.random);
-  const levelBonus = Math.max(0, Math.floor(input.levelBonus ?? 0));
+  const minLevel = input.minLevel ?? 1;
+  const maxLevel = input.maxLevel ?? minLevel;
+  const level = getRandomIntInclusive(minLevel, maxLevel, input.random);
 
-  return Math.min(50, Math.max(1, baseLevel + levelBonus));
+  return Math.min(50, Math.max(1, level));
 };
 
 const getRarityWeightBonus = (
@@ -720,6 +697,16 @@ export const syncDefaultLionData = async (
       });
     })
   );
+
+  await store.lionShopItemDefinition.updateMany({
+    where: {
+      effectType: "LEVEL_BOOST",
+      isEnabled: true
+    },
+    data: {
+      isEnabled: false
+    }
+  });
 };
 
 export const ensureLionSpawnConfig = async (
@@ -1209,9 +1196,6 @@ export const createWildLionSpawn = async (
   const rarityBoost = activeEffects.find(
     (effect) => effect.effectType === "RARITY_BOOST"
   );
-  const levelBoost = activeEffects.find(
-    (effect) => effect.effectType === "LEVEL_BOOST"
-  );
 
   const weightedSpecies = rarityBoost
     ? species.map((entry: LionSpeciesRecord) => ({
@@ -1245,7 +1229,6 @@ export const createWildLionSpawn = async (
       lionSpeciesId: selectedSpecies.id,
       level: generateWildLionSpawnLevel({
         random: input.random,
-        levelBonus: levelBoost?.effectValue,
         minLevel: input.minLevel ?? undefined,
         maxLevel: input.maxLevel ?? undefined
       }),
@@ -1531,7 +1514,8 @@ export const attemptCatchWildLion = async (
       userId: input.userId,
       ownerDisplayName: input.displayName,
       lionSpeciesId: spawn.lionSpeciesId,
-      level: spawn.level,
+      level: 1,
+      experience: 0,
       sourceType: "WILD_CATCH",
       sourceReferenceId: spawn.id,
       acquiredAt: input.now

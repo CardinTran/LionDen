@@ -35,6 +35,7 @@ This document describes current Prisma models from `prisma/schema.prisma` only.
   - Master definition table for catchable lion species
 - `UserLion`
   - A user's owned lion instance, including level, XP, nickname, cosmetic bond XP, cosmetic bond level, and care cooldown timestamps
+  - Wild catches start at level `1` with `0` XP; training and battle XP drive future owned-lion levels
   - `bondXp` starts at `0`; `bondLevel` starts at `1`
   - `lastFedAt` and `lastGroomedAt` enforce separate per-lion care cooldowns for `~feed` and `~groom`
   - `lastBondedAt` is reserved for future bond-action expansion; current `~bond` is display-only
@@ -48,6 +49,7 @@ This document describes current Prisma models from `prisma/schema.prisma` only.
   - Team composition slots that point to owned lions
 - `ActiveLionSpawn`
   - Currently spawned wild lions in guild channels
+  - Naturally scheduled spawns use encounter level `1`; officer-forced event encounters may still use an explicit temporary level that does not transfer into owned progression
 - `LionShopItemDefinition`
   - Shop catalog for lion items and item effects
 - `LionSpawnConfig`

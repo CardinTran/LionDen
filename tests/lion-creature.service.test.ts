@@ -29,6 +29,7 @@ import {
   releaseUserLion,
   setUserLionNickname,
   setUserLionTeam,
+  syncDefaultLionData,
   trainUserLion,
   useLionTrainingItem,
   type ActiveLionSpawnWithSpeciesRecord,
@@ -371,33 +372,49 @@ describe("lion creature service", () => {
     expect(findMany).toHaveBeenCalledTimes(1);
   });
 
-  it("generates wild lion levels from conservative rarity tiers", () => {
-    const rolls = [0, 0, 0.75, 0, 0.95, 0.999];
-    let index = 0;
-    const random = (): number => rolls[index++] ?? 0;
-
-    expect(generateWildLionSpawnLevel({ random })).toBe(1);
-    expect(generateWildLionSpawnLevel({ random })).toBe(11);
-    expect(generateWildLionSpawnLevel({ random })).toBe(50);
+  it("defaults naturally spawned wild lions to level one", () => {
+    expect(generateWildLionSpawnLevel({ random: () => 0.999 })).toBe(1);
   });
 
-  it("applies level lure bonuses while clamping wild lion levels", () => {
-    const rolls = [0, 0.5, 0.95, 0.999];
-    let index = 0;
-    const random = (): number => rolls[index++] ?? 0;
-
+  it("supports bounded officer-forced encounter levels", () => {
     expect(
       generateWildLionSpawnLevel({
-        random,
-        levelBonus: 8
+        random: () => 0.5,
+        minLevel: 5,
+        maxLevel: 10
       })
-    ).toBe(14);
+    ).toBe(8);
     expect(
       generateWildLionSpawnLevel({
-        random,
-        levelBonus: 8
+        random: () => 0.999,
+        minLevel: 50,
+        maxLevel: 60
       })
     ).toBe(50);
+  });
+
+  it("disables legacy level boost shop definitions during default sync", async () => {
+    const updateMany = vi.fn().mockResolvedValue({ count: 1 });
+
+    await syncDefaultLionData({
+      lionSpecies: {
+        upsert: vi.fn().mockResolvedValue({})
+      },
+      lionShopItemDefinition: {
+        upsert: vi.fn().mockResolvedValue({}),
+        updateMany
+      }
+    } as never);
+
+    expect(updateMany).toHaveBeenCalledWith({
+      where: {
+        effectType: "LEVEL_BOOST",
+        isEnabled: true
+      },
+      data: {
+        isEnabled: false
+      }
+    });
   });
 
   it("purchases shop items with coins and adds inventory", async () => {
@@ -459,8 +476,8 @@ describe("lion creature service", () => {
   it("activates a channel effect after consuming one item", async () => {
     const create = vi.fn().mockResolvedValue(
       buildChannelEffect({
-        effectType: "LEVEL_BOOST",
-        itemKey: "level-lure"
+        effectType: "RARITY_BOOST",
+        itemKey: "rare-lure"
       })
     );
     const inventoryUpdate = vi.fn().mockResolvedValue({ count: 1 });
@@ -474,7 +491,7 @@ describe("lion creature service", () => {
         userItemInventory: {
           findUnique: vi.fn().mockResolvedValue(
             buildInventory({
-              itemKey: "level-lure",
+              itemKey: "rare-lure",
               quantity: 1
             })
           ),
@@ -485,9 +502,9 @@ describe("lion creature service", () => {
         guildId: "guild_123",
         channelId: "channel_123",
         userId: "user_123",
-        itemKey: "level-lure",
-        effectType: "LEVEL_BOOST",
-        effectValue: 8,
+        itemKey: "rare-lure",
+        effectType: "RARITY_BOOST",
+        effectValue: 10,
         durationMinutes: 45,
         now
       }
@@ -498,8 +515,8 @@ describe("lion creature service", () => {
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          effectType: "LEVEL_BOOST",
-          effectValue: 8
+          effectType: "RARITY_BOOST",
+          effectValue: 10
         })
       })
     );
@@ -573,10 +590,10 @@ describe("lion creature service", () => {
     );
   });
 
-  it("uses active level lure effects when creating wild spawns", async () => {
+  it("ignores active legacy level lure effects when creating wild spawns", async () => {
     const create = vi.fn().mockResolvedValue(
       buildSpawn({
-        level: 9
+        level: 1
       })
     );
 
@@ -611,7 +628,7 @@ describe("lion creature service", () => {
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          level: 9
+          level: 1
         })
       })
     );
@@ -653,7 +670,8 @@ describe("lion creature service", () => {
     const item = buildItem();
     const inventory = buildInventory();
     const ownedLion = buildOwnedLion({
-      level: spawn.level,
+      level: 1,
+      experience: 0,
       species: spawn.species
     });
     const create = vi.fn().mockResolvedValue(ownedLion);
@@ -701,7 +719,8 @@ describe("lion creature service", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           ownerDisplayName: "Cardin",
-          level: 21
+          level: 1,
+          experience: 0
         })
       })
     );
