@@ -60,6 +60,12 @@ Commands:
 
 Successful catches and training actions also record weekly challenge progress on a best-effort basis. They also record 1 House point when the member belongs to a House.
 
+Naturally spawned wild lions are level 1. A successful catch creates a level 1
+owned lion with 0 XP, even when an officer forces a higher encounter level for
+an event drop. Owned lion levels are earned through training and battle XP, not
+random spawn level. Legacy level-lure effects are deprecated and do not raise
+new wild spawn levels.
+
 ## Roster and Identity
 
 Handlers:

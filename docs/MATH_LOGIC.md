@@ -295,38 +295,23 @@ This means:
 
 ### Wild Spawn Level Selection
 
-Wild spawns now generate an encounter level. The level is stored on the active
-spawn and copied onto the owned lion if a user catches it.
-
-Current tier distribution:
-
-- `75%` chance: level `1-10`
-- `20%` chance: level `11-25`
-- `5%` chance: level `26-50`
+Naturally generated wild spawns are level `1`.
 
 ```text
-tierRoll = random()
-
-if tierRoll < 0.75:
-  level = random integer in [1, 10]
-else if tierRoll < 0.95:
-  level = random integer in [11, 25]
-else:
-  level = random integer in [26, 50]
+naturalSpawnLevel = 1
 ```
 
-This keeps most encounters approachable while still giving the server occasional
-high-level spawns worth reacting to.
-
-Level lures add their item `effectValue` to the generated level and clamp the
-result at level `50`.
+Officer-forced event drops can provide a temporary min/max encounter level
+range for that one spawn. Encounter level remains stored on the active spawn
+for display and catch difficulty, but it does not transfer into owned
+progression.
 
 ```text
-spawnLevel = clamp(baseGeneratedLevel + levelLureBonus, 1, 50)
+caughtLionLevel = 1
+caughtLionXp = 0
 ```
 
-Officer-forced event drops can also provide a temporary min/max level range for
-that one spawn.
+Owned lion levels are earned through training and battle XP.
 
 ### Species Catch Chance
 
@@ -341,7 +326,7 @@ Where:
 
 - `baseCatchRate` comes from the species
 - `ballCatchModifier` comes from the item used
-- `levelPenalty` is intentionally small so high-level spawns are exciting without becoming impossible
+- `levelPenalty` is normally `0` for natural spawns and remains available for officer-forced event encounters
 - the final chance is bounded between `5%` and `95%`
 
 ### Catch Success Roll
@@ -401,8 +386,11 @@ Current fully implemented utility effects:
 - `CATCH_MODIFIER`: used by ball items during `~catch`
 - `SPAWN_BOOST`: makes a channel preferred for the next automated spawn while active
 - `RARITY_BOOST`: raises rare spawn weights in that channel while active
-- `LEVEL_BOOST`: raises generated wild encounter levels in that channel while active
 - `TRAINING_XP`: consumes the item and awards XP to one owned lion
+
+`LEVEL_BOOST` is a deprecated legacy effect. Default lion-data sync disables
+legacy shop definitions, and active legacy channel effects do not change new
+wild spawn levels.
 
 Channel effects expire by timestamp and are cleaned before reads. The same
 effect type cannot be activated twice in the same channel at the same time, so a
@@ -794,7 +782,7 @@ When those systems are implemented, this document should be extended rather than
 - Red envelope random interval: between configured min and max minutes
 - Lion spawn duration: `10 minutes`
 - Lion spawn interval: `120-240 minutes`
-- Wild lion level tiers: `75%` level `1-10`, `20%` level `11-25`, `5%` level `26-50`
+- Natural wild lion level: `1`
 - Catch chance: `clamp(baseCatchRate + itemBonus - levelPenalty, 5, 95)`
 - Lion level 2 threshold: `70 XP`
 - Lion default move foundation: `Pounce`, neutral type, `40` power, `100` accuracy

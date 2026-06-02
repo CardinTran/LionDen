@@ -70,8 +70,7 @@ export const handleUseItemLionMessage: LionMessageCommandHandler = async ({
 
   if (
     item.effectType !== "SPAWN_BOOST" &&
-    item.effectType !== "RARITY_BOOST" &&
-    item.effectType !== "LEVEL_BOOST"
+    item.effectType !== "RARITY_BOOST"
   ) {
     await message.reply(`${item.name} does not have an active-use effect yet.`);
     return true;

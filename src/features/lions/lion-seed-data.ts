@@ -242,16 +242,6 @@ export const DEFAULT_LION_SHOP_ITEMS: LionShopItemSeed[] = [
       "Boosts rare, epic, and legendary spawn weights in this channel."
   },
   {
-    itemKey: "level-lure",
-    name: "Level Lure",
-    category: "SPAWN_MODIFIER",
-    priceCoins: 90,
-    effectType: "LEVEL_BOOST",
-    effectValue: 8,
-    description:
-      "Raises wild lion encounter levels in this channel for a limited time."
-  },
-  {
     itemKey: "training-snack",
     name: "Training Snack",
     category: "UTILITY",

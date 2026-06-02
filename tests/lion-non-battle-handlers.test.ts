@@ -289,6 +289,29 @@ describe("non-battle lion message handlers", () => {
     );
   });
 
+  it("does not activate deprecated level boost items", async () => {
+    const context = createContext({
+      normalizedCommand: "~use",
+      args: ["level-lure"]
+    });
+    mockListLionShopItems.mockResolvedValue([
+      {
+        itemKey: "level-lure",
+        name: "Level Lure",
+        category: "SPAWN_MODIFIER",
+        effectType: "LEVEL_BOOST",
+        effectValue: 8
+      }
+    ]);
+
+    await expect(handleUseItemLionMessage(context)).resolves.toBe(true);
+
+    expect(mockActivateLionChannelEffect).not.toHaveBeenCalled();
+    expect(context.message.reply).toHaveBeenCalledWith(
+      "Level Lure does not have an active-use effect yet."
+    );
+  });
+
   it("shows a release preview before confirmation", async () => {
     const lions = [ownedLion];
     const context = createContext({
