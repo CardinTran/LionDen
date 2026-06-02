@@ -24,6 +24,7 @@ const mockFormatRecentNotableLionCatchesMessage = vi.fn();
 const mockFormatTopLionsMessage = vi.fn();
 const mockFormatUserLionsMessage = vi.fn();
 const mockFormatWildLionStatusMessage = vi.fn();
+const mockBuildLionImageReply = vi.fn((content: string) => content);
 
 vi.mock("../src/lib/prisma.js", () => ({
   prisma: {}
@@ -57,6 +58,10 @@ vi.mock("../src/features/lions/lion-formatting.js", () => ({
   formatTopLionsMessage: mockFormatTopLionsMessage,
   formatUserLionsMessage: mockFormatUserLionsMessage,
   formatWildLionStatusMessage: mockFormatWildLionStatusMessage
+}));
+
+vi.mock("../src/bot/messages/lions/image-reply.js", () => ({
+  buildLionImageReply: mockBuildLionImageReply
 }));
 
 const { handleBattleHistoryLionMessage } =
@@ -135,6 +140,7 @@ const createContext = (
 const ownedLion = {
   id: "lion_123",
   species: {
+    imagePath: "assets/lions/cards/rdl-lion-001.jpg",
     name: "Lion One",
     publicId: "L001"
   }
@@ -144,7 +150,8 @@ const species = {
   id: "species_006",
   name: "RDL Lion 006",
   publicId: "L006",
-  slug: "rdl-lion-006"
+  slug: "rdl-lion-006",
+  imagePath: "assets/lions/cards/rdl-lion-006.jpg"
 };
 
 describe("read-only lion message handlers", () => {
@@ -230,6 +237,10 @@ describe("read-only lion message handlers", () => {
 
     expect(mockFindLionSpeciesByQuery).toHaveBeenCalledWith({}, "L006");
     expect(mockFormatLionSpeciesMessage).toHaveBeenCalledWith(species);
+    expect(mockBuildLionImageReply).toHaveBeenCalledWith(
+      "species lion",
+      "assets/lions/cards/rdl-lion-006.jpg"
+    );
     expect(mockListUserLions).not.toHaveBeenCalled();
     expect(mockFindUserLionFromList).not.toHaveBeenCalled();
     expect(context.message.reply).toHaveBeenCalledWith("species lion");
@@ -295,6 +306,10 @@ describe("read-only lion message handlers", () => {
       {
         isFavorite: true
       }
+    );
+    expect(mockBuildLionImageReply).toHaveBeenCalledWith(
+      "owned lion",
+      "assets/lions/cards/rdl-lion-001.jpg"
     );
     expect(context.message.reply).toHaveBeenCalledWith("owned lion");
   });

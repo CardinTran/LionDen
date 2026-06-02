@@ -90,6 +90,11 @@ Commands:
 - `~groom`: grooms the caller's favorite lion when one is set.
 - `~release <lion> confirm`: releases one owned lion for coins.
 
+When `R2_PUBLIC_BASE_URL` is configured, `~lion` species details, `~lion`
+owned-lion details, and successful `~showcase` replies include the species
+image in a Discord embed. Without that optional environment variable, these
+commands keep their existing text-only replies.
+
 `~release <lion>` without `confirm` shows the release preview first. Releasing a favorite lion clears the favorite state. Favorite, showcase, bond, feed, and groom commands are social/cosmetic only; they do not grant user XP, coins, House points, weekly challenge progress, badges, combat bonuses, lion stat bonuses, or economy rewards. `~bond` is display-only and does not grant bond XP. If `~bond`, `~feed`, or `~groom` is run without a lion argument and no favorite lion is set, LionDen suggests `~favorite <lion>`.
 
 ## Team and Battles
@@ -142,6 +147,10 @@ Handler:
 Command:
 
 - `~wild`: shows active wild lions and their channel locations.
+
+New wild spawn posts use a public species-image embed when
+`R2_PUBLIC_BASE_URL` is configured. Without it, the existing local-file
+attachment behavior remains available when the asset exists on disk.
 
 ## Maintenance Notes
 

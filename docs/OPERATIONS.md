@@ -27,6 +27,30 @@ npm run prisma:generate
 
 Slash command changes require `npm run discord:register` before Discord will show the updated guild commands.
 
+## Public Lion Images
+
+Lion species keep their existing local-style `imagePath` values as canonical
+object keys. Set the optional `R2_PUBLIC_BASE_URL` environment variable to the
+public R2 bucket domain or custom domain when LionDen should display those
+images from Cloudflare R2.
+
+Upload each local lion image to R2 with the same relative object key:
+
+- `imagePath`: `assets/lions/cards/rdl-lion-001.jpg`
+- R2 object key: `assets/lions/cards/rdl-lion-001.jpg`
+- Public URL: `${R2_PUBLIC_BASE_URL}/assets/lions/cards/rdl-lion-001.jpg`
+
+When `R2_PUBLIC_BASE_URL` is configured, lion species details, owned lion
+details, showcases, and wild spawn posts can display the public image URL in a
+Discord embed. When it is omitted, detail and showcase replies remain
+text-only, and wild spawn posts retain their existing local-file attachment
+fallback when the asset exists on disk.
+
+This configuration is for public, static lion images only. It does not add
+private upload support, R2 write credentials, bucket identifiers, or account
+identifiers. No Prisma migration is needed because `LionSpecies.imagePath`
+already stores the desired R2 object key.
+
 ## Scheduler Startup
 
 Schedulers start from `src/bot/events/ready.ts` after the Discord client is ready, guild bot config exists, and presence has been applied.
