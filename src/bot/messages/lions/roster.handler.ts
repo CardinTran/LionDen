@@ -12,6 +12,7 @@ import {
 } from "../../../features/lions/lion-formatting.js";
 import { prisma } from "../../../lib/prisma.js";
 import { getDisplayName } from "./data.js";
+import { buildLionImageReply } from "./image-reply.js";
 import type { LionMessageCommandHandler } from "./types.js";
 
 export const handleRosterLionMessage: LionMessageCommandHandler = async ({
@@ -63,7 +64,9 @@ export const handleRosterLionMessage: LionMessageCommandHandler = async ({
   const species = await findLionSpeciesByQuery(prisma, query);
 
   if (species) {
-    await message.reply(formatLionSpeciesMessage(species));
+    await message.reply(
+      buildLionImageReply(formatLionSpeciesMessage(species), species.imagePath)
+    );
     return true;
   }
 
@@ -86,9 +89,12 @@ export const handleRosterLionMessage: LionMessageCommandHandler = async ({
   }
 
   await message.reply(
-    formatOwnedLionMessage(lion, getDisplayName(message), {
-      isFavorite: favorite?.lionId === lion.id
-    })
+    buildLionImageReply(
+      formatOwnedLionMessage(lion, getDisplayName(message), {
+        isFavorite: favorite?.lionId === lion.id
+      }),
+      lion.species.imagePath
+    )
   );
   return true;
 };

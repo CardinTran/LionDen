@@ -9,6 +9,7 @@ const mockShowcaseOwnedLion = vi.fn();
 const mockFormatClearFavoriteLionMessage = vi.fn();
 const mockFormatSetFavoriteLionMessage = vi.fn();
 const mockFormatShowcaseOwnedLionMessage = vi.fn();
+const mockBuildLionImageReply = vi.fn((content: string) => content);
 
 vi.mock("../src/lib/prisma.js", () => ({
   prisma: {}
@@ -24,6 +25,10 @@ vi.mock("../src/features/lions/lion-formatting.js", () => ({
   formatClearFavoriteLionMessage: mockFormatClearFavoriteLionMessage,
   formatSetFavoriteLionMessage: mockFormatSetFavoriteLionMessage,
   formatShowcaseOwnedLionMessage: mockFormatShowcaseOwnedLionMessage
+}));
+
+vi.mock("../src/bot/messages/lions/image-reply.js", () => ({
+  buildLionImageReply: mockBuildLionImageReply
 }));
 
 const { handleFavoriteLionMessage } = await import(
@@ -127,7 +132,14 @@ describe("lion showcase message handlers", () => {
 
   it("routes ~showcase with explicit and favorite-default queries", async () => {
     const result = {
-      outcome: "showcase"
+      outcome: "showcase",
+      showcase: {
+        lion: {
+          species: {
+            imagePath: "assets/lions/cards/rdl-lion-001.jpg"
+          }
+        }
+      }
     };
     const explicitContext = createContext({
       normalizedCommand: "~showcase",
@@ -161,6 +173,10 @@ describe("lion showcase message handlers", () => {
       }
     );
     expect(mockFormatShowcaseOwnedLionMessage).toHaveBeenCalledWith(result);
+    expect(mockBuildLionImageReply).toHaveBeenCalledWith(
+      "showcase message",
+      "assets/lions/cards/rdl-lion-001.jpg"
+    );
     expect(explicitContext.message.reply).toHaveBeenCalledWith("showcase message");
     expect(favoriteContext.message.reply).toHaveBeenCalledWith("showcase message");
   });

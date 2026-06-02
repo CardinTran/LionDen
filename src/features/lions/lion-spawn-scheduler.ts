@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 
-import type { Client } from "discord.js";
+import { EmbedBuilder, type Client, type MessageCreateOptions } from "discord.js";
 
 import { logger } from "../../lib/logger.js";
 import { prisma } from "../../lib/prisma.js";
@@ -21,6 +21,7 @@ import {
   type ActiveLionSpawnWithSpeciesRecord
 } from "./lion-creature.service.js";
 import { formatWildLionSpawnMessage } from "./lion-formatting.js";
+import { getLionImageUrl } from "./lion-image-url.js";
 import type { LionRarityValue } from "./lion-seed-data.js";
 
 let schedulerTimer: ReturnType<typeof setInterval> | null = null;
@@ -32,7 +33,7 @@ export const LION_SPAWN_ACTIVITY_WINDOW_MINUTES = 60;
 
 type SendableTextChannel = {
   id: string;
-  send(args: { content: string; files?: string[] }): Promise<{ id: string }>;
+  send(args: MessageCreateOptions): Promise<{ id: string }>;
 };
 
 const ensureLionRuntime = async (): Promise<void> => {
@@ -62,6 +63,22 @@ const getSpawnFiles = (spawn: ActiveLionSpawnWithSpeciesRecord): string[] => {
   }
 
   return [assetPath];
+};
+
+const getSpawnImageOptions = (
+  spawn: ActiveLionSpawnWithSpeciesRecord
+): Pick<MessageCreateOptions, "embeds" | "files"> => {
+  const imageUrl = getLionImageUrl(spawn.species.imagePath);
+
+  if (imageUrl) {
+    return {
+      embeds: [new EmbedBuilder().setImage(imageUrl)]
+    };
+  }
+
+  return {
+    files: getSpawnFiles(spawn)
+  };
 };
 
 export const postWildLionSpawnToChannel = async (
@@ -97,7 +114,7 @@ export const postWildLionSpawnToChannel = async (
     content: formatWildLionSpawnMessage({
       spawn: result.spawn
     }),
-    files: getSpawnFiles(result.spawn)
+    ...getSpawnImageOptions(result.spawn)
   });
 
   return attachWildLionSpawnMessage(prisma, {

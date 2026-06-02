@@ -2,6 +2,7 @@ import { showcaseOwnedLion } from "../../../features/lions/lion-showcase.service
 import { formatShowcaseOwnedLionMessage } from "../../../features/lions/lion-formatting.js";
 import { prisma } from "../../../lib/prisma.js";
 import { getDisplayName } from "./data.js";
+import { buildLionImageReply } from "./image-reply.js";
 import type { LionMessageCommandHandler } from "./types.js";
 
 export const handleShowcaseLionMessage: LionMessageCommandHandler = async ({
@@ -20,7 +21,12 @@ export const handleShowcaseLionMessage: LionMessageCommandHandler = async ({
     displayName: getDisplayName(message),
     query: args.join(" ")
   });
+  const content = formatShowcaseOwnedLionMessage(result);
 
-  await message.reply(formatShowcaseOwnedLionMessage(result));
+  await message.reply(
+    result.outcome === "showcase"
+      ? buildLionImageReply(content, result.showcase.lion.species.imagePath)
+      : content
+  );
   return true;
 };
