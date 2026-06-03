@@ -7,3 +7,6 @@ prisma/dev.db
 prisma/dev.db-journal
 *.sqlite
 *.sqlite-journal
+_unique_photoset/
+_legendary_photoset/
+_r2_upload/
