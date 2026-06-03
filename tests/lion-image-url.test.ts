@@ -18,30 +18,30 @@ describe("lion image URLs", () => {
   it("returns null when the public base URL is missing", () => {
     delete process.env.R2_PUBLIC_BASE_URL;
 
-    expect(getLionImageUrl("assets/lions/cards/rdl-lion-001.jpg")).toBeNull();
+    expect(getLionImageUrl("lions/common/example.jpg")).toBeNull();
   });
 
   it("joins a public base URL with a trailing slash", () => {
     process.env.R2_PUBLIC_BASE_URL = "https://images.example.com/";
 
-    expect(getLionImageUrl("assets/lions/cards/rdl-lion-001.jpg")).toBe(
-      "https://images.example.com/assets/lions/cards/rdl-lion-001.jpg"
+    expect(getLionImageUrl("lions/common/example.jpg")).toBe(
+      "https://images.example.com/lions/common/example.jpg"
     );
   });
 
   it("joins an image path with a leading slash", () => {
     process.env.R2_PUBLIC_BASE_URL = "https://images.example.com";
 
-    expect(getLionImageUrl("/assets/lions/cards/rdl-lion-001.jpg")).toBe(
-      "https://images.example.com/assets/lions/cards/rdl-lion-001.jpg"
+    expect(getLionImageUrl("/lions/common/example.jpg")).toBe(
+      "https://images.example.com/lions/common/example.jpg"
     );
   });
 
   it("joins a normal image path", () => {
     process.env.R2_PUBLIC_BASE_URL = "https://images.example.com";
 
-    expect(getLionImageUrl("assets/lions/cards/rdl-lion-001.jpg")).toBe(
-      "https://images.example.com/assets/lions/cards/rdl-lion-001.jpg"
+    expect(getLionImageUrl("lions/common/example.jpg")).toBe(
+      "https://images.example.com/lions/common/example.jpg"
     );
   });
 
@@ -49,10 +49,7 @@ describe("lion image URLs", () => {
     delete process.env.R2_PUBLIC_BASE_URL;
 
     expect(
-      buildLionImageReply(
-        "Lion details",
-        "assets/lions/cards/rdl-lion-001.jpg"
-      )
+      buildLionImageReply("Lion details", "lions/common/example.jpg")
     ).toBe("Lion details");
   });
 
@@ -61,7 +58,7 @@ describe("lion image URLs", () => {
 
     const reply = buildLionImageReply(
       "Lion details",
-      "assets/lions/cards/rdl-lion-001.jpg"
+      "lions/common/example.jpg"
     );
 
     expect(reply).not.toBe("Lion details");
@@ -71,7 +68,7 @@ describe("lion image URLs", () => {
         {
           data: {
             image: {
-              url: "https://images.example.com/assets/lions/cards/rdl-lion-001.jpg"
+              url: "https://images.example.com/lions/common/example.jpg"
             }
           }
         }
@@ -79,4 +76,3 @@ describe("lion image URLs", () => {
     });
   });
 });
-

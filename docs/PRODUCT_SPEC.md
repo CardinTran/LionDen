@@ -108,7 +108,7 @@ Current random red envelope rule:
 
 Current lion creature foundation rule:
 
-- LionDen stores a seeded local lion species catalog backed by the current repo assets
+- LionDen stores a seeded 766-species lion catalog generated from the manifest CSV, with images served from public R2 object keys when configured
 - users can buy lion-related items with coins, but cannot buy lions directly
 - current shop items include ball tiers and future spawn modifiers
 - wild lions can spawn in active text channels using the active-channel targeting pattern

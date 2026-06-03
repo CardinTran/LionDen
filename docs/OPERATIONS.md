@@ -29,16 +29,20 @@ Slash command changes require `npm run discord:register` before Discord will sho
 
 ## Public Lion Images
 
-Lion species keep their existing local-style `imagePath` values as canonical
-object keys. Set the optional `R2_PUBLIC_BASE_URL` environment variable to the
-public R2 bucket domain or custom domain when LionDen should display those
-images from Cloudflare R2.
+Lion species store `imagePath` as the canonical R2 object key. Set the optional
+`R2_PUBLIC_BASE_URL` environment variable to the public R2 bucket domain or
+custom domain when LionDen should display those images in Discord embeds.
 
-Upload each local lion image to R2 with the same relative object key:
+The bot builds public image URLs by appending the manifest `imagePath` directly
+to `R2_PUBLIC_BASE_URL`:
 
-- `imagePath`: `assets/lions/cards/rdl-lion-001.jpg`
-- R2 object key: `assets/lions/cards/rdl-lion-001.jpg`
-- Public URL: `${R2_PUBLIC_BASE_URL}/assets/lions/cards/rdl-lion-001.jpg`
+- `imagePath`: `lions/legendary/the-ultimate-boba-menace.jpg`
+- R2 object key: `lions/legendary/the-ultimate-boba-menace.jpg`
+- Public URL: `${R2_PUBLIC_BASE_URL}/lions/legendary/the-ultimate-boba-menace.jpg`
+
+If `R2_PUBLIC_BASE_URL` is not set, lion details and showcase replies stay
+text-only. Production image delivery should use R2 object keys from the
+manifest instead of legacy local `assets/lions/cards/*` paths.
 
 For the manifest-driven photo collection, place raw working images in the
 local-only `_unique_photoset` and `_legendary_photoset` folders when preparing
@@ -84,6 +88,17 @@ verification-only pass when needed:
 ```sh
 npm run lions:r2:upload -- <bucket-name> --verify-only
 ```
+
+Regenerate runtime species seed data from the manifest after approved manifest
+changes:
+
+```sh
+npm run lions:manifest:generate
+```
+
+`syncDefaultLionData()` upserts the generated `766` manifest species and
+disables legacy prototype species whose slugs or image paths use the old
+`rdl-lion-*` / `assets/lions/cards/*` pattern so they no longer spawn.
 
 The raw and staged photo folders are intentionally ignored by Git. Commit the
 manifest and preparation script, not the image copies. After a verified R2

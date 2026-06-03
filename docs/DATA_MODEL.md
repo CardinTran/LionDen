@@ -33,6 +33,9 @@ This document describes current Prisma models from `prisma/schema.prisma` only.
 
 - `LionSpecies`
   - Master definition table for catchable lion species
+  - Default sync seeds the generated 766-row manifest catalog from `assets/lions/lion_cards_766_unique_funny_names.csv`
+  - `imagePath` stores the R2 object key, such as `lions/common/example.jpg`, not a full URL
+  - Legacy prototype species using `rdl-lion-*` slugs or `assets/lions/cards/*` image paths are disabled during default sync so they do not spawn
 - `UserLion`
   - A user's owned lion instance, including level, XP, nickname, cosmetic bond XP, cosmetic bond level, and care cooldown timestamps
   - Wild catches start at level `1` with `0` XP; training and battle XP drive future owned-lion levels

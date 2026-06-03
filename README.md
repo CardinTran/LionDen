@@ -64,6 +64,9 @@ After pulling new migrations, run `npm run prisma:migrate:deploy` before startin
 - `npm run typecheck`: run the TypeScript checker
 - `npm run test`: run unit tests
 - `npm run discord:register`: register slash commands to the test guild
+- `npm run lions:manifest:generate`: regenerate the TypeScript lion species seed data from the 766-row CSV manifest
+- `npm run lions:r2:prepare`: stage manifest lion images into the R2 object-key layout
+- `npm run lions:r2:upload -- <bucket-name>`: upload and verify staged lion images with Wrangler
 - `npm run prisma:migrate:deploy`: apply committed Prisma migrations to the configured database
 - `npm run prisma:studio`: open the local Prisma database viewer
 

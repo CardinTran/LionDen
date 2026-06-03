@@ -646,7 +646,9 @@ export const syncDefaultLionData = async (
         name: species.name,
         imagePath: species.imagePath,
         rarity: species.rarity,
+        baseCatchRate: species.baseCatchRate,
         baseValue: species.baseValue,
+        spawnWeight: species.spawnWeight,
         primaryType: species.primaryType,
         secondaryType: species.secondaryType,
         baseHp: species.baseHp,
@@ -673,6 +675,27 @@ export const syncDefaultLionData = async (
       });
     })
   );
+
+  await store.lionSpecies.updateMany({
+    where: {
+      isEnabled: true,
+      OR: [
+        {
+          slug: {
+            startsWith: "rdl-lion-"
+          }
+        },
+        {
+          imagePath: {
+            startsWith: "assets/lions/cards/"
+          }
+        }
+      ]
+    },
+    data: {
+      isEnabled: false
+    }
+  });
 
   await Promise.all(
     DEFAULT_LION_SHOP_ITEMS.map((item) => {
