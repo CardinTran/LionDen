@@ -8,9 +8,9 @@ The lion photo manifest covers the visually reviewed keeper collection:
 - `43` explicitly marked photos from `_legendary_photoset`
 - `766` total manifest rows
 
-No photos were uploaded, deleted, renamed, resized, or copied into runtime
-asset folders during this task. The CSV stores the current local raw path in
-`originalFile` and the future R2 object key in `imagePath`.
+The CSV stores the original raw source path in `originalFile` and the R2 object
+key in `imagePath`. Runtime species data uses `imagePath`; it does not require
+the original raw image folders to exist in production.
 
 Manifest:
 
@@ -21,27 +21,27 @@ Manifest:
 The marked legendary collection remains exactly `43` photos. The remaining
 `723` keeper photos use the requested approximate distribution.
 
-| Rarity | Count | Share of non-legendary keepers |
-| --- | ---: | ---: |
-| `COMMON` | 398 | 55.0% |
-| `UNCOMMON` | 181 | 25.0% |
-| `RARE` | 86 | 11.9% |
-| `EPIC` | 58 | 8.0% |
-| `LEGENDARY` | 43 | Marked collection only |
+| Rarity      | Count | Share of non-legendary keepers |
+| ----------- | ----: | -----------------------------: |
+| `COMMON`    |   398 |                          55.0% |
+| `UNCOMMON`  |   181 |                          25.0% |
+| `RARE`      |    86 |                          11.9% |
+| `EPIC`      |    58 |                           8.0% |
+| `LEGENDARY` |    43 |         Marked collection only |
 
 ## Primary Type Counts
 
-| Type | Count |
-| --- | ---: |
-| `NEUTRAL` | 85 |
-| `FIRE` | 85 |
-| `WATER` | 85 |
-| `EARTH` | 85 |
-| `WIND` | 85 |
-| `LIGHT` | 85 |
-| `SHADOW` | 86 |
-| `METAL` | 85 |
-| `NATURE` | 85 |
+| Type      | Count |
+| --------- | ----: |
+| `NEUTRAL` |    85 |
+| `FIRE`    |    85 |
+| `WATER`   |    85 |
+| `EARTH`   |    85 |
+| `WIND`    |    85 |
+| `LIGHT`   |    85 |
+| `SHADOW`  |    86 |
+| `METAL`   |    85 |
+| `NATURE`  |    85 |
 
 ## Visual Review
 
@@ -124,7 +124,7 @@ type.
 
 ## R2 Preparation
 
-Each `imagePath` is a future R2 object key, not a URL:
+Each `imagePath` is an R2 object key, not a URL:
 
 ```text
 lions/<rarity>/<slug>.jpg
@@ -147,6 +147,24 @@ object-key layout. Upload it with `rclone copy _r2_upload r2:<bucket-name>`.
 After remote verification, remove `_r2_upload` and the two local-only raw
 working folders from the repository checkout. Restore the raw folders from
 their archive only when rebuilding an upload tree.
+
+## Runtime Seed Generation
+
+Runtime lion species are generated from this manifest into:
+
+```text
+src/features/lions/generated-lion-species.ts
+```
+
+Regenerate after approved CSV changes:
+
+```sh
+npm run lions:manifest:generate
+```
+
+The generated seed includes manifest identity fields plus deterministic gameplay
+values for catch rate, spawn weight, base value, stats, and placeholder ability
+labels.
 
 ## Recommended Next Steps
 

@@ -42,6 +42,7 @@ import {
   type UserLionTeamSlotWithLionRecord,
   type UserLionWithSpeciesRecord
 } from "../src/features/lions/lion-creature.service.js";
+import { DEFAULT_LION_SPECIES } from "../src/features/lions/lion-seed-data.js";
 import type { UserProfileRecord } from "../src/features/profiles/profile.service.js";
 
 const now = new Date("2026-05-15T12:00:00.000Z");
@@ -394,19 +395,41 @@ describe("lion creature service", () => {
   });
 
   it("disables legacy level boost shop definitions during default sync", async () => {
-    const updateMany = vi.fn().mockResolvedValue({ count: 1 });
+    const updateManyItems = vi.fn().mockResolvedValue({ count: 1 });
+    const updateManySpecies = vi.fn().mockResolvedValue({ count: 27 });
 
     await syncDefaultLionData({
       lionSpecies: {
-        upsert: vi.fn().mockResolvedValue({})
+        upsert: vi.fn().mockResolvedValue({}),
+        updateMany: updateManySpecies
       },
       lionShopItemDefinition: {
         upsert: vi.fn().mockResolvedValue({}),
-        updateMany
+        updateMany: updateManyItems
       }
     } as never);
 
-    expect(updateMany).toHaveBeenCalledWith({
+    expect(updateManySpecies).toHaveBeenCalledWith({
+      where: {
+        isEnabled: true,
+        OR: [
+          {
+            slug: {
+              startsWith: "rdl-lion-"
+            }
+          },
+          {
+            imagePath: {
+              startsWith: "assets/lions/cards/"
+            }
+          }
+        ]
+      },
+      data: {
+        isEnabled: false
+      }
+    });
+    expect(updateManyItems).toHaveBeenCalledWith({
       where: {
         effectType: "LEVEL_BOOST",
         isEnabled: true
@@ -415,6 +438,44 @@ describe("lion creature service", () => {
         isEnabled: false
       }
     });
+  });
+
+  it("syncs every manifest lion species with generated gameplay fields", async () => {
+    const upsertSpecies = vi.fn().mockResolvedValue({});
+
+    await syncDefaultLionData({
+      lionSpecies: {
+        upsert: upsertSpecies,
+        updateMany: vi.fn().mockResolvedValue({ count: 0 })
+      },
+      lionShopItemDefinition: {
+        upsert: vi.fn().mockResolvedValue({}),
+        updateMany: vi.fn().mockResolvedValue({ count: 0 })
+      }
+    } as never);
+
+    expect(upsertSpecies).toHaveBeenCalledTimes(766);
+    expect(upsertSpecies).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          slug: DEFAULT_LION_SPECIES[0].slug
+        },
+        create: expect.objectContaining({
+          publicId: "L0001",
+          imagePath: "lions/legendary/the-ultimate-boba-menace.jpg",
+          baseCatchRate: expect.any(Number),
+          spawnWeight: expect.any(Number),
+          isEnabled: true
+        }),
+        update: expect.objectContaining({
+          imagePath: "lions/legendary/the-ultimate-boba-menace.jpg",
+          baseCatchRate: expect.any(Number),
+          spawnWeight: expect.any(Number),
+          baseHp: expect.any(Number),
+          abilityKey: expect.any(String)
+        })
+      })
+    );
   });
 
   it("purchases shop items with coins and adds inventory", async () => {

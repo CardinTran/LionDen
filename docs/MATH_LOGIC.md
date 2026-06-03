@@ -424,21 +424,31 @@ nextQuantity = currentQuantity + quantity
 
 ## 9. Lion Species Seed Math
 
-The current seed catalog uses a small rarity curve.
+The current seed catalog is generated from the 766-row lion card manifest:
+
+```text
+assets/lions/lion_cards_766_unique_funny_names.csv
+```
+
+Regenerate the TypeScript seed export with:
+
+```sh
+npm run lions:manifest:generate
+```
 
 ### Seed Pool
 
-The initial seeded set mirrors the current 27 local images.
+The generated catalog contains `766` species.
 
-### Example Rarity Distribution
+### Rarity Distribution
 
-- 12 `COMMON`
-- 8 `UNCOMMON`
-- 4 `RARE`
-- 2 `EPIC`
-- 1 `LEGENDARY`
+- `COMMON`: `398`
+- `UNCOMMON`: `181`
+- `RARE`: `86`
+- `EPIC`: `58`
+- `LEGENDARY`: `43`
 
-### Example Spawn Weight Distribution
+### Spawn Weight Distribution
 
 - `COMMON`: `100`
 - `UNCOMMON`: `55`
@@ -446,15 +456,35 @@ The initial seeded set mirrors the current 27 local images.
 - `EPIC`: `10`
 - `LEGENDARY`: `3`
 
-### Example Catch Rate Distribution
+### Catch Rate Distribution
 
 - `COMMON`: `70`
 - `UNCOMMON`: `60`
 - `RARE`: `45`
-- `EPIC`: `30`
-- `LEGENDARY`: `18`
+- `EPIC`: `32`
+- `LEGENDARY`: `20`
 
-These are current balancing defaults, not fixed forever.
+### Generated Stats
+
+Stats are deterministic and derived from stable manifest fields:
+
+```text
+publicId + slug + rarity + primaryType + secondaryType
+```
+
+Each primary type has a small stat identity. Secondary types blend into that
+identity when present. Rarity adds a small bonus, and a stable hash adds bounded
+variance so lions differ without runtime randomness.
+
+Current generated ranges are intentionally narrow:
+
+- `baseHp`: roughly `45-80`
+- `baseAttack`: roughly `9-22`
+- `baseDefense`: roughly `8-22`
+- `baseSpeed`: roughly `7-22`
+
+Higher rarity can be slightly stronger, but owned-lion XP and level remain the
+main long-term progression source.
 
 ## 10. Lion Progression Math
 

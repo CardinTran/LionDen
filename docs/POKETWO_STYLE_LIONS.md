@@ -418,14 +418,14 @@ Goal:
 Tasks:
 
 - define the lion species schema
-- build a simple local asset manifest for the current 27 images
+- generate the species catalog from the 766-row lion card manifest
 - map each image to a lion species record
 - decide the first rarity tiers
 - decide the first base catch rate ranges
 
 Output:
 
-- a seeded lion species catalog ready for gameplay
+- a seeded 766-species lion catalog ready for gameplay
 
 ### Phase 2: Shop and Ball Economy
 
@@ -597,7 +597,7 @@ Current implementation note:
 - a short per-user battle start cooldown reduces public battle spam
 - battle summaries call out an MVP based on damage dealt
 - participating lions receive battle XP, with winners receiving more than the other team
-- wild spawns now generate encounter levels, and catches preserve the spawned level
+- naturally spawned wild lions are level 1, and caught lions always enter owned progression at level 1 with 0 XP
 - level lures and rare lures now affect future channel spawns
 - training snacks now provide an item-based lion XP sink for coins
 - owned lions can be nicknamed with validated public display text
