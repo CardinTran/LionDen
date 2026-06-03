@@ -17,6 +17,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "lions:r2:prepare": "node scripts/prepare-lion-r2-upload.mjs",
+    "lions:r2:upload": "node scripts/upload-lion-r2.mjs",
     "prisma:generate": "prisma generate",
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",

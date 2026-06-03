@@ -40,6 +40,59 @@ Upload each local lion image to R2 with the same relative object key:
 - R2 object key: `assets/lions/cards/rdl-lion-001.jpg`
 - Public URL: `${R2_PUBLIC_BASE_URL}/assets/lions/cards/rdl-lion-001.jpg`
 
+For the manifest-driven photo collection, place raw working images in the
+local-only `_unique_photoset` and `_legendary_photoset` folders when preparing
+an upload. Build an upload-ready copy tree with:
+
+```sh
+npm run lions:r2:prepare
+```
+
+The command reads
+`assets/lions/lion_cards_766_unique_funny_names.csv`, validates its
+sequential public IDs, unique slugs, and unique object keys, then copies each
+raw image into `_r2_upload/<imagePath>`. For example:
+
+```text
+imagePath: lions/common/easygoing-tent-snack-inspector.jpg
+local staged copy: _r2_upload/lions/common/easygoing-tent-snack-inspector.jpg
+R2 object key: lions/common/easygoing-tent-snack-inspector.jpg
+public URL: ${R2_PUBLIC_BASE_URL}/lions/common/easygoing-tent-snack-inspector.jpg
+```
+
+Cloudflare documents
+[`rclone`](https://developers.cloudflare.com/r2/examples/rclone/) for
+concurrent R2 uploads. After configuring an `rclone` remote named `r2`, upload
+the staged tree while preserving object keys:
+
+```sh
+rclone copy _r2_upload r2:<bucket-name>
+rclone ls r2:<bucket-name>
+```
+
+When Wrangler is authenticated locally, LionDen also includes a focused upload
+helper that uploads and byte-verifies every staged object:
+
+```sh
+wrangler login
+npm run lions:r2:upload -- <bucket-name>
+```
+
+The helper keeps authentication outside the repository and can perform a
+verification-only pass when needed:
+
+```sh
+npm run lions:r2:upload -- <bucket-name> --verify-only
+```
+
+The raw and staged photo folders are intentionally ignored by Git. Commit the
+manifest and preparation script, not the image copies. After a verified R2
+upload, the local `_unique_photoset`, `_legendary_photoset`, and `_r2_upload`
+folders can be removed from the repository checkout. Restore raw photos from
+their archive only when rebuilding an upload tree. R2 treats `/` characters in
+object keys as prefix delimiters, so the dashboard displays the staged
+`lions/<rarity>/...` key structure as folders.
+
 When `R2_PUBLIC_BASE_URL` is configured, lion species details, owned lion
 details, showcases, and wild spawn posts can display the public image URL in a
 Discord embed. When it is omitted, detail and showcase replies remain
